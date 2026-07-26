@@ -1,0 +1,8 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- The actual color scheme is defined in Kotlin (ui/theme/Theme.kt) and
+         applied by the MaterialTheme composable - this base theme only needs
+         to exist so the manifest/activity have a valid pre-Compose theme
+         reference (the system briefly uses it for the launch splash/window
+         background before Compose takes over). -->
+    <style name="Theme.Screensmith" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
