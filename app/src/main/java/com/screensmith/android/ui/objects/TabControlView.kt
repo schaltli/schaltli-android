@@ -50,7 +50,12 @@ fun TabControlView(
     }
 }
 
-private fun evaluateCondition(currentValue: String, operator: String, comparisonValue: String): Boolean {
+/**
+ * Not private - reused by MqttDataLineView for its own two independent
+ * arrow-visibility conditions (same operator set/semantics, see that
+ * file's header comment).
+ */
+fun evaluateCondition(currentValue: String, operator: String, comparisonValue: String): Boolean {
     return when (operator) {
         "==" -> currentValue == comparisonValue
         "!=" -> currentValue != comparisonValue

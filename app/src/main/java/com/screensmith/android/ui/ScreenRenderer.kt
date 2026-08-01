@@ -1,20 +1,27 @@
 package com.screensmith.android.ui
 
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import com.screensmith.android.data.Project
 import com.screensmith.android.data.Screen
 import com.screensmith.android.data.ScreenObject
 import com.screensmith.android.data.ButtonAction
 import com.screensmith.android.data.resolveTopicValue
 import com.screensmith.android.ui.objects.LevelIndicatorView
+import com.screensmith.android.ui.objects.MqttDataLineView
 import com.screensmith.android.ui.objects.MqttIconFieldView
 import com.screensmith.android.ui.objects.SoftwareButtonView
 import com.screensmith.android.ui.objects.TabControlView
@@ -50,11 +57,38 @@ fun ScreenRenderer(
             .background(backgroundColor),
     ) {
         screen.backgroundImage?.let { path ->
-            AsyncImage(
-                model = assetFileOf(path),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-            )
+            // The background is a pixel-exact rendering of box/line/icon
+            // objects at the project's own 360x800 reference resolution -
+            // it needs to reach the screen with zero resampling artifacts
+            // when Compose scales it up to the device's real (much higher)
+            // pixel density. Coil's AsyncImage got this most of the way
+            // (filterQuality = FilterQuality.None killed the bilinear blur,
+            // matching the web designer's own "imageRendering: pixelated"),
+            // but its underlying Paint still draws with anti-aliasing on,
+            // which softens the *edges* of the scaled bitmap independently
+            // of filterQuality - visible as single stray dark pixels
+            // bleeding a row past a hard black/white border at certain
+            // fractional scale offsets (2026-07-27 HIL finding, confirmed
+            // reproducible across repeated captures). Drawing the decoded
+            // bitmap directly via a native Paint with isAntiAlias = false
+            // (alongside isFilterBitmap = false, the native equivalent of
+            // FilterQuality.None) removes both smoothing sources at once.
+            val bitmap = remember(path) {
+                BitmapFactory.decodeFile(assetFileOf(path).path)?.asImageBitmap()
+            }
+            bitmap?.let { image ->
+                val androidBitmap = image.asAndroidBitmap()
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawIntoCanvas { canvas ->
+                        val paint = android.graphics.Paint().apply {
+                            isAntiAlias = false
+                            isFilterBitmap = false
+                        }
+                        val dst = android.graphics.Rect(0, 0, size.width.toInt(), size.height.toInt())
+                        canvas.nativeCanvas.drawBitmap(androidBitmap, null, dst, paint)
+                    }
+                }
+            }
         }
 
         for (obj in screen.objects.sortedBy { it.zIndex }) {
@@ -97,6 +131,10 @@ fun DynamicObjectView(
         }
         "SoftwareButton" -> SoftwareButtonView(obj, project, assetFileOf, onAction)
         "tab-control" -> TabControlView(obj, project, topicValues, assetFileOf, onAction)
+        "MqttDataLine" -> {
+            val value = resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues)
+            MqttDataLineView(obj, value)
+        }
         else -> Unit // box, line, icon, panel (outside a tab-control): already baked into the background.
     }
 }
