@@ -1,5 +1,6 @@
 package com.screensmith.android.mqtt
 
+import android.util.Log
 import com.hivemq.client.mqtt.MqttClient
 import com.hivemq.client.mqtt.datatypes.MqttQos
 import com.hivemq.client.mqtt.mqtt3.Mqtt3AsyncClient
@@ -40,6 +41,7 @@ class MqttRepository {
 
     /** (Re)connects to [config] and subscribes to every topic in [topics]. */
     fun connect(config: BrokerConfig, topics: Set<String>) {
+        Log.i("MqttRepository", "connect() called: host=${config.host} port=${config.port} topics=$topics")
         disconnect()
         subscribedTopics = topics
         _topicValues.value = emptyMap()
@@ -68,7 +70,16 @@ class MqttRepository {
                 .password(config.password.toByteArray(StandardCharsets.UTF_8))
                 .applySimpleAuth()
         }
-        connectBuilder.send()
+        Log.i("MqttRepository", "calling send()")
+        val future = connectBuilder.send()
+        Log.i("MqttRepository", "send() returned, future=$future")
+        future.whenComplete { _, throwable ->
+            if (throwable != null) {
+                Log.e("MqttRepository", "connect failed", throwable)
+            } else {
+                Log.i("MqttRepository", "connect ack received")
+            }
+        }
     }
 
     fun disconnect() {

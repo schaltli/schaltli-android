@@ -11,6 +11,7 @@ import com.screensmith.android.data.ScreenObject
 import com.screensmith.android.data.ButtonAction
 import com.screensmith.android.data.resolveTopicValue
 import com.screensmith.android.ui.DynamicObjectView
+import com.screensmith.android.ui.sortedByZIndex
 
 /**
  * Evaluates the tab-control's own topic value against each child panel's
@@ -29,11 +30,16 @@ fun TabControlView(
     topicValues: Map<String, String>,
     assetFileOf: (String) -> java.io.File,
     onAction: (ButtonAction) -> Unit,
+    screenBackgroundColor: String?,
 ) {
     val topicRef = obj.properties.stringOrNull("topic")
     val currentValue = resolveTopicValue(topicRef, project, topicValues)
 
-    val activePanel = obj.children.find { panel ->
+    // Panels are searched in zIndex order, first match wins - the same walk
+    // the firmware's getActivePanel() makes. Declaration order was close
+    // enough while nothing overlapped, but "first match" only means the same
+    // thing on both sides if both sides agree what first is.
+    val activePanel = obj.children.sortedByZIndex().find { panel ->
         val operator = panel.properties.string("comparisonOperator", "==")
         val comparisonValue = panel.properties.string("comparisonValue", "")
         evaluateCondition(currentValue, operator, comparisonValue)
@@ -44,8 +50,8 @@ fun TabControlView(
             .offset(x = obj.x.dp, y = obj.y.dp)
             .size(width = obj.width.dp, height = obj.height.dp),
     ) {
-        for (child in activePanel.children.sortedBy { it.zIndex }) {
-            DynamicObjectView(child, project, topicValues, assetFileOf, onAction)
+        for (child in activePanel.children.sortedByZIndex()) {
+            DynamicObjectView(child, project, topicValues, assetFileOf, onAction, screenBackgroundColor)
         }
     }
 }

@@ -51,7 +51,12 @@ fun calculateFillPercent(value: Double, calibrationPoints: List<Pair<Double, Dou
     return 0.0
 }
 
-private fun parseCalibrationPoints(props: JsonObject): List<Pair<Double, Double>> {
+/**
+ * Not private - ArcLevelView reads the same {value, barSizePercent}
+ * calibration list, because a ring and a bar are the same reading shown
+ * two ways and the designer maps them with one function too.
+ */
+fun parseCalibrationPoints(props: JsonObject): List<Pair<Double, Double>> {
     val array = props["calibrationPoints"] as? JsonArray ?: return listOf(0.0 to 0.0, 100.0 to 100.0)
     val points = array.mapNotNull { element ->
         val obj = element as? JsonObject ?: return@mapNotNull null

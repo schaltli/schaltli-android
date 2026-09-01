@@ -32,6 +32,14 @@ data class FontEntry(
     // bundle); absent for a BDF-format entry, which an android-platform
     // device shouldn't ship anyway - see lib/android-export.ts.
     val path: String? = null,
+    // Text baseline position (obj.y + ascent, see TextBoxView) - matches
+    // the designer's own getFontAscent()/render-text-box.ts baseline math
+    // and the firmware's drawTextBox(), both already pixel-verified. Without
+    // this, Compose's Text composable manages its own internal baseline
+    // from font metrics it derives itself, which measurably drifted from
+    // both (2026-07-27 HIL finding).
+    val ascent: Int? = null,
+    val descent: Int? = null,
 )
 
 @Serializable
@@ -67,10 +75,15 @@ data class Screen(
 
 @Serializable
 data class ButtonAction(
-    val type: String, // "next-screen" | "previous-screen" | "goto-screen" | "send-mqtt"
+    // "next-screen" | "previous-screen" | "goto-screen" | "send-mqtt" | "device-action"
+    val type: String,
     val targetScreenId: String? = null,
     val mqttTopic: String? = null,
     val mqttMessage: String? = null,
+    // Only for type "device-action": which of the device's own capabilities to
+    // invoke, matched against the DDF's `deviceActions` list. The only one
+    // this platform declares is "showScreenMenu".
+    val deviceActionId: String? = null,
 )
 
 // `properties` is intentionally a loose JsonObject, not a sealed hierarchy

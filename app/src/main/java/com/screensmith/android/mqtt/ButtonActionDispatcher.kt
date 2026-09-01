@@ -15,10 +15,21 @@ import kotlinx.serialization.json.JsonObject
  * SoftwareButton's action comes straight from its own `properties.action`
  * (see [actionOf]), not from a buttonId lookup chain. Fires once per tap,
  * same as the firmware only firing on press.
+ *
+ * The one id-keyed lookup that does exist here is a swipe: `swipe-left`,
+ * `swipe-right`, `swipe-up` and `swipe-down` are four firmware-invented
+ * button ids the designer offers on every touch-capable device
+ * (lib/device-description.ts), and a screen's own `buttonActions` map binds
+ * them - so a swipe arrives as an ordinary [ButtonAction] and needs nothing
+ * special once [com.screensmith.android.ui.swipeNavigation] has named it.
  */
 class ButtonActionDispatcher(
     private val mqttRepository: MqttRepository,
     private val onNavigate: (screenId: String) -> Unit,
+    // A "device-action" reaches whatever the platform itself provides rather
+    // than anything in the project. This platform declares exactly one,
+    // "showScreenMenu", matching the Waveshare's own DDF.
+    private val onDeviceAction: (deviceActionId: String) -> Unit = {},
 ) {
     fun dispatch(action: ButtonAction, project: Project, currentScreenId: String) {
         when (action.type) {
@@ -38,6 +49,10 @@ class ButtonActionDispatcher(
             "send-mqtt" -> {
                 val topic = action.mqttTopic ?: return
                 mqttRepository.publish(topic, action.mqttMessage ?: "")
+            }
+            "device-action" -> {
+                val id = action.deviceActionId ?: return
+                onDeviceAction(id)
             }
         }
     }

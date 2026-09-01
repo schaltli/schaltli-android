@@ -69,4 +69,14 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.svg)
     debugImplementation(libs.androidx.ui.tooling)
+
+    // JVM unit tests only - no instrumentation, no device. The one thing
+    // tested here is the arc rasterizer, which is pure integer arithmetic
+    // with no Android dependency at all, and holding it to the designer's
+    // own numbers has to be possible on any machine in milliseconds.
+    // `org.json` ships with the Android SDK but is stubbed out for local
+    // unit tests, so the real implementation is added explicitly rather
+    // than every JSON call throwing "not mocked".
+    testImplementation(libs.junit)
+    testImplementation(libs.json)
 }

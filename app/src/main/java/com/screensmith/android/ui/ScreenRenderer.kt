@@ -20,10 +20,12 @@ import com.screensmith.android.data.Screen
 import com.screensmith.android.data.ScreenObject
 import com.screensmith.android.data.ButtonAction
 import com.screensmith.android.data.resolveTopicValue
+import com.screensmith.android.ui.objects.ArcLevelView
 import com.screensmith.android.ui.objects.LevelIndicatorView
 import com.screensmith.android.ui.objects.MqttDataLineView
 import com.screensmith.android.ui.objects.MqttIconFieldView
 import com.screensmith.android.ui.objects.SoftwareButtonView
+import com.screensmith.android.ui.objects.SwitchView
 import com.screensmith.android.ui.objects.TabControlView
 import com.screensmith.android.ui.objects.TextBoxView
 import com.screensmith.android.ui.objects.parseHexColor
@@ -91,11 +93,35 @@ fun ScreenRenderer(
             }
         }
 
-        for (obj in screen.objects.sortedBy { it.zIndex }) {
-            DynamicObjectView(obj, project, topicValues, assetFileOf, onAction)
+        for (obj in screen.objects.sortedByZIndex()) {
+            DynamicObjectView(obj, project, topicValues, assetFileOf, onAction, screen.backgroundColor)
         }
     }
 }
+
+/**
+ * Draw order, ties broken by object id.
+ *
+ * `sortedBy { it.zIndex }` alone is a stable sort, so two objects sharing a
+ * zIndex came out in whatever order the JSON happened to list them. The
+ * designer breaks the same tie with `a.zIndex - b.zIndex ||
+ * a.id.localeCompare(b.id)` (lib/object-order.ts), which is a total order -
+ * the same two objects can never come out in a different sequence twice.
+ *
+ * The firmware learned this the expensive way on 2026-08-25: its std::sort
+ * was given only `zIndex <`, and the first HIL run that ever had two
+ * equal-zIndex objects overlapping - a label and a Switch - reported 1533
+ * differing pixels, with each side drawing the other one on top. Both were
+ * "correct" by their own rule; only one of them had a rule. Adding Switch
+ * support here is exactly what makes that overlap reachable on this target
+ * too, so the tie-break comes with it.
+ *
+ * Kotlin's String.compareTo is a byte-order comparison, close enough to
+ * localeCompare for object ids, which this app only ever generates out of
+ * ASCII.
+ */
+fun List<ScreenObject>.sortedByZIndex(): List<ScreenObject> =
+    sortedWith(compareBy({ it.zIndex }, { it.id }))
 
 /**
  * Type-based dispatch for one object - the Compose equivalent of the
@@ -111,6 +137,11 @@ fun DynamicObjectView(
     topicValues: Map<String, String>,
     assetFileOf: (String) -> File,
     onAction: (ButtonAction) -> Unit,
+    // Only an arc-level reads this, and only to decide what its
+    // anti-aliased edges mix into where its own background is transparent -
+    // see ArcLevelView. Passed down rather than looked up because a nested
+    // object has no way back to the screen that owns it.
+    screenBackgroundColor: String?,
 ) {
     when (obj.type) {
         "label" -> {
@@ -129,8 +160,21 @@ fun DynamicObjectView(
             val value = resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues)
             LevelIndicatorView(obj, project, value)
         }
+        "arc-level" -> {
+            val value = resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues)
+            // Resolved here rather than inside the view for the same reason
+            // every other topic is: one place knows how a topic reference
+            // (including its "#jsonpath" suffix) turns into a value.
+            val setpoint = obj.properties.stringOrNull("setpointTopic")
+                ?.let { resolveTopicValue(it, project, topicValues) }
+            ArcLevelView(obj, project, value, setpoint, screenBackgroundColor, assetFileOf)
+        }
+        "Switch" -> {
+            val value = resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues)
+            SwitchView(obj, project, value, assetFileOf, onAction)
+        }
         "SoftwareButton" -> SoftwareButtonView(obj, project, assetFileOf, onAction)
-        "tab-control" -> TabControlView(obj, project, topicValues, assetFileOf, onAction)
+        "tab-control" -> TabControlView(obj, project, topicValues, assetFileOf, onAction, screenBackgroundColor)
         "MqttDataLine" -> {
             val value = resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues)
             MqttDataLineView(obj, value)

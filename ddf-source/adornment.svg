@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="392" height="920" viewBox="0 0 392 920">
+  <!-- Device body with the screen area punched out (fill-rule="evenodd" over two subpaths -
+       outer body + inner screen rect - is the SVG equivalent of Inkscape's Path > Difference).
+       Leaves the screen area at true alpha 0 so the designer's actual canvas content underneath
+       is visible there. A generic phone silhouette - not modeled on any specific real device. -->
+  <path
+    fill-rule="evenodd"
+    fill="#1a1a1a"
+    stroke="#000000"
+    stroke-width="2"
+    d="M32,4 L360,4 A28,28 0 0 1 388,32 L388,888 A28,28 0 0 1 360,916 L32,916 A28,28 0 0 1 4,888 L4,32 A28,28 0 0 1 32,4 Z
+       M16,60 L376,60 L376,860 L16,860 Z"
+  />
+
+  <!-- Screen area marker - matches adornment.drawingArea in device.json (x=16,y=60,width=360,height=800).
+       Purely informational (no fill/stroke); the actual hole is cut by the path above. -->
+  <rect id="screen" x="16" y="60" width="360" height="800" fill="none" stroke="none" />
+
+  <!-- Front camera - purely decorative, not a functional element. -->
+  <circle cx="196" cy="32" r="5" fill="#000000" stroke="#333333" stroke-width="1" />
+
+  <!-- Home indicator bar - purely decorative, not a functional element. -->
+  <rect x="146" y="886" width="100" height="6" rx="3" fill="#555555" />
+</svg>

@@ -1,12 +1,17 @@
 package com.screensmith.android
 
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
@@ -29,21 +34,57 @@ import com.screensmith.android.mqtt.BrokerConfig
 import com.screensmith.android.mqtt.ButtonActionDispatcher
 import com.screensmith.android.mqtt.MqttRepository
 import com.screensmith.android.ui.ImportScreen
+import com.screensmith.android.ui.ScreenMenuOverlay
 import com.screensmith.android.ui.ScreenRenderer
 import com.screensmith.android.ui.SettingsScreen
+import com.screensmith.android.ui.swipeNavigation
 import com.screensmith.android.ui.theme.ScreensmithTheme
 import kotlinx.coroutines.launch
 
+/**
+ * Kiosk mode: this is meant to run as an always-on wall display, not a
+ * general-purpose app the user navigates away from - so it pins itself to
+ * the foreground (Screen Pinning / Lock Task Mode, the standard non-device-
+ * owner API - startLockTask() - rather than full Device Owner provisioning,
+ * which would change much more about how the phone itself is managed and
+ * isn't something to switch on for someone's everyday device without an
+ * explicit, separate decision), keeps the screen on, and hides the system
+ * bars. Screen Pinning still requires a one-time toggle in
+ * Settings > Security > "Screen pinning" on stock Android (or the device
+ * simply shows its own "pin this app?" confirmation the first time) - that
+ * can't be flipped from app code without Device Owner privileges either.
+ */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        hideSystemBars()
+
         val app = application as ScreensmithApp
         setContent {
             ScreensmithTheme {
                 ScreensmithRoot(app)
             }
         }
+
+        startLockTask()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        // A system surface (e.g. a permission prompt, or the one-time
+        // Screen Pinning confirmation itself) taking focus un-hides the
+        // bars - re-hide once this window has it back, the standard
+        // pattern for sticky immersive mode.
+        if (hasFocus) hideSystemBars()
+    }
+
+    private fun hideSystemBars() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val controller = WindowInsetsControllerCompat(window, window.decorView)
+        controller.hide(WindowInsetsCompat.Type.systemBars())
+        controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     }
 }
 
@@ -67,6 +108,7 @@ fun ScreensmithRoot(app: ScreensmithApp) {
 
     var currentScreenId by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
+    var showScreenMenu by remember { mutableStateOf(false) }
     var importError by remember { mutableStateOf<String?>(null) }
 
     // A freshly-loaded (or just-imported) project always starts on its
@@ -81,6 +123,7 @@ fun ScreensmithRoot(app: ScreensmithApp) {
     // right topic set for whichever project is currently loaded.
     LaunchedEffect(project, brokerConfig) {
         val activeProject = project
+        android.util.Log.i("ScreensmithRoot", "LaunchedEffect fired: project=${activeProject?.name} brokerHost=${brokerConfig.host}")
         if (activeProject != null && brokerConfig.host.isNotBlank()) {
             mqttRepository.connect(brokerConfig, activeProject.collectTopicNames())
         } else {
@@ -89,7 +132,23 @@ fun ScreensmithRoot(app: ScreensmithApp) {
     }
 
     val dispatcher = remember(mqttRepository) {
-        ButtonActionDispatcher(mqttRepository) { screenId -> currentScreenId = screenId }
+        ButtonActionDispatcher(
+            mqttRepository = mqttRepository,
+            onNavigate = { screenId ->
+                currentScreenId = screenId
+                // A screen switch closes the menu that asked for it. Leaving
+                // it up over the new screen would hide the very thing the
+                // choice was about.
+                showScreenMenu = false
+            },
+            onDeviceAction = { deviceActionId ->
+                // The one device action this platform declares, matching the
+                // Android DDF's own `deviceActions` list. An unknown id is
+                // ignored rather than crashing: a project may have been built
+                // against a device that offers more of them.
+                if (deviceActionId == "showScreenMenu") showScreenMenu = true
+            },
+        )
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -116,13 +175,35 @@ fun ScreensmithRoot(app: ScreensmithApp) {
             )
             else -> {
                 val screen = activeProject.screens.find { it.id == currentScreenId } ?: activeProject.screens.first()
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        // A swipe is looked up in this screen's own
+                        // buttonActions and then dispatched like any other
+                        // bound button - the app has no built-in idea that
+                        // swiping left means "next". Which gestures do
+                        // anything, and what, is the project's decision, made
+                        // in the designer's Swipe Navigation panel.
+                        .swipeNavigation { buttonId ->
+                            screen.buttonActions[buttonId]
+                                ?.let { dispatcher.dispatch(it, activeProject, screen.id) }
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
                     ScreenRenderer(
                         screen = screen,
                         project = activeProject,
                         topicValues = topicValues,
                         assetFileOf = { path -> app.projectRepository.assetFile(path) },
                         onAction = { action -> dispatcher.dispatch(action, activeProject, screen.id) },
+                    )
+                }
+                if (showScreenMenu) {
+                    ScreenMenuOverlay(
+                        screens = activeProject.screens,
+                        currentScreenId = screen.id,
+                        onSelect = { screenId -> currentScreenId = screenId; showScreenMenu = false },
+                        onDismiss = { showScreenMenu = false },
                     )
                 }
             }
@@ -133,6 +214,15 @@ fun ScreensmithRoot(app: ScreensmithApp) {
                 onClick = { showSettings = !showSettings },
                 modifier = Modifier
                     .align(Alignment.TopEnd)
+                    // enableEdgeToEdge() draws app content behind the status
+                    // bar, so without this the icon's touch target sits
+                    // entirely inside the status bar's own window and every
+                    // tap is intercepted before it ever reaches the app
+                    // (confirmed via `dumpsys window displays` - statusBars
+                    // inset frame [0,0][*,113] fully contained the icon's
+                    // [45,99] y-range; 2026-07-27 finding while wiring up a
+                    // broker for the first time).
+                    .statusBarsPadding()
                     .padding(8.dp),
             ) {
                 Icon(Icons.Default.Settings, contentDescription = "Settings")
