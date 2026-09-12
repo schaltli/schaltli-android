@@ -1,0 +1,7 @@
+# The DDF sources go into the built zip byte for byte (tools/build-ddf.js),
+# and that build is only deterministic if a clone reproduces those bytes
+# exactly. Line-ending translation on the way in or out would make the same
+# source build a different DDF on a different machine, --check would report
+# stale on a clean tree, and the designer would ship a zip that no longer
+# matches what this app declares.
+ddf-source/** -text
