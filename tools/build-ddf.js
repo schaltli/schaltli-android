@@ -5,7 +5,7 @@
 //
 // Why the source lives here and not there: the DDF says what this device can
 // render, and that is a fact about this app, decided in this repo. Every
-// other ScreenBee target already works that way (screenbee-waveshare-1v8's
+// other ScreenBee target already works that way (screenbee-firmware's
 // own ddf-source/ + tools/generate-ddf-header.js), and the one time it did
 // not - the M5 Dial, whose zip was only ever hand-assembled - the designer's
 // copy and the device's real capabilities drifted apart, so anyone picking
