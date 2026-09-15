@@ -113,6 +113,8 @@ private fun activeStateIndex(
 ): Int {
     if (obj.properties.stringOrNull("topic").isNullOrEmpty()) return -1
     val trimmed = currentValue.trim()
+    // No value, no active segment - not even one whose readValue is empty.
+    if (trimmed.isEmpty()) return -1
     return states.indexOfFirst { it.readValue.trim() == trimmed }
 }
 

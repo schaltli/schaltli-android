@@ -128,6 +128,10 @@ fun MqttDataLineView(obj: ScreenObject, rawValue: String) {
     val color = props.colorOrDefault("color", Color.Black)
     val points = parsePoints(obj)
 
+    // No value yet, no line - not the thinnest one, which would read as
+    // "nothing flowing".
+    if (rawValue.isBlank()) return
+
     val numericValue = rawValue.toDoubleOrNull() ?: 0.0
     val strokeWidthPx = max(
         1.0,

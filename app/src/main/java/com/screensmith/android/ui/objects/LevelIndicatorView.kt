@@ -179,6 +179,10 @@ fun LevelIndicatorView(obj: ScreenObject, project: Project, rawValue: String) {
                     canvas.nativeCanvas.drawRect(inset, inset, w - inset, h - inset, fillPaint)
                 }
 
+                // No value yet: the frame, and neither bar nor text - an
+                // empty bar would claim an empty tank.
+                if (rawValue.isBlank()) return@drawIntoCanvas
+
                 val bar = computeBarFillRect(w, h, fillPercent, barDirection, barPaddingPx)
                 fillPaint.color = fillColor.toArgb()
                 canvas.nativeCanvas.drawRect(bar.x, bar.y, bar.x + bar.w, bar.y + bar.h, fillPaint)

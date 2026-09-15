@@ -185,16 +185,18 @@ fun ArcLevelView(
     assetFileOf: (String) -> java.io.File,
 ) {
     val props = obj.properties
-    // "50" as the stand-in for an unbound topic, same as the designer's
-    // preview - a ring at zero looks like a broken ring, not an empty one.
-    val value = rawValue.ifEmpty { "50" }
+    // No value yet: the track alone - no fill (not even what the calibration
+    // makes of 0), no marker, no number. Same on the firmware and in the
+    // designer, which both used to stand in "50" here.
+    val noValue = rawValue.isBlank()
+    val value = rawValue
     val numericValue = value.toDoubleOrNull() ?: 0.0
     val calibration = parseCalibrationPoints(props)
-    val fillPercent = calculateFillPercent(numericValue, calibration)
+    val fillPercent = if (noValue) 0.0 else calculateFillPercent(numericValue, calibration)
 
     // No setpoint topic, no marker - a water level has nothing to aim at.
     val setpointPercent = rawSetpoint
-        ?.takeIf { it.isNotEmpty() && !props.stringOrNull("setpointTopic").isNullOrEmpty() }
+        ?.takeIf { !noValue && it.isNotEmpty() && !props.stringOrNull("setpointTopic").isNullOrEmpty() }
         ?.let { calculateFillPercent(it.toDoubleOrNull() ?: 0.0, calibration) }
 
     val backgroundRaw = props.string("backgroundColor", "transparent")
@@ -227,9 +229,9 @@ fun ArcLevelView(
     }
 
     val displayValue = props.string("displayValue", "value")
-    val displayText = when (displayValue) {
-        "none" -> null
-        "percentage" -> "${fillPercent.roundToInt()}%"
+    val displayText = when {
+        noValue || displayValue == "none" -> null
+        displayValue == "percentage" -> "${fillPercent.roundToInt()}%"
         else -> value
     }
 

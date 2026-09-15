@@ -25,7 +25,9 @@ fun MqttIconFieldView(obj: ScreenObject, currentValue: String, assetFileOf: (Str
     val backgroundColor = props.colorOrDefault("backgroundColor", Color.Transparent)
     val pairs = props["valueIconPairs"] as? JsonArray
 
+    // No value yet, no icon - not even one paired with an empty value.
     val matchedPath = pairs
+        ?.takeIf { currentValue.isNotBlank() }
         ?.filterIsInstance<JsonObject>()
         ?.find { it.stringOrNull("value") == currentValue }
         ?.stringOrNull("path")

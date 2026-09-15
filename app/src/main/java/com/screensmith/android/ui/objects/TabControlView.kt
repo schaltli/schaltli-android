@@ -39,11 +39,20 @@ fun TabControlView(
     // the firmware's getActivePanel() makes. Declaration order was close
     // enough while nothing overlapped, but "first match" only means the same
     // thing on both sides if both sides agree what first is.
-    val activePanel = obj.children.sortedByZIndex().find { panel ->
-        val operator = panel.properties.string("comparisonOperator", "==")
-        val comparisonValue = panel.properties.string("comparisonValue", "")
-        evaluateCondition(currentValue, operator, comparisonValue)
-    } ?: return
+    //
+    // No value yet: the first panel, so a screen built from tabs is usable
+    // before anything has arrived - and no condition gets to match an empty
+    // value by accident. Same as getActivePanel() on the firmware and in the
+    // designer.
+    val panels = obj.children.sortedByZIndex()
+    val activePanel = (
+        if (!topicRef.isNullOrEmpty() && currentValue.isBlank()) panels.firstOrNull()
+        else panels.find { panel ->
+            val operator = panel.properties.string("comparisonOperator", "==")
+            val comparisonValue = panel.properties.string("comparisonValue", "")
+            evaluateCondition(currentValue, operator, comparisonValue)
+        }
+    ) ?: return
 
     Box(
         modifier = Modifier
