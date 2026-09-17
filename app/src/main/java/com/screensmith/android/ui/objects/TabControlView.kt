@@ -31,6 +31,10 @@ fun TabControlView(
     assetFileOf: (String) -> java.io.File,
     onAction: (ButtonAction) -> Unit,
     screenBackgroundColor: String?,
+    // Passed straight through to the children: a settable level inside a
+    // panel is settable too.
+    askedValues: Map<String, String> = emptyMap(),
+    onSetLevel: (markerTopic: String, writeTopic: String, value: String) -> Unit = { _, _, _ -> },
 ) {
     val topicRef = obj.properties.stringOrNull("topic")
     val currentValue = resolveTopicValue(topicRef, project, topicValues)
@@ -60,7 +64,16 @@ fun TabControlView(
             .size(width = obj.width.dp, height = obj.height.dp),
     ) {
         for (child in activePanel.children.sortedByZIndex()) {
-            DynamicObjectView(child, project, topicValues, assetFileOf, onAction, screenBackgroundColor)
+            DynamicObjectView(
+                child,
+                project,
+                topicValues,
+                assetFileOf,
+                onAction,
+                screenBackgroundColor,
+                askedValues,
+                onSetLevel,
+            )
         }
     }
 }

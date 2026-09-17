@@ -18,8 +18,12 @@ import androidx.compose.ui.unit.dp
 import com.screensmith.android.data.FontEntry
 import com.screensmith.android.data.Project
 import com.screensmith.android.data.ScreenObject
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
@@ -33,6 +37,50 @@ import kotlin.math.truncate
  * shape and sort/clamp/linear-interpolate mechanism, `barSizePercent`
  * reinterpreted as a pixel width there - see that file's header comment).
  */
+/**
+ * The same interpolation read the other way: a finger has a position, which is
+ * a percentage of the track, and what has to be published is the value that
+ * percentage stands for (the designer's docs/2026-09-17-settable-level.md,
+ * decision 5, mirroring levelValueFromFill()).
+ *
+ * A calibration whose percentages fall as the value rises inverts too; a
+ * segment whose two percentages are equal has no value to give, so its lower
+ * value stands rather than a division by zero.
+ */
+fun valueForFillPercent(fillPercent: Double, calibrationPoints: List<Pair<Double, Double>>): Double {
+    if (calibrationPoints.isEmpty()) return 0.0
+    val sorted = calibrationPoints.sortedBy { it.first }
+    if (sorted.size == 1) return sorted[0].first
+
+    val first = sorted.first()
+    val last = sorted.last()
+    val rising = last.second >= first.second
+    if (if (rising) fillPercent <= first.second else fillPercent >= first.second) return first.first
+    if (if (rising) fillPercent >= last.second else fillPercent <= last.second) return last.first
+
+    for (i in 0 until sorted.size - 1) {
+        val p1 = sorted[i]
+        val p2 = sorted[i + 1]
+        val low = minOf(p1.second, p2.second)
+        val high = maxOf(p1.second, p2.second)
+        if (fillPercent < low || fillPercent > high) continue
+        if (p2.second == p1.second) return p1.first
+        val ratio = (fillPercent - p1.second) / (p2.second - p1.second)
+        return p1.first + ratio * (p2.first - p1.first)
+    }
+    return first.first
+}
+
+/** Snaps a value to a step, so a finger reports 35 and 40 rather than 37. */
+fun snapToStep(value: Double, step: Double): Double =
+    if (step <= 0) value else Math.round(value / step) * step
+
+/** What a settable level publishes: whole numbers without a decimal point. */
+fun formatSetValue(value: Double): String {
+    if (kotlin.math.abs(value - Math.round(value)) < 0.001) return Math.round(value).toString()
+    return value.toString().trimEnd('0').trimEnd('.')
+}
+
 fun calculateFillPercent(value: Double, calibrationPoints: List<Pair<Double, Double>>): Double {
     if (calibrationPoints.isEmpty()) return 0.0
     val sorted = calibrationPoints.sortedBy { it.first }
@@ -122,7 +170,19 @@ private fun computeBarFillRect(width: Float, height: Float, fillPercent: Double,
  * against the designer at any fill level (2026-07-27 HIL finding).
  */
 @Composable
-fun LevelIndicatorView(obj: ScreenObject, project: Project, rawValue: String) {
+fun LevelIndicatorView(
+    obj: ScreenObject,
+    project: Project,
+    rawValue: String,
+    // What the marker shows: the installation's setpoint, or what a finger
+    // asked of this value and the installation has not answered yet (decision
+    // 6c). Empty means no marker.
+    rawSetpoint: String = "",
+    // A tap sets the value at the point it landed, on a level with a write
+    // topic. Nothing is drawn from here: the marker follows from rawSetpoint,
+    // which the caller feeds from the asked value.
+    onSetLevel: (markerTopic: String, writeTopic: String, value: String) -> Unit = { _, _, _ -> },
+) {
     val props = obj.properties
     val backgroundColor = props.colorOrDefault("backgroundColor", Color.White)
     val borderColor = props.colorOrDefault("borderColor", Color(0xFFCCCCCC))
@@ -131,7 +191,22 @@ fun LevelIndicatorView(obj: ScreenObject, project: Project, rawValue: String) {
     val barDirection = props.string("barDirection", "left-to-right")
 
     val numericValue = rawValue.toDoubleOrNull() ?: 0.0
-    val fillPercent = calculateFillPercent(numericValue, parseCalibrationPoints(props)).coerceIn(0.0, 100.0)
+    val calibration = parseCalibrationPoints(props)
+    val fillPercent = calculateFillPercent(numericValue, calibration).coerceIn(0.0, 100.0)
+
+    // The marker: what was asked for, beside what is measured. Drawn over the
+    // fill and under the second text pass, the order the designer draws it in.
+    val setpointPercent = rawSetpoint.takeIf { it.isNotBlank() }?.let {
+        calculateFillPercent(it.toDoubleOrNull() ?: 0.0, calibration).coerceIn(0.0, 100.0)
+    }
+    val markerColor = props.colorOrDefault("markerColor", Color.White)
+    val markerWidth = ((props["markerWidth"] as? JsonPrimitive)?.intOrNull ?: 4).coerceAtLeast(1)
+    val markerStyle = props.string("markerStyle", "line")
+
+    val writeTopic = props.stringOrNull("writeTopic") ?: ""
+    val markerTopic = props.stringOrNull("setpointTopic")?.takeIf { it.isNotEmpty() }
+        ?: props.stringOrNull("topic") ?: ""
+    val step = (props["step"] as? JsonPrimitive)?.doubleOrNull ?: 1.0
 
     val displayText = when (displayValue) {
         "none" -> null
@@ -158,7 +233,38 @@ fun LevelIndicatorView(obj: ScreenObject, project: Project, rawValue: String) {
     Box(
         modifier = Modifier
             .offset(x = obj.x.dp, y = obj.y.dp)
-            .size(width = obj.width.dp, height = obj.height.dp),
+            .size(width = obj.width.dp, height = obj.height.dp)
+            .then(
+                if (writeTopic.isEmpty()) {
+                    Modifier
+                } else {
+                    // A tap sets the value at the point it landed: the same
+                    // rectangle arithmetic the fill uses, read backwards, and
+                    // snapped to the object's step (decision 5). In project
+                    // units, like every other touch in this app.
+                    Modifier.pointerInput(obj.id, writeTopic, step, calibration) {
+                        detectTapGestures { offset ->
+                            // density is the composable's Density, so the
+                            // scale factor is density.density - the same
+                            // conversion SwitchView's tap uses.
+                            val localX = (offset.x / density.density).toDouble()
+                            val localY = (offset.y / density.density).toDouble()
+                            val padding = MarkerShape.PADDING
+                            val innerWidth = (obj.width - padding * 2).coerceAtLeast(1.0)
+                            val innerHeight = (obj.height - padding * 2).coerceAtLeast(1.0)
+                            val along = when (barDirection) {
+                                "right-to-left" -> (innerWidth + padding - localX) / innerWidth
+                                "bottom-to-top" -> (innerHeight + padding - localY) / innerHeight
+                                "top-to-bottom" -> (localY - padding) / innerHeight
+                                else -> (localX - padding) / innerWidth
+                            }
+                            val percent = (along * 100).coerceIn(0.0, 100.0)
+                            val value = snapToStep(valueForFillPercent(percent, calibration), step)
+                            onSetLevel(markerTopic, writeTopic, formatSetValue(value))
+                        }
+                    }
+                },
+            ),
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
@@ -186,6 +292,30 @@ fun LevelIndicatorView(obj: ScreenObject, project: Project, rawValue: String) {
                 val bar = computeBarFillRect(w, h, fillPercent, barDirection, barPaddingPx)
                 fillPaint.color = fillColor.toArgb()
                 canvas.nativeCanvas.drawRect(bar.x, bar.y, bar.x + bar.w, bar.y + bar.h, fillPaint)
+
+                // Over the fill, under the number - the designer's order, so
+                // the digits stay readable and the marker still covers what
+                // is outside the bar.
+                if (setpointPercent != null) {
+                    fillPaint.color = markerColor.toArgb()
+                    for (r in MarkerShape.rects(
+                        objX = 0,
+                        objY = 0,
+                        objWidth = obj.width.toInt(),
+                        objHeight = obj.height.toInt(),
+                        barDirection = barDirection,
+                        setpointPercent = setpointPercent,
+                        markerWidth = markerWidth,
+                        style = markerStyle,
+                    )) {
+                        if (r.w <= 0 || r.h <= 0) continue
+                        val left = with(density) { r.x.dp.toPx() }
+                        val top = with(density) { r.y.dp.toPx() }
+                        val right = with(density) { (r.x + r.w).dp.toPx() }
+                        val bottom = with(density) { (r.y + r.h).dp.toPx() }
+                        canvas.nativeCanvas.drawRect(left, top, right, bottom, fillPaint)
+                    }
+                }
 
                 if (displayText != null) {
                     val textPaint = android.graphics.Paint().apply {

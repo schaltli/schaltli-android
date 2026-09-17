@@ -3,6 +3,7 @@ package com.screensmith.android.ui.objects
 import android.graphics.Bitmap
 import android.graphics.Typeface
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
@@ -14,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.screensmith.android.data.FontEntry
@@ -183,6 +185,11 @@ fun ArcLevelView(
     rawSetpoint: String?,
     screenBackgroundColor: String?,
     assetFileOf: (String) -> java.io.File,
+    // A tap sets the value at the point it landed, on a ring with a write
+    // topic - the same rule the bar has (the designer's
+    // docs/2026-09-17-settable-level.md). The marker follows from rawSetpoint,
+    // which the caller feeds from what was asked.
+    onSetLevel: (markerTopic: String, writeTopic: String, value: String) -> Unit = { _, _, _ -> },
 ) {
     val props = obj.properties
     // No value yet: the track alone - no fill (not even what the calibration
@@ -198,6 +205,11 @@ fun ArcLevelView(
     val setpointPercent = rawSetpoint
         ?.takeIf { !noValue && it.isNotEmpty() && !props.stringOrNull("setpointTopic").isNullOrEmpty() }
         ?.let { calculateFillPercent(it.toDoubleOrNull() ?: 0.0, calibration) }
+
+    val writeTopic = props.stringOrNull("writeTopic") ?: ""
+    val markerTopic = props.stringOrNull("setpointTopic")?.takeIf { it.isNotEmpty() }
+        ?: props.stringOrNull("topic") ?: ""
+    val step = props.double("step", 1.0)
 
     val backgroundRaw = props.string("backgroundColor", "transparent")
     val backgroundIsTransparent = backgroundRaw.isEmpty() || backgroundRaw == "transparent"
@@ -249,7 +261,49 @@ fun ArcLevelView(
     Box(
         modifier = Modifier
             .offset(x = obj.x.roundToInt().dp, y = obj.y.roundToInt().dp)
-            .size(width = obj.width.dp, height = obj.height.dp),
+            .size(width = obj.width.dp, height = obj.height.dp)
+            .then(
+                if (writeTopic.isEmpty()) {
+                    Modifier
+                } else {
+                    // The ring's own sector, read backwards: the finger's
+                    // angle becomes a percentage of the scale, that becomes a
+                    // value through the calibration, snapped to the step.
+                    // Twelve o'clock is up and the degrees run clockwise, the
+                    // orientation the ring is drawn in; a point in the gap at
+                    // the bottom of a dial gets the nearer end.
+                    Modifier.pointerInput(obj.id, writeTopic, step, calibration) {
+                        detectTapGestures { offset ->
+                            val side = min(obj.width, obj.height).coerceAtLeast(1.0)
+                            val dx = offset.x / density.density - side / 2
+                            val dy = offset.y / density.density - side / 2
+                            if (dx != 0.0 || dy != 0.0) {
+                                val minA = ((props.double("minAngle", 225.0).roundToInt() % 360) + 360) % 360
+                                val maxA = ((props.double("maxAngle", 135.0).roundToInt() % 360) + 360) % 360
+                                val counterClockwise = props.string("direction", "cw") == "ccw"
+                                val startDeg = if (counterClockwise) maxA else minA
+                                var spanDeg =
+                                    if (counterClockwise) ((minA - maxA + 360) % 360) else ((maxA - minA + 360) % 360)
+                                if (spanDeg == 0) spanDeg = 360
+
+                                var deg = Math.toDegrees(kotlin.math.atan2(dx, -dy))
+                                if (deg < 0) deg += 360.0
+                                var rel = (deg - startDeg + 360.0) % 360.0
+                                if (rel > spanDeg) {
+                                    val pastEnd = rel - spanDeg
+                                    val beforeStart = 360.0 - rel
+                                    rel = if (pastEnd <= beforeStart) spanDeg.toDouble() else 0.0
+                                }
+                                var percent = rel / spanDeg * 100.0
+                                if (counterClockwise) percent = 100.0 - percent
+                                val value =
+                                    snapToStep(valueForFillPercent(percent.coerceIn(0.0, 100.0), calibration), step)
+                                onSetLevel(markerTopic, writeTopic, formatSetValue(value))
+                            }
+                        }
+                    }
+                },
+            ),
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val scale = density.density

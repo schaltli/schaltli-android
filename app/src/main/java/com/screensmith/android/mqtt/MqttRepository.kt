@@ -39,12 +39,35 @@ class MqttRepository {
     private val _topicValues = MutableStateFlow<Map<String, String>>(emptyMap())
     val topicValues: StateFlow<Map<String, String>> = _topicValues.asStateFlow()
 
+    /**
+     * What a finger asked of a value, keyed by the topic the request is about
+     * (the designer's docs/2026-09-17-settable-level.md, decision 6c): a
+     * settable level draws it as its setpoint marker, while its fill keeps
+     * showing what the installation reports - and the two coincide once the
+     * command has landed.
+     *
+     * Keyed by topic rather than by object, because two bars on one dimmer
+     * are one value and both show the request. Dropped the moment a message
+     * arrives on that topic: from then on the installation's word stands,
+     * whether it confirms the request or contradicts it. No timeout, because
+     * the bridge asks again every two seconds, so a command that never landed
+     * corrects itself.
+     */
+    private val _askedValues = MutableStateFlow<Map<String, String>>(emptyMap())
+    val askedValues: StateFlow<Map<String, String>> = _askedValues.asStateFlow()
+
+    fun noteAsked(topic: String, value: String) {
+        if (topic.isEmpty()) return
+        _askedValues.update { it + (topic to value) }
+    }
+
     /** (Re)connects to [config] and subscribes to every topic in [topics]. */
     fun connect(config: BrokerConfig, topics: Set<String>) {
         Log.i("MqttRepository", "connect() called: host=${config.host} port=${config.port} topics=$topics")
         disconnect()
         subscribedTopics = topics
         _topicValues.value = emptyMap()
+        _askedValues.value = emptyMap()
 
         val builder = MqttClient.builder()
             .useMqttVersion3()
@@ -108,6 +131,9 @@ class MqttRepository {
                 .callback { publish ->
                     val payload = String(publish.payloadAsBytes, StandardCharsets.UTF_8)
                     _topicValues.update { it + (topic to payload) }
+                    // The installation has spoken about this value: whatever a
+                    // finger asked of it is answered, and its marker goes.
+                    _askedValues.update { if (it.containsKey(topic)) it - topic else it }
                 }
                 .send()
         }

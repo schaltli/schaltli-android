@@ -105,6 +105,10 @@ fun ScreensmithRoot(app: ScreensmithApp) {
     val brokerConfig by brokerConfigStore.config.collectAsStateWithLifecycle(initialValue = BrokerConfig(host = ""))
     val mqttRepository = remember { MqttRepository() }
     val topicValues by mqttRepository.topicValues.collectAsStateWithLifecycle()
+    // What a finger asked of a value: a settable level draws it as its marker
+    // until the installation answers (the designer's
+    // docs/2026-09-17-settable-level.md, decision 6c).
+    val askedValues by mqttRepository.askedValues.collectAsStateWithLifecycle()
 
     var currentScreenId by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
@@ -194,8 +198,16 @@ fun ScreensmithRoot(app: ScreensmithApp) {
                         screen = screen,
                         project = activeProject,
                         topicValues = topicValues,
+                        askedValues = askedValues,
                         assetFileOf = { path -> app.projectRepository.assetFile(path) },
                         onAction = { action -> dispatcher.dispatch(action, activeProject, screen.id) },
+                        // A set level publishes its command and remembers what
+                        // was asked, so the marker shows it at once instead of
+                        // waiting for the installation's answer.
+                        onSetLevel = { markerTopic, writeTopic, value ->
+                            mqttRepository.noteAsked(markerTopic, value)
+                            mqttRepository.publish(writeTopic, value)
+                        },
                     )
                 }
                 if (showScreenMenu) {

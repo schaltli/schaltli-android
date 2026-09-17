@@ -47,8 +47,16 @@ fun ScreenRenderer(
     screen: Screen,
     project: Project,
     topicValues: Map<String, String>,
+    // What a finger asked of a value, keyed by topic: a settable level draws
+    // it as its marker until the installation answers (MqttRepository's
+    // askedValues, the designer's docs/2026-09-17-settable-level.md).
+    askedValues: Map<String, String> = emptyMap(),
     assetFileOf: (String) -> File,
     onAction: (ButtonAction) -> Unit,
+    // A finger set a level: the value goes to its write topic, and the same
+    // value is remembered for the marker topic so the marker shows it until
+    // the installation answers (decision 6c).
+    onSetLevel: (markerTopic: String, writeTopic: String, value: String) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     val backgroundColor = screen.backgroundColor?.let(::parseHexColor) ?: Color.White
@@ -94,7 +102,16 @@ fun ScreenRenderer(
         }
 
         for (obj in screen.objects.sortedByZIndex()) {
-            DynamicObjectView(obj, project, topicValues, assetFileOf, onAction, screen.backgroundColor)
+            DynamicObjectView(
+                obj,
+                project,
+                topicValues,
+                assetFileOf,
+                onAction,
+                screen.backgroundColor,
+                askedValues,
+                onSetLevel,
+            )
         }
     }
 }
@@ -142,7 +159,22 @@ fun DynamicObjectView(
     // see ArcLevelView. Passed down rather than looked up because a nested
     // object has no way back to the screen that owns it.
     screenBackgroundColor: String?,
+    // What a finger asked of a value, and where a set value goes: a settable
+    // level draws the request as its marker and publishes on a tap
+    // (docs/2026-09-17-settable-level.md in the designer repo).
+    askedValues: Map<String, String> = emptyMap(),
+    onSetLevel: (markerTopic: String, writeTopic: String, value: String) -> Unit = { _, _, _ -> },
 ) {
+    // The marker's value for a level object: what a finger asked of it, else
+    // what the installation says its setpoint is. Keyed by topic, because two
+    // bars on one dimmer are one value and both show the request.
+    fun markerValueFor(o: ScreenObject): String {
+        val setpointTopic = o.properties.stringOrNull("setpointTopic")?.takeIf { it.isNotEmpty() }
+        val markerTopic = setpointTopic ?: o.properties.stringOrNull("topic") ?: ""
+        askedValues[markerTopic]?.let { return it }
+        return setpointTopic?.let { resolveTopicValue(it, project, topicValues) } ?: ""
+    }
+
     when (obj.type) {
         "label" -> {
             val text = obj.properties.stringOrNull("text") ?: ""
@@ -158,23 +190,26 @@ fun DynamicObjectView(
         }
         "level-indicator" -> {
             val value = resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues)
-            LevelIndicatorView(obj, project, value)
+            LevelIndicatorView(obj, project, value, markerValueFor(obj), onSetLevel)
         }
         "arc-level" -> {
             val value = resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues)
             // Resolved here rather than inside the view for the same reason
             // every other topic is: one place knows how a topic reference
             // (including its "#jsonpath" suffix) turns into a value.
-            val setpoint = obj.properties.stringOrNull("setpointTopic")
-                ?.let { resolveTopicValue(it, project, topicValues) }
-            ArcLevelView(obj, project, value, setpoint, screenBackgroundColor, assetFileOf)
+            // What a finger asked of it wins over the installation's older
+            // target: it is that setpoint the finger is setting.
+            val setpoint = markerValueFor(obj).takeIf { it.isNotEmpty() }
+                ?: obj.properties.stringOrNull("setpointTopic")?.let { resolveTopicValue(it, project, topicValues) }
+            ArcLevelView(obj, project, value, setpoint, screenBackgroundColor, assetFileOf, onSetLevel)
         }
         "Switch" -> {
             val value = resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues)
             SwitchView(obj, project, value, assetFileOf, onAction)
         }
         "SoftwareButton" -> SoftwareButtonView(obj, project, assetFileOf, onAction)
-        "tab-control" -> TabControlView(obj, project, topicValues, assetFileOf, onAction, screenBackgroundColor)
+        "tab-control" ->
+            TabControlView(obj, project, topicValues, assetFileOf, onAction, screenBackgroundColor, askedValues, onSetLevel)
         "MqttDataLine" -> {
             val value = resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues)
             MqttDataLineView(obj, value)
