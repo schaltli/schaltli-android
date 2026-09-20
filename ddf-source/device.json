@@ -56,19 +56,22 @@
     }
   ],
   "supportedObjectTypes": [
-    "MqttDataField",
-    "MQTTIconField",
-    "label",
-    "level-indicator",
+    "live-text",
+    "live-icon",
+    "text",
     "icon",
+    "bar",
+    "slider",
+    "gauge",
+    "dial",
+    "switch",
+    "button-group",
+    "button",
     "line",
-    "MqttDataLine",
+    "live-line",
     "box",
-    "tab-control",
-    "panel",
-    "SoftwareButton",
-    "arc-level",
-    "Switch"
+    "switcher",
+    "panel"
   ],
   "systemGeneration": "1.0",
   "deviceActions": [

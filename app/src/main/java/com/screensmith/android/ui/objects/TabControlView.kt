@@ -20,7 +20,7 @@ import com.screensmith.android.ui.sortedByZIndex
  * `evaluateVisibilityCondition` (`ScreenRenderer.cpp:166,661`) exactly,
  * including numeric vs. string comparison per operator. Recursive nesting
  * (a panel containing another tab-control) works for free: each child goes
- * back through [DynamicObjectView], which handles "tab-control" the same
+ * back through [DynamicObjectView], which handles "switcher" the same
  * way at any depth.
  */
 @Composable

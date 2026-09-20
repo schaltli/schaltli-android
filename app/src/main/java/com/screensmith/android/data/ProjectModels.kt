@@ -105,7 +105,7 @@ data class ScreenObject(
     // panel's own contained objects respectively) - recursive, same as the
     // designer's ScreenmanObject.children.
     val children: List<ScreenObject> = emptyList(),
-    // Only meaningful on "icon" objects and MQTTIconField's valueIconPairs
+    // Only meaningful on "icon" objects and live-icon's valueIconPairs
     // entries - path to the icon's SVG inside the bundle.
     val path: String? = null,
 )

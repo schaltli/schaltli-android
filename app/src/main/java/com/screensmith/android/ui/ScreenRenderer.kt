@@ -144,7 +144,7 @@ fun List<ScreenObject>.sortedByZIndex(): List<ScreenObject> =
  * Type-based dispatch for one object - the Compose equivalent of the
  * firmware's `ScreenRenderer::renderObject` switch (`ScreenRenderer.cpp:133`)
  * and the designer's `drawObject`. Static types (box/line/icon/a bare
- * "panel" outside a tab-control) are intentionally no-ops: they're already
+ * "panel" outside a switcher) are intentionally no-ops: they're already
  * part of the flattened background image drawn beneath this.
  */
 @Composable
@@ -176,23 +176,26 @@ fun DynamicObjectView(
     }
 
     when (obj.type) {
-        "label" -> {
+        "text" -> {
             val text = obj.properties.stringOrNull("text") ?: ""
             TextBoxView(obj, project, text, assetFileOf)
         }
-        "MqttDataField", "field" -> {
+        "live-text" -> {
             val value = resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues)
             TextBoxView(obj, project, value, assetFileOf)
         }
-        "MQTTIconField" -> {
+        "live-icon" -> {
             val value = resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues)
             MqttIconFieldView(obj, value, assetFileOf)
         }
-        "level-indicator" -> {
+        // A slider is a bar a finger can move: the same view, and it draws a
+        // handle because the type says so (docs/2026-09-20-control-split.md
+        // in the designer repo).
+        "bar", "slider" -> {
             val value = resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues)
             LevelIndicatorView(obj, project, value, markerValueFor(obj), onSetLevel)
         }
-        "arc-level" -> {
+        "gauge", "dial" -> {
             val value = resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues)
             // Resolved here rather than inside the view for the same reason
             // every other topic is: one place knows how a topic reference
@@ -203,14 +206,14 @@ fun DynamicObjectView(
                 ?: obj.properties.stringOrNull("setpointTopic")?.let { resolveTopicValue(it, project, topicValues) }
             ArcLevelView(obj, project, value, setpoint, screenBackgroundColor, assetFileOf, onSetLevel)
         }
-        "Switch" -> {
+        "switch", "button-group" -> {
             val value = resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues)
             SwitchView(obj, project, value, assetFileOf, onAction)
         }
-        "SoftwareButton" -> SoftwareButtonView(obj, project, assetFileOf, onAction)
-        "tab-control" ->
+        "button" -> SoftwareButtonView(obj, project, assetFileOf, onAction)
+        "switcher" ->
             TabControlView(obj, project, topicValues, assetFileOf, onAction, screenBackgroundColor, askedValues, onSetLevel)
-        "MqttDataLine" -> {
+        "live-line" -> {
             val value = resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues)
             MqttDataLineView(obj, value)
         }

@@ -123,14 +123,14 @@ private fun activeStateIndex(
  *
  * The segmented branch is integer division, floored, because the firmware's
  * `dispatchTapAt` does the same with ints - a finger on a boundary has to
- * land on the same segment everywhere. In single mode there are no segments
+ * land on the same segment everywhere. In the knob form there are no segments
  * to aim at and a tap advances to the next state instead, wrapping; -1
  * (nothing matched yet) starts at the first state, because tapping a tile
  * showing "?" has to do something or it reads as broken.
  */
 private fun stateIndexForTap(obj: ScreenObject, localXUnits: Double, count: Int, activeIndex: Int): Int {
     if (count == 0) return -1
-    if (obj.properties.string("mode", "segmented") == "single") {
+    if (obj.type == "switch") {
         return if (activeIndex < 0) 0 else (activeIndex + 1) % count
     }
     val index = floor(localXUnits * count / obj.width).toInt()
@@ -155,7 +155,10 @@ fun SwitchView(
     val borderColor = props.colorOrDefault("borderColor", Color(0xFFCCCCCC))
     val textColor = props.colorOrDefault("textColor", Color.Black)
     val cornerRadius = props.double("cornerRadius", 0.0).coerceAtLeast(0.0).toInt()
-    val isSingle = props.string("mode", "segmented") == "single"
+    // The form is the type since 2026-09-20: "switch" is the knob in a
+    // track, "button-group" the strip of segments. It was a `mode`
+    // property until then.
+    val isSingle = obj.type == "switch"
 
     val activeIndex = activeStateIndex(obj, states, currentValue)
 
