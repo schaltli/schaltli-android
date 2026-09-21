@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -22,6 +23,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import com.screensmith.android.data.Screen
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -77,6 +79,13 @@ private const val FLICK_UNITS_PER_SECOND = 400
 private const val FLICK_MIN_UNITS = 30
 private const val COMMIT_FRACTION = 3
 
+/**
+ * How long to wait for a screen that was asked for before giving up on it and
+ * putting the display back to normal. Generous: the alternative to waiting
+ * too long is a display frozen mid-transition.
+ */
+private const val ARRIVAL_TIMEOUT_MS = 1500L
+
 /** Roughly the firmware's glide (120 units a frame at 15fps), as a duration. */
 private const val GLIDE_UNITS_PER_SECOND = 1800f
 private const val GLIDE_MIN_MS = 80
@@ -123,6 +132,45 @@ fun FollowingScreens(
     // moving left produces.
     var incomingSide by remember { mutableIntStateOf(1) }
     var settling by remember { mutableStateOf(false) }
+    // Set between asking for the move and the moved-to screen turning up.
+    var awaitingArrival by remember { mutableStateOf(false) }
+
+    // The transition is not over when the movement stops. It is over when the
+    // screen that was asked for is the one being handed in.
+    //
+    // Clearing the offset and the second picture the moment the move was
+    // asked for looked right and was not: the offset is read in a layout
+    // lambda and lands on the very next frame, while the new screen has to
+    // come back down through the caller and be composed - which includes
+    // decoding its background. Measured on a P20 on 2026-09-21, that gap was
+    // 148ms, and for all of it the *outgoing* screen sat back in the middle
+    // of the display. A flash of the picture you just swiped away.
+    //
+    // It only showed on a gesture let go near the threshold, where the glide
+    // still has most of the screen to cover; a swipe carried nearly all the
+    // way leaves so little glide that the eye misses it. Reported from the
+    // hand, which is the instrument that catches this sort of thing.
+    LaunchedEffect(screen, awaitingArrival) {
+        if (!awaitingArrival) return@LaunchedEffect
+        if (screen.id == incoming?.id) {
+            offsetPx = 0f
+            incoming = null
+            awaitingArrival = false
+            settling = false
+            return@LaunchedEffect
+        }
+        // It should always arrive - the screen slid in is the screen resolved
+        // for the binding, by the same function that dispatches it - but a
+        // transition that waits for ever is a frozen display, so there is a
+        // way out.
+        delay(ARRIVAL_TIMEOUT_MS)
+        if (awaitingArrival) {
+            offsetPx = 0f
+            incoming = null
+            awaitingArrival = false
+            settling = false
+        }
+    }
 
     BoxWithConstraints(modifier) {
         val widthPx = constraints.maxWidth.toFloat()
@@ -196,13 +244,21 @@ fun FollowingScreens(
                             scope.launch {
                                 val end = if (commit) -incomingSide * widthPx else 0f
                                 glide(from = offsetPx, to = end, density = density) { offsetPx = it }
-                                if (commit) onSwipe(followed)
-                                // Together, so the arriving screen is drawn
-                                // where it belongs rather than sliding back
-                                // into place first.
-                                offsetPx = 0f
-                                incoming = null
-                                settling = false
+                                if (commit) {
+                                    onSwipe(followed)
+                                    // Everything stays where the glide left
+                                    // it - the incoming screen centred, the
+                                    // outgoing one off the edge - until the
+                                    // new screen actually arrives. See
+                                    // awaitingArrival.
+                                    awaitingArrival = true
+                                } else {
+                                    // Nothing was asked for, so there is
+                                    // nothing to wait for.
+                                    offsetPx = 0f
+                                    incoming = null
+                                    settling = false
+                                }
                             }
                             return@awaitEachGesture
                         }
