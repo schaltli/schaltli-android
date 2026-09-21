@@ -16,6 +16,17 @@ data class Project(
     val name: String,
     val screenWidth: Int,
     val screenHeight: Int,
+    /**
+     * How the device is meant to be mounted: 0, 90, 180 or 270 degrees from
+     * its own native orientation, chosen in the designer and limited by what
+     * the DDF's `allowedRotations` permits.
+     *
+     * [screenWidth]/[screenHeight] are already the post-rotation numbers, and
+     * cannot stand in for this: a quarter turn swaps them, a half turn does
+     * not, so 0 and 180 are the same pair. Absent in bundles exported before
+     * 2026-09-21, which were all native.
+     */
+    val rotation: Int = 0,
     val fonts: List<FontEntry> = emptyList(),
     val topics: List<Topic> = emptyList(),
     val screens: List<Screen> = emptyList(),

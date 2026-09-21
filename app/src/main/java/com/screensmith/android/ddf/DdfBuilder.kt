@@ -104,7 +104,8 @@ object DdfBuilder {
         |  "screen": {
         |    "width": $width,
         |    "height": $height,
-        |    "colorDepth": "24bit"
+        |    "colorDepth": "24bit",
+        |    "allowedRotations": [90, 180, 270]
         |  },
         |  "adornment": {
         |    "svgPath": "adornment.svg"

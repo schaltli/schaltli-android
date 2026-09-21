@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import com.screensmith.android.data.FontEntry
 import com.screensmith.android.data.Project
 import com.screensmith.android.data.ScreenObject
+import com.screensmith.android.ui.LocalBundleInstallation
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 
@@ -52,7 +53,7 @@ fun TextBoxView(obj: ScreenObject, project: Project, text: String, assetFileOf: 
     val lineHeight = fontSize * 1.2f
 
     val typefacePath = fontMeta?.path?.let { assetFileOf(it) }
-    val typeface = remember(typefacePath) {
+    val typeface = remember(typefacePath, LocalBundleInstallation.current) {
         typefacePath?.takeIf { it.exists() }?.let { Typeface.createFromFile(it) } ?: Typeface.DEFAULT
     }
 

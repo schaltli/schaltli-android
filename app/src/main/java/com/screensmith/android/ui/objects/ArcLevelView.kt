@@ -30,6 +30,7 @@ import com.screensmith.android.render.blendBands
 import com.screensmith.android.render.makeArcSector
 import com.screensmith.android.render.rgb565ToArgb
 import com.screensmith.android.render.toRgb565
+import com.screensmith.android.ui.LocalBundleInstallation
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.truncate
@@ -251,7 +252,7 @@ fun ArcLevelView(
         ?.let(::parseHexColor) ?: Color.White
     val fontMeta: FontEntry? = project.fonts.find { it.id == props.stringOrNull("fontId") }
     val fontSize = fontMeta?.size ?: 14
-    val typeface = remember(fontMeta?.path) {
+    val typeface = remember(fontMeta?.path, LocalBundleInstallation.current) {
         fontMeta?.path?.let { assetFileOf(it) }?.takeIf { it.exists() }
             ?.let { Typeface.createFromFile(it) } ?: Typeface.DEFAULT
     }

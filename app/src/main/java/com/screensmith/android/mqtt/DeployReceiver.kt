@@ -38,8 +38,14 @@ class DeployReceiver(
         private const val BUSY = "busy"
     }
 
-    private var running = false
-    private var lastDeployId: String? = null
+    // Deploys arrive on the MQTT client's own threads, and on more than one
+    // of them when a retained message is re-delivered. Plain fields were read
+    // and written from several at once: two could each find `running` false
+    // and both start downloading the same bundle into the same staging
+    // directory.
+    private val running = java.util.concurrent.atomic.AtomicBoolean(false)
+    @Volatile private var runningDeployId: String? = null
+    @Volatile private var lastDeployId: String? = null
 
     /** Handles one retained `deploy` payload. Safe to call again with the same one. */
     fun onDeploy(payload: String) {
@@ -62,12 +68,17 @@ class DeployReceiver(
             Log.i(TAG, "deploy $deployId already applied")
             return
         }
-        if (running) {
+        // The same deploy arriving again while it is being installed is not
+        // another deploy. Saying `busy` to it told the designer's dialog that
+        // something else had the device, over a progress bar that was mid-
+        // download - and the retained message is re-delivered often enough
+        // that this was the usual outcome, not a rare one.
+        if (deployId == runningDeployId) return
+        if (!running.compareAndSet(false, true)) {
             report(deployId, BUSY)
             return
         }
-
-        running = true
+        runningDeployId = deployId
         scope.launch {
             try {
                 report(deployId, "downloading", 0)
@@ -98,7 +109,8 @@ class DeployReceiver(
                 Log.w(TAG, "deploy failed", e)
                 report(deployId, "error", error = e.message ?: e::class.java.simpleName)
             } finally {
-                running = false
+                runningDeployId = null
+                running.set(false)
             }
         }
     }

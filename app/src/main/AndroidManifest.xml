@@ -14,10 +14,20 @@
         android:supportsRtl="true"
         android:networkSecurityConfig="@xml/network_security_config">
 
+        <!--
+            configChanges: the activity handles a turn itself rather than
+            being destroyed and built again for it. Which way up this is comes
+            from the project (MainActivity's requestedOrientation), so a turn
+            happens when a project is installed - and a recreated activity
+            runs onCreate again, which calls startLockTask() again, which puts
+            Android's "Screen pinned" confirmation over the new screen every
+            time. Compose reads the new configuration without any of that.
+        -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.Screensmith">
+            android:theme="@style/Theme.Screensmith"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

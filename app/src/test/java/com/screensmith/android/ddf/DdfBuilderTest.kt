@@ -41,6 +41,20 @@ class DdfBuilderTest {
         assertEquals(915, screen.getInt("height"))
         assertEquals("24bit", screen.getString("colorDepth"))
 
+        // A phone can be mounted any way up, so a project may be drawn for
+        // any of the four - the same mechanism every device uses
+        // (ProjectSettings.rotation in the designer, gated on this list).
+        // The designer swaps width and height for a quarter turn, and the
+        // app puts the activity the way the project it holds was drawn.
+        // Without this the designer offers no rotation at all, which is how
+        // a phone came to have no landscape at the same time as turning
+        // itself sideways whenever it was tipped over.
+        val rotations = screen.getJSONArray("allowedRotations")
+        assertEquals(
+            listOf(90, 180, 270),
+            (0 until rotations.length()).map { rotations.getInt(it) },
+        )
+
         // The whole point of building this at runtime: a different phone says
         // something different. A checked-in file could only ever say one.
         val other = JSONObject(String(entries(build(360, 800).bytes)["device.json"]!!))

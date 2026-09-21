@@ -21,6 +21,7 @@ import com.screensmith.android.data.ButtonAction
 import com.screensmith.android.data.Project
 import com.screensmith.android.data.ScreenObject
 import com.screensmith.android.mqtt.actionOf
+import com.screensmith.android.ui.LocalBundleInstallation
 
 /**
  * Mirrors render-software-button.ts's 3D-button geometry exactly: the
@@ -59,7 +60,7 @@ fun SoftwareButtonView(
     val fontId = props.stringOrNull("fontId")
     val fontMeta = project.fonts.find { it.id == fontId }
     val fontSize = fontMeta?.size ?: 14
-    val typeface = remember(fontMeta?.path) {
+    val typeface = remember(fontMeta?.path, LocalBundleInstallation.current) {
         fontMeta?.path?.let { assetFileOf(it) }?.takeIf { it.exists() }?.let { Typeface.createFromFile(it) } ?: Typeface.DEFAULT
     }
 

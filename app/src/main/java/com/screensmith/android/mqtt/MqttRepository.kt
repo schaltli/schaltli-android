@@ -39,6 +39,23 @@ class MqttRepository {
     private var client: Mqtt3AsyncClient? = null
     private var subscribedTopics: Set<String> = emptySet()
 
+    /**
+     * Which connection is the current one.
+     *
+     * A client built with `automaticReconnect()` keeps trying on its own, and
+     * `disconnect()` only stops one that is connected at that moment - a
+     * client caught mid-retry carries on regardless. Its listeners then go on
+     * firing: it resubscribes, it republishes the retained announcement, and
+     * because the identifier is this phone's own and stable, it takes the
+     * connection away from the live client, which reconnects and takes it
+     * back. Both sides then see the retained deploy again on every round.
+     *
+     * Every listener checks this number against the one its own client was
+     * built with, so a connection nobody asked for any more can no longer
+     * touch anything.
+     */
+    @Volatile private var generation = 0
+
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
 
@@ -113,6 +130,14 @@ class MqttRepository {
             append(",\"name\":\"${escapeJson(hello.deviceName)}\"")
             append(",\"firmwareVersion\":\"${escapeJson(hello.appVersion)}\"")
             append(",\"systemGeneration\":\"$SYSTEM_GENERATION\"")
+            // What kind of thing this is, said where the designer can act on
+            // it before fetching anything. Its DDF says the same, but the
+            // deploy dialog has to know one from a board while it is still
+            // only listening - a phone has no firmware to offer, and an
+            // update button for one is an offer nobody can take. A board
+            // omits this field, and an absent one means "firmware", exactly
+            // as the DDF reads it.
+            append(",\"platform\":\"android\"")
             append(",\"ddfHash\":\"${escapeJson(hello.ddfHash)}\"")
             // A device that omits `url` is treated as "does not self-announce
             // its DDF" and skipped by the designer's discovery, which is the
@@ -155,10 +180,20 @@ class MqttRepository {
     private fun escapeJson(text: String): String =
         text.replace("\\", "\\\\").replace("\"", "\\\"")
 
-    /** (Re)connects to [config] and subscribes to every topic in [topics]. */
+    /**
+     * (Re)connects to [config] and subscribes to every topic in [topics].
+     *
+     * Called when the broker changes, and not when the project does - a new
+     * project is a different set of topics, which [setTopics] handles on the
+     * connection already open. Reconnecting for it cost a deploy: every
+     * install changed the project, every project change reconnected, and each
+     * reconnection left the one before it retrying in the background under
+     * the same client identifier.
+     */
     fun connect(config: BrokerConfig, topics: Set<String>) {
         Log.i("MqttRepository", "connect() called: host=${config.host} port=${config.port} topics=$topics")
         disconnect()
+        val myGeneration = ++generation
         subscribedTopics = topics
         _topicValues.value = emptyMap()
         _askedValues.value = emptyMap()
@@ -176,13 +211,17 @@ class MqttRepository {
             .maxDelay(30, TimeUnit.SECONDS)
             .applyAutomaticReconnect()
             .addConnectedListener {
+                if (generation != myGeneration) return@addConnectedListener
                 resubscribeAll()
                 // Every reconnection, not just the first: a broker restart
                 // loses retained messages, and a phone that announced once
                 // an hour ago would then be invisible.
                 publishAnnouncement()
             }
-            .addDisconnectedListener { _connectionState.value = ConnectionState.DISCONNECTED }
+            .addDisconnectedListener {
+                if (generation != myGeneration) return@addDisconnectedListener
+                _connectionState.value = ConnectionState.DISCONNECTED
+            }
 
         val asyncClient = builder.buildAsync()
         client = asyncClient
@@ -221,10 +260,45 @@ class MqttRepository {
     }
 
     fun disconnect() {
+        // Ahead of the disconnect itself, because a client that is retrying
+        // rather than connected will not take one, and has to be silenced
+        // some other way (see [generation]).
+        generation++
         client?.disconnect()
         client = null
         subscribedTopics = emptySet()
         _connectionState.value = ConnectionState.DISCONNECTED
+    }
+
+    /**
+     * The topics this project cares about, on the connection already open.
+     *
+     * What changes between two projects is which values are wanted, not where
+     * they come from. Only the difference is sent: subscribing to a filter
+     * that is already subscribed registers a second callback for it, and the
+     * message then arrives twice - or, after a few projects, a few hundred
+     * times, which is what a retained deploy re-delivered on every stacked
+     * subscription looks like from the broker.
+     */
+    fun setTopics(topics: Set<String>) {
+        if (topics == subscribedTopics) return
+        val added = topics - subscribedTopics
+        val removed = subscribedTopics - topics
+        subscribedTopics = topics
+
+        // A value nobody asks about any more is not a value this phone knows.
+        if (removed.isNotEmpty()) {
+            _topicValues.update { it - removed }
+            _askedValues.update { it - removed }
+        }
+
+        val activeClient = client ?: return
+        for (topic in removed) {
+            activeClient.unsubscribeWith().topicFilter(topic).send()
+        }
+        for (topic in added) {
+            subscribeToValue(activeClient, topic)
+        }
     }
 
     /** Publishes [message] to [topic] verbatim - QoS 0, non-retained, same as the firmware's send-mqtt. */
@@ -255,17 +329,21 @@ class MqttRepository {
         }
 
         for (topic in subscribedTopics) {
-            activeClient.subscribeWith()
-                .topicFilter(topic)
-                .qos(MqttQos.AT_MOST_ONCE)
-                .callback { publish ->
-                    val payload = String(publish.payloadAsBytes, StandardCharsets.UTF_8)
-                    _topicValues.update { it + (topic to payload) }
-                    // The installation has spoken about this value: whatever a
-                    // finger asked of it is answered, and its marker goes.
-                    _askedValues.update { if (it.containsKey(topic)) it - topic else it }
-                }
-                .send()
+            subscribeToValue(activeClient, topic)
         }
+    }
+
+    private fun subscribeToValue(activeClient: Mqtt3AsyncClient, topic: String) {
+        activeClient.subscribeWith()
+            .topicFilter(topic)
+            .qos(MqttQos.AT_MOST_ONCE)
+            .callback { publish ->
+                val payload = String(publish.payloadAsBytes, StandardCharsets.UTF_8)
+                _topicValues.update { it + (topic to payload) }
+                // The installation has spoken about this value: whatever a
+                // finger asked of it is answered, and its marker goes.
+                _askedValues.update { if (it.containsKey(topic)) it - topic else it }
+            }
+            .send()
     }
 }

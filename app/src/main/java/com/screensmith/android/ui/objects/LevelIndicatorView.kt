@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import com.screensmith.android.data.FontEntry
 import com.screensmith.android.data.Project
 import com.screensmith.android.data.ScreenObject
+import com.screensmith.android.ui.LocalBundleInstallation
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.serialization.json.JsonArray
@@ -217,7 +218,7 @@ fun LevelIndicatorView(
     val fontId = (props["fontId"] as? JsonPrimitive)?.contentOrNull
     val fontMeta: FontEntry? = project.fonts.find { it.id == fontId }
     val fontSize = fontMeta?.size ?: 14
-    val typeface = remember(fontMeta?.path) {
+    val typeface = remember(fontMeta?.path, LocalBundleInstallation.current) {
         // fontMeta.path is bundle-relative (e.g. "assets/fonts/Roboto.ttf");
         // resolving it needs assetFileOf, but this composable (unlike
         // TextBoxView) isn't handed that function - falls back to the

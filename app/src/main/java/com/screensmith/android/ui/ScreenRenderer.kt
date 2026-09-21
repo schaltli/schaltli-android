@@ -83,7 +83,18 @@ fun ScreenRenderer(
             // bitmap directly via a native Paint with isAntiAlias = false
             // (alongside isFilterBitmap = false, the native equivalent of
             // FilterQuality.None) removes both smoothing sources at once.
-            val bitmap = remember(path) {
+            //
+            // Keyed on the installation as well as the path, because the path
+            // is the same in every project there has ever been: every screen's
+            // background is `assets/<screenId>.png`. Keyed on the path alone,
+            // this cache handed back the first project's pixels for every
+            // project after it - a deploy landed, its objects drew (those come
+            // from project.json, which is read afresh) and the background under
+            // them stayed the old one. Reported from a phone on 2026-09-21 as
+            // "a blue frame that is not part of my project, and a black
+            // background although the project says white": both were an
+            // earlier project's baked background, still in the cache.
+            val bitmap = remember(path, LocalBundleInstallation.current) {
                 BitmapFactory.decodeFile(assetFileOf(path).path)?.asImageBitmap()
             }
             bitmap?.let { image ->

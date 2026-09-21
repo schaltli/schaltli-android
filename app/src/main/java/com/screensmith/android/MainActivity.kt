@@ -1,5 +1,6 @@
 package com.screensmith.android
 
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,9 +39,11 @@ import com.screensmith.android.mqtt.ButtonActionDispatcher
 import com.screensmith.android.ddf.DdfBuilder
 import com.screensmith.android.ddf.DdfServer
 import com.screensmith.android.ddf.DeviceIdentity
+import com.screensmith.android.ddf.NativeScreen
 import com.screensmith.android.mqtt.DeployReceiver
 import com.screensmith.android.mqtt.MqttRepository
 import com.screensmith.android.ui.ImportScreen
+import com.screensmith.android.ui.LocalBundleInstallation
 import com.screensmith.android.ui.ScreenMenuOverlay
 import com.screensmith.android.ui.ScreenRenderer
 import com.screensmith.android.ui.SettingsScreen
@@ -70,7 +74,16 @@ class MainActivity : ComponentActivity() {
         val app = application as ScreensmithApp
         setContent {
             ScreensmithTheme {
-                ScreensmithRoot(app)
+                // Which installation of the bundle everything below is
+                // drawing from. Provided here rather than passed down
+                // because the composables that need it are leaves - a
+                // typeface cache inside a button inside a tab-control - and
+                // nothing in between has any business carrying it.
+                val installation by app.projectRepository.installation
+                    .collectAsStateWithLifecycle()
+                CompositionLocalProvider(LocalBundleInstallation provides installation) {
+                    ScreensmithRoot(app)
+                }
             }
         }
 
@@ -116,6 +129,29 @@ fun ScreensmithRoot(app: ScreensmithApp) {
     // docs/2026-09-17-settable-level.md, decision 6c).
     val askedValues by mqttRepository.askedValues.collectAsStateWithLifecycle()
 
+    // Which way up this is, decided by the project and not by the way the
+    // phone happens to be lying. Without this the activity follows the
+    // sensor: a project drawn for 360x679 was turned on its side the moment
+    // the phone was tipped over, and drawn into a screen of the other shape.
+    //
+    // A panel is mounted, not held, so there is nothing to follow. Every
+    // device works this way - the project carries a rotation, the DDF's
+    // `allowedRotations` says which ones this device may be mounted in, and a
+    // board applies it to its own panel. This is that, for a device whose
+    // panel is turned by the operating system instead.
+    //
+    // Read from the project's rotation rather than from whether it is wider
+    // than it is tall, because a half turn leaves those numbers alone.
+    val activity = context as? android.app.Activity
+    LaunchedEffect(activity, project?.rotation) {
+        activity?.requestedOrientation = when (project?.rotation ?: 0) {
+            90 -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            180 -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
+            270 -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+            else -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
+    }
+
     var currentScreenId by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var showScreenMenu by remember { mutableStateOf(false) }
@@ -137,13 +173,29 @@ fun ScreensmithRoot(app: ScreensmithApp) {
     val ddfServer = remember { DdfServer() }
     DisposableEffect(ddfServer) { onDispose { ddfServer.stop() } }
 
-    LaunchedEffect(configuration.screenWidthDp, configuration.screenHeightDp) {
+    // The display's own position, which is not the same question as the
+    // configuration's size: the size says what there is room for right now,
+    // this says whether "right now" is the way up the device was built.
+    val displayRotation = (
+        context.getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager
+        ).defaultDisplay.rotation
+
+    LaunchedEffect(configuration.screenWidthDp, configuration.screenHeightDp, displayRotation) {
         val roboto = context.assets.open("Roboto.ttf").use { it.readBytes() }
+        // Announced in the device's native orientation, always. A project's
+        // rotation is applied on top of this by whoever reads it, so
+        // announcing a screen already turned would have it turned twice.
+        val native = NativeScreen.resolve(
+            context = context,
+            widthDp = configuration.screenWidthDp,
+            heightDp = configuration.screenHeightDp,
+            rotation = displayRotation,
+        )
         val ddf = DdfBuilder.build(
             deviceId = DeviceIdentity.deviceId(context),
             deviceName = DeviceIdentity.deviceName(context),
-            widthDp = configuration.screenWidthDp,
-            heightDp = configuration.screenHeightDp,
+            widthDp = native.widthDp,
+            heightDp = native.heightDp,
             robotoTtf = roboto,
         )
         ddfServer.serve(ddf.bytes)
@@ -172,21 +224,30 @@ fun ScreensmithRoot(app: ScreensmithApp) {
         mqttRepository.onDeploy = { payload -> deployReceiver.onDeploy(payload) }
     }
 
-    // (Re)connect whenever the loaded project or broker config changes -
-    // covers a fresh import, a broker-settings change, and picks up the
-    // right topic set for whichever project is currently loaded.
+    // Connect when the broker changes, and only then.
     //
     // A broker alone is enough: with no project there is nothing to
     // subscribe to, but the announcement still has to go out - a phone the
     // designer has never seen is exactly the one that has no project yet.
-    LaunchedEffect(project, brokerConfig) {
-        val activeProject = project
-        android.util.Log.i("ScreensmithRoot", "LaunchedEffect fired: project=${activeProject?.name} brokerHost=${brokerConfig.host}")
+    //
+    // The project used to be a key here too, so every install reconnected.
+    // That is how a deploy came to stall at whatever percentage it had
+    // reached: each reconnection left the one before it retrying under this
+    // phone's own client identifier, the two took the connection from each
+    // other about once a second, and the progress the app was publishing went
+    // out on whichever one was dying. What a new project actually needs is a
+    // different set of subscriptions, which is the effect below.
+    LaunchedEffect(brokerConfig) {
+        android.util.Log.i("ScreensmithRoot", "broker changed: host=${brokerConfig.host}")
         if (brokerConfig.host.isNotBlank()) {
-            mqttRepository.connect(brokerConfig, activeProject?.collectTopicNames() ?: emptySet())
+            mqttRepository.connect(brokerConfig, project?.collectTopicNames() ?: emptySet())
         } else {
             mqttRepository.disconnect()
         }
+    }
+
+    LaunchedEffect(project) {
+        mqttRepository.setTopics(project?.collectTopicNames() ?: emptySet())
     }
 
     val dispatcher = remember(mqttRepository) {

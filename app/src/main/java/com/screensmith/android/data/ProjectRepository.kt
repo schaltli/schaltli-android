@@ -25,6 +25,20 @@ class ProjectRepository(private val context: Context) {
     private val _project = MutableStateFlow<Project?>(null)
     val project: StateFlow<Project?> = _project.asStateFlow()
 
+    private val _installation = MutableStateFlow(0L)
+
+    /**
+     * Counts installations, and is the reason anything drawn from a bundle
+     * file gets looked at again after a deploy.
+     *
+     * [project] alone cannot say. A StateFlow drops a value equal to the one
+     * it holds, so re-installing a project whose project.json is unchanged
+     * emits nothing at all - and a bundle can change without its project.json
+     * changing, because the background PNG is a separate file. This counter
+     * changes on every install, whatever is in the zip.
+     */
+    val installation: StateFlow<Long> = _installation.asStateFlow()
+
     init {
         loadFromDisk()
     }
@@ -112,6 +126,9 @@ class ProjectRepository(private val context: Context) {
         previous.deleteRecursively()
 
         val loaded = loadFromDisk() ?: return Result.failure(IllegalStateException("Bundle has no project.json"))
+        // After loadFromDisk, so that anything watching both sees the new
+        // project rather than the old one under a new number.
+        _installation.value += 1
         return Result.success(loaded)
     }
 
