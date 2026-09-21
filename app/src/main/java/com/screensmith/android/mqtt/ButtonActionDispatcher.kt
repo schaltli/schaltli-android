@@ -33,18 +33,9 @@ class ButtonActionDispatcher(
 ) {
     fun dispatch(action: ButtonAction, project: Project, currentScreenId: String) {
         when (action.type) {
-            "next-screen", "previous-screen" -> {
-                val screens = project.screens
-                if (screens.isEmpty()) return
-                val currentIndex = screens.indexOfFirst { it.id == currentScreenId }
-                val delta = if (action.type == "next-screen") 1 else -1
-                val base = if (currentIndex == -1) 0 else currentIndex
-                val newIndex = ((base + delta) % screens.size + screens.size) % screens.size
-                onNavigate(screens[newIndex].id)
-            }
-            "goto-screen" -> {
-                val target = project.screens.find { it.id == action.targetScreenId } ?: return
-                onNavigate(target.id)
+            "next-screen", "previous-screen", "goto-screen" -> {
+                val target = navigationTarget(action, project, currentScreenId) ?: return
+                onNavigate(target)
             }
             "send-mqtt" -> {
                 val topic = action.mqttTopic ?: return
@@ -55,6 +46,36 @@ class ButtonActionDispatcher(
                 onDeviceAction(id)
             }
         }
+    }
+
+    companion object {
+        /**
+         * The screen this action would arrive at, or null if it is not a
+         * navigation at all.
+         *
+         * Pulled out of [dispatch] so that the screen a swipe *slides
+         * towards* and the screen it *lands on* cannot be worked out
+         * differently. A follow-the-finger swipe has to draw the incoming
+         * screen before it knows whether the gesture will be completed, and
+         * a second copy of this arithmetic - the wrap-around in particular -
+         * would eventually slide in one screen and land on another.
+         */
+        fun navigationTarget(action: ButtonAction, project: Project, currentScreenId: String): String? =
+            when (action.type) {
+                "next-screen", "previous-screen" -> {
+                    val screens = project.screens
+                    if (screens.isEmpty()) {
+                        null
+                    } else {
+                        val currentIndex = screens.indexOfFirst { it.id == currentScreenId }
+                        val delta = if (action.type == "next-screen") 1 else -1
+                        val base = if (currentIndex == -1) 0 else currentIndex
+                        screens[((base + delta) % screens.size + screens.size) % screens.size].id
+                    }
+                }
+                "goto-screen" -> project.screens.find { it.id == action.targetScreenId }?.id
+                else -> null
+            }
     }
 }
 

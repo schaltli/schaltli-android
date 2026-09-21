@@ -47,7 +47,7 @@ import com.screensmith.android.ui.LocalBundleInstallation
 import com.screensmith.android.ui.ScreenMenuOverlay
 import com.screensmith.android.ui.ScreenRenderer
 import com.screensmith.android.ui.SettingsScreen
-import com.screensmith.android.ui.swipeNavigation
+import com.screensmith.android.ui.FollowingScreens
 import com.screensmith.android.ui.theme.ScreensmithTheme
 import kotlinx.coroutines.launch
 
@@ -294,28 +294,35 @@ fun ScreensmithRoot(app: ScreensmithApp) {
             )
             else -> {
                 val screen = activeProject.screens.find { it.id == currentScreenId } ?: activeProject.screens.first()
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        // A swipe is looked up in this screen's own
-                        // buttonActions and then dispatched like any other
-                        // bound button - the app has no built-in idea that
-                        // swiping left means "next". Which gestures do
-                        // anything, and what, is the project's decision, made
-                        // in the designer's Swipe Navigation panel.
-                        .swipeNavigation { buttonId ->
-                            screen.buttonActions[buttonId]
-                                ?.let { dispatcher.dispatch(it, activeProject, screen.id) }
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
+                // A swipe is looked up in this screen's own buttonActions and
+                // then dispatched like any other bound button - the app has
+                // no built-in idea that swiping left means "next". Which
+                // gestures do anything, and what, is the project's decision,
+                // made in the designer's Swipe Navigation panel.
+                //
+                // Where the binding does lead to another screen, the picture
+                // travels under the finger while the gesture is being made,
+                // and the same dispatch happens when it is let go.
+                FollowingScreens(
+                    screen = screen,
+                    followTargetFor = { buttonId ->
+                        screen.buttonActions[buttonId]
+                            ?.let { ButtonActionDispatcher.navigationTarget(it, activeProject, screen.id) }
+                            ?.let { targetId -> activeProject.screens.find { it.id == targetId } }
+                    },
+                    onSwipe = { buttonId ->
+                        screen.buttonActions[buttonId]
+                            ?.let { dispatcher.dispatch(it, activeProject, screen.id) }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                ) { drawn ->
                     ScreenRenderer(
-                        screen = screen,
+                        screen = drawn,
                         project = activeProject,
                         topicValues = topicValues,
                         askedValues = askedValues,
                         assetFileOf = { path -> app.projectRepository.assetFile(path) },
-                        onAction = { action -> dispatcher.dispatch(action, activeProject, screen.id) },
+                        onAction = { action -> dispatcher.dispatch(action, activeProject, drawn.id) },
                         // A set level publishes its command and remembers what
                         // was asked, so the marker shows it at once instead of
                         // waiting for the installation's answer.
