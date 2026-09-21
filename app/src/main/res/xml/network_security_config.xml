@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Plain HTTP is allowed, because everything this app talks to is on the local
+  network and speaks it: the MQTT broker on 1883, the designer's own HTTP
+  server handing over a deployed project zip, and the zip's own asset URLs.
+  Android has blocked cleartext by default since 9, which is right for an app
+  that talks to the internet and wrong for one that is part of an
+  installation with no cloud in it at all (the designer is self-hosted by
+  design).
+
+  Not an allowlist of hosts: the designer's address is whatever LAN address
+  the machine running it happens to have, and it changes with the network.
+  There is nothing to pin.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

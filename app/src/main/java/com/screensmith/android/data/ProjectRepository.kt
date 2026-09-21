@@ -32,35 +32,87 @@ class ProjectRepository(private val context: Context) {
     /** Extracts [uri] (a bundle .zip picked via Storage Access Framework) and loads it. */
     suspend fun importBundle(uri: Uri): Result<Project> = withContext(Dispatchers.IO) {
         try {
-            // Clear any previously-imported bundle first - a smaller new
-            // bundle must not leave stale files an old project.json (now
-            // gone) used to reference.
-            if (projectDir.exists()) projectDir.deleteRecursively()
-            projectDir.mkdirs()
-
-            val resolver = context.contentResolver
-            resolver.openInputStream(uri)?.use { input ->
-                ZipInputStream(input).use { zip ->
-                    var entry = zip.nextEntry
-                    while (entry != null) {
-                        if (!entry.isDirectory) {
-                            val outFile = File(projectDir, entry.name)
-                            outFile.parentFile?.mkdirs()
-                            outFile.outputStream().use { out -> zip.copyTo(out) }
-                        }
-                        zip.closeEntry()
-                        entry = zip.nextEntry
-                    }
-                }
-            } ?: return@withContext Result.failure(IllegalStateException("Could not open the selected file"))
-
-            val loaded = loadFromDisk() ?: return@withContext Result.failure(
-                IllegalStateException("Bundle has no project.json"),
-            )
-            Result.success(loaded)
+            val input = context.contentResolver.openInputStream(uri)
+                ?: return@withContext Result.failure(IllegalStateException("Could not open the selected file"))
+            input.use { unpackAndSwap(it) }
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    /**
+     * The same thing for a bundle that arrived over the air rather than
+     * through the file picker - a deploy from the designer
+     * (docs/2026-09-21-android-self-announce.md in that repo).
+     */
+    suspend fun importBytes(bytes: ByteArray): Result<Project> = withContext(Dispatchers.IO) {
+        try {
+            bytes.inputStream().use { unpackAndSwap(it) }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Unpacks a bundle beside the live one and only then lets it take its
+     * place.
+     *
+     * Never into the directory being drawn from: a deploy lands while
+     * somebody is looking at the screen, and a half-written project is a
+     * screen of missing icons and a parse error. The swap is two renames -
+     * as close to atomic as a filesystem gets - so the worst interruption
+     * leaves either the old project or the new one, never half of each.
+     *
+     * Staging is emptied first rather than merged into, because a smaller
+     * new bundle must not leave stale files that an old project.json used to
+     * reference.
+     */
+    private fun unpackAndSwap(input: java.io.InputStream): Result<Project> {
+        val staging = File(context.filesDir, "project.incoming")
+        val previous = File(context.filesDir, "project.previous")
+        if (staging.exists()) staging.deleteRecursively()
+        staging.mkdirs()
+
+        ZipInputStream(input).use { zip ->
+            var entry = zip.nextEntry
+            while (entry != null) {
+                if (!entry.isDirectory) {
+                    val outFile = File(staging, entry.name)
+                    // A zip entry naming its way out of the directory it is
+                    // unpacked into is the oldest trick there is, and this
+                    // one arrives over the network now.
+                    if (!outFile.canonicalPath.startsWith(staging.canonicalPath + File.separator)) {
+                        staging.deleteRecursively()
+                        return Result.failure(IllegalStateException("Bundle entry escapes the project directory"))
+                    }
+                    outFile.parentFile?.mkdirs()
+                    outFile.outputStream().use { out -> zip.copyTo(out) }
+                }
+                zip.closeEntry()
+                entry = zip.nextEntry
+            }
+        }
+
+        if (!File(staging, "project.json").exists()) {
+            staging.deleteRecursively()
+            return Result.failure(IllegalStateException("Bundle has no project.json"))
+        }
+
+        if (previous.exists()) previous.deleteRecursively()
+        if (projectDir.exists() && !projectDir.renameTo(previous)) {
+            staging.deleteRecursively()
+            return Result.failure(IllegalStateException("Could not put the running project aside"))
+        }
+        if (!staging.renameTo(projectDir)) {
+            // Put back what was there: better the old project than none.
+            previous.renameTo(projectDir)
+            staging.deleteRecursively()
+            return Result.failure(IllegalStateException("Could not install the new project"))
+        }
+        previous.deleteRecursively()
+
+        val loaded = loadFromDisk() ?: return Result.failure(IllegalStateException("Bundle has no project.json"))
+        return Result.success(loaded)
     }
 
     /** Absolute [File] for a bundle-relative path from project.json (e.g. "assets/screen-1.png"). */

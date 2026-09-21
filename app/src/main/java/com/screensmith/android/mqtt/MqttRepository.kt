@@ -84,6 +84,13 @@ class MqttRepository {
     private var announcement: Announcement? = null
 
     /**
+     * Handed each retained `deploy` payload as it arrives, for the phone to
+     * fetch and install (DeployReceiver). Set alongside the announcement:
+     * without an id there is no topic to listen on.
+     */
+    var onDeploy: ((String) -> Unit)? = null
+
+    /**
      * Sets what to announce on this and every later (re)connection.
      *
      * Retained, so the designer finds the phone whenever a browser tab is
@@ -127,6 +134,22 @@ class MqttRepository {
             .payload("online".toByteArray(StandardCharsets.UTF_8))
             .send()
         Log.i("MqttRepository", "announced $base -> ${hello.url}")
+    }
+
+    /**
+     * Where this device's own topics live - the same `screenbee/<clientId>`
+     * every board publishes under, with the stable id from DeviceIdentity.
+     */
+    private fun deviceBase(): String? = announcement?.let { "$TOPIC_PREFIX/${it.deviceId}" }
+
+    /** Reports where a deploy has got to, non-retained, as the contract's §4 says. */
+    fun publishDeployStatus(payload: String) {
+        val base = deviceBase() ?: return
+        client?.publishWith()
+            ?.topic("$base/deploy-status")
+            ?.qos(MqttQos.AT_MOST_ONCE)
+            ?.payload(payload.toByteArray(StandardCharsets.UTF_8))
+            ?.send()
     }
 
     private fun escapeJson(text: String): String =
@@ -216,6 +239,21 @@ class MqttRepository {
     private fun resubscribeAll() {
         val activeClient = client ?: return
         _connectionState.value = ConnectionState.CONNECTED
+
+        // The deploy topic is this device's own, not one of the project's -
+        // and it is retained, so a deploy published while the phone was off
+        // arrives the moment it comes back.
+        deviceBase()?.let { base ->
+            activeClient.subscribeWith()
+                .topicFilter("$base/deploy")
+                .qos(MqttQos.AT_MOST_ONCE)
+                .callback { publish ->
+                    val payload = String(publish.payloadAsBytes, StandardCharsets.UTF_8)
+                    if (payload.isNotBlank()) onDeploy?.invoke(payload)
+                }
+                .send()
+        }
+
         for (topic in subscribedTopics) {
             activeClient.subscribeWith()
                 .topicFilter(topic)

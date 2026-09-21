@@ -37,6 +37,7 @@ import com.screensmith.android.mqtt.ButtonActionDispatcher
 import com.screensmith.android.ddf.DdfBuilder
 import com.screensmith.android.ddf.DdfServer
 import com.screensmith.android.ddf.DeviceIdentity
+import com.screensmith.android.mqtt.DeployReceiver
 import com.screensmith.android.mqtt.MqttRepository
 import com.screensmith.android.ui.ImportScreen
 import com.screensmith.android.ui.ScreenMenuOverlay
@@ -155,6 +156,20 @@ fun ScreensmithRoot(app: ScreensmithApp) {
                 url = ddfServer.url(),
             ),
         )
+    }
+
+    // A project pushed from the designer, rather than picked as a file: it
+    // lands in the repository the same way, so the screen simply becomes the
+    // new one (docs/2026-09-21-android-self-announce.md).
+    val deployReceiver = remember(mqttRepository) {
+        DeployReceiver(
+            projectRepository = app.projectRepository,
+            publishStatus = { mqttRepository.publishDeployStatus(it) },
+            scope = scope,
+        )
+    }
+    LaunchedEffect(deployReceiver) {
+        mqttRepository.onDeploy = { payload -> deployReceiver.onDeploy(payload) }
     }
 
     // (Re)connect whenever the loaded project or broker config changes -
