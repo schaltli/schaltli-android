@@ -48,6 +48,23 @@ class DdfBuilderTest {
     }
 
     @Test
+    fun `carries whatever name the phone is known by`() {
+        // DeviceIdentity picks that name - the vendor's marketing string
+        // where there is one, the owner's own name for the device, or maker
+        // and model - and the builder simply carries it. What matters here
+        // is that it survives into the manifest intact, spaces and all: it
+        // is what the designer's device picker shows.
+        val manifest = JSONObject(
+            String(
+                entries(
+                    DdfBuilder.build("android-a1b2c3d4", "HUAWEI P20 Pro", 360, 679, ByteArray(4)).bytes,
+                )["device.json"]!!,
+            ),
+        )
+        assertEquals("HUAWEI P20 Pro", manifest.getJSONObject("device").getString("name"))
+    }
+
+    @Test
     fun `is identified by this phone and named after it`() {
         val device = JSONObject(String(entries(build().bytes)["device.json"]!!)).getJSONObject("device")
         assertEquals("android-a1b2c3d4", device.getString("id"))

@@ -140,7 +140,7 @@ fun ScreensmithRoot(app: ScreensmithApp) {
         val roboto = context.assets.open("Roboto.ttf").use { it.readBytes() }
         val ddf = DdfBuilder.build(
             deviceId = DeviceIdentity.deviceId(context),
-            deviceName = DeviceIdentity.deviceName(),
+            deviceName = DeviceIdentity.deviceName(context),
             widthDp = configuration.screenWidthDp,
             heightDp = configuration.screenHeightDp,
             robotoTtf = roboto,
@@ -149,7 +149,7 @@ fun ScreensmithRoot(app: ScreensmithApp) {
         mqttRepository.setAnnouncement(
             MqttRepository.Announcement(
                 deviceId = DeviceIdentity.deviceId(context),
-                deviceName = DeviceIdentity.deviceName(),
+                deviceName = DeviceIdentity.deviceName(context),
                 appVersion = BuildConfig.VERSION_NAME,
                 ddfHash = ddf.hash,
                 url = ddfServer.url(),
