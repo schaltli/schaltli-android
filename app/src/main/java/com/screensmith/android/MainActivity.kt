@@ -87,7 +87,18 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        startLockTask()
+        // Not in a debug build. Without Device Owner provisioning Android puts
+        // its own "Screen pinned" confirmation on top of the app, and that
+        // dialog takes the focus: it swallows every gesture sent to the app,
+        // and with the app no longer in front the screen stops being held
+        // awake and the phone locks itself. On a wall display that is one tap
+        // by the person who installed it; on a development phone it stands
+        // between every build and every automated gesture - it blocked the
+        // Android HIL suite after each install on 2026-09-21.
+        //
+        // The kiosk behaviour is a property of the deployed panel, so it
+        // belongs in the build that gets deployed.
+        if (!BuildConfig.DEBUG) startLockTask()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -157,10 +168,18 @@ fun ScreensmithRoot(app: ScreensmithApp) {
     var showScreenMenu by remember { mutableStateOf(false) }
     var importError by remember { mutableStateOf<String?>(null) }
 
-    // A freshly-loaded (or just-imported) project always starts on its
-    // first screen - only reset currentScreenId when the project identity
-    // actually changes, not on every recomposition.
-    LaunchedEffect(project) {
+    // A freshly-loaded (or just-installed) project always starts on its first
+    // screen.
+    //
+    // Keyed on the installation as well as the project, because the project
+    // alone cannot say that one happened: a StateFlow drops a value equal to
+    // the one it holds, so installing a bundle whose project.json is
+    // unchanged emits nothing and this never ran. Installing the same
+    // project again then left whatever screen had been swiped to on the
+    // glass, which is not what "install this project" means - found by the
+    // HIL suite on 2026-09-21, which installs the fixture to get back to a
+    // known screen and was measured against the wrong one for its trouble.
+    LaunchedEffect(project, LocalBundleInstallation.current) {
         currentScreenId = project?.screens?.firstOrNull()?.id
     }
 
