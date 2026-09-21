@@ -34,6 +34,9 @@ android {
 
     buildFeatures {
         compose = true
+        // For VERSION_NAME, which the phone announces as its firmwareVersion
+        // - the same field every board fills with its build.
+        buildConfig = true
     }
 
     packaging {

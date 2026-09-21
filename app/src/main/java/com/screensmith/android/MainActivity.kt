@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,6 +26,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -32,6 +34,9 @@ import com.screensmith.android.data.BrokerConfigStore
 import com.screensmith.android.data.collectTopicNames
 import com.screensmith.android.mqtt.BrokerConfig
 import com.screensmith.android.mqtt.ButtonActionDispatcher
+import com.screensmith.android.ddf.DdfBuilder
+import com.screensmith.android.ddf.DdfServer
+import com.screensmith.android.ddf.DeviceIdentity
 import com.screensmith.android.mqtt.MqttRepository
 import com.screensmith.android.ui.ImportScreen
 import com.screensmith.android.ui.ScreenMenuOverlay
@@ -122,14 +127,48 @@ fun ScreensmithRoot(app: ScreensmithApp) {
         currentScreenId = project?.screens?.firstOrNull()?.id
     }
 
+    // This phone's own Device Description File: built from the screen it
+    // actually has, served over HTTP, and pointed at from the retained MQTT
+    // hello (docs/2026-09-21-android-self-announce.md in the designer repo).
+    // Rebuilt whenever the room changes - a rotation, a fold opening - so
+    // the announced hash and the served bytes cannot disagree.
+    val configuration = LocalConfiguration.current
+    val ddfServer = remember { DdfServer() }
+    DisposableEffect(ddfServer) { onDispose { ddfServer.stop() } }
+
+    LaunchedEffect(configuration.screenWidthDp, configuration.screenHeightDp) {
+        val roboto = context.assets.open("Roboto.ttf").use { it.readBytes() }
+        val ddf = DdfBuilder.build(
+            deviceId = DeviceIdentity.deviceId(context),
+            deviceName = DeviceIdentity.deviceName(),
+            widthDp = configuration.screenWidthDp,
+            heightDp = configuration.screenHeightDp,
+            robotoTtf = roboto,
+        )
+        ddfServer.serve(ddf.bytes)
+        mqttRepository.setAnnouncement(
+            MqttRepository.Announcement(
+                deviceId = DeviceIdentity.deviceId(context),
+                deviceName = DeviceIdentity.deviceName(),
+                appVersion = BuildConfig.VERSION_NAME,
+                ddfHash = ddf.hash,
+                url = ddfServer.url(),
+            ),
+        )
+    }
+
     // (Re)connect whenever the loaded project or broker config changes -
     // covers a fresh import, a broker-settings change, and picks up the
     // right topic set for whichever project is currently loaded.
+    //
+    // A broker alone is enough: with no project there is nothing to
+    // subscribe to, but the announcement still has to go out - a phone the
+    // designer has never seen is exactly the one that has no project yet.
     LaunchedEffect(project, brokerConfig) {
         val activeProject = project
         android.util.Log.i("ScreensmithRoot", "LaunchedEffect fired: project=${activeProject?.name} brokerHost=${brokerConfig.host}")
-        if (activeProject != null && brokerConfig.host.isNotBlank()) {
-            mqttRepository.connect(brokerConfig, activeProject.collectTopicNames())
+        if (brokerConfig.host.isNotBlank()) {
+            mqttRepository.connect(brokerConfig, activeProject?.collectTopicNames() ?: emptySet())
         } else {
             mqttRepository.disconnect()
         }

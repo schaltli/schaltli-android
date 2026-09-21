@@ -13,6 +13,12 @@ import kotlinx.coroutines.flow.update
 
 enum class ConnectionState { DISCONNECTED, CONNECTING, CONNECTED }
 
+/** The prefix every ScreenBee topic sits under (the designer's lib/topic-prefix.ts). */
+private const val TOPIC_PREFIX = "screenbee"
+
+/** What this app can read of a project (the designer's lib/system-generation.ts). */
+private const val SYSTEM_GENERATION = "1.0"
+
 data class BrokerConfig(
     val host: String,
     val port: Int = 1883,
@@ -61,6 +67,71 @@ class MqttRepository {
         _askedValues.update { it + (topic to value) }
     }
 
+    /**
+     * What this phone announces to the designer while it is connected: its
+     * own id, the DDF it serves and where (docs/2026-09-21-android-self-
+     * announce.md in the designer repo). Null means "say nothing", which is
+     * what a phone with no address to be reached at can honestly claim.
+     */
+    data class Announcement(
+        val deviceId: String,
+        val deviceName: String,
+        val appVersion: String,
+        val ddfHash: String,
+        val url: String?,
+    )
+
+    private var announcement: Announcement? = null
+
+    /**
+     * Sets what to announce on this and every later (re)connection.
+     *
+     * Retained, so the designer finds the phone whenever a browser tab is
+     * opened on the startup gate rather than only while it happens to be
+     * watching - the same reason every board retains its own hello. Under a
+     * stable client id (DeviceIdentity), or each launch would leave another
+     * retained message behind.
+     */
+    fun setAnnouncement(value: Announcement?) {
+        announcement = value
+        publishAnnouncement()
+    }
+
+    private fun publishAnnouncement() {
+        val hello = announcement ?: return
+        val active = client ?: return
+        val payload = buildString {
+            append("{")
+            append("\"deviceId\":\"${escapeJson(hello.deviceId)}\"")
+            append(",\"name\":\"${escapeJson(hello.deviceName)}\"")
+            append(",\"firmwareVersion\":\"${escapeJson(hello.appVersion)}\"")
+            append(",\"systemGeneration\":\"$SYSTEM_GENERATION\"")
+            append(",\"ddfHash\":\"${escapeJson(hello.ddfHash)}\"")
+            // A device that omits `url` is treated as "does not self-announce
+            // its DDF" and skipped by the designer's discovery, which is the
+            // right reading of a phone that has no address to be fetched at.
+            if (hello.url != null) append(",\"url\":\"${escapeJson(hello.url)}\"")
+            append("}")
+        }
+        val base = "$TOPIC_PREFIX/${hello.deviceId}"
+        active.publishWith()
+            .topic("$base/hello")
+            .qos(MqttQos.AT_MOST_ONCE)
+            .retain(true)
+            .payload(payload.toByteArray(StandardCharsets.UTF_8))
+            .send()
+        active.publishWith()
+            .topic("$base/status")
+            .qos(MqttQos.AT_MOST_ONCE)
+            .retain(true)
+            .payload("online".toByteArray(StandardCharsets.UTF_8))
+            .send()
+        Log.i("MqttRepository", "announced $base -> ${hello.url}")
+    }
+
+    private fun escapeJson(text: String): String =
+        text.replace("\\", "\\\\").replace("\"", "\\\"")
+
     /** (Re)connects to [config] and subscribes to every topic in [topics]. */
     fun connect(config: BrokerConfig, topics: Set<String>) {
         Log.i("MqttRepository", "connect() called: host=${config.host} port=${config.port} topics=$topics")
@@ -71,14 +142,23 @@ class MqttRepository {
 
         val builder = MqttClient.builder()
             .useMqttVersion3()
-            .identifier("screensmith-android-${System.currentTimeMillis()}")
+            // Stable, because the announcement below is retained under it:
+            // a fresh id per launch would leave one more retained hello on
+            // the broker every time the app started.
+            .identifier(announcement?.deviceId ?: "screensmith-android")
             .serverHost(config.host)
             .serverPort(config.port)
             .automaticReconnect()
             .initialDelay(1, TimeUnit.SECONDS)
             .maxDelay(30, TimeUnit.SECONDS)
             .applyAutomaticReconnect()
-            .addConnectedListener { resubscribeAll() }
+            .addConnectedListener {
+                resubscribeAll()
+                // Every reconnection, not just the first: a broker restart
+                // loses retained messages, and a phone that announced once
+                // an hour ago would then be invisible.
+                publishAnnouncement()
+            }
             .addDisconnectedListener { _connectionState.value = ConnectionState.DISCONNECTED }
 
         val asyncClient = builder.buildAsync()
@@ -86,6 +166,18 @@ class MqttRepository {
 
         _connectionState.value = ConnectionState.CONNECTING
         var connectBuilder = asyncClient.connectWith()
+        // The other half of the retained status: the broker says "offline"
+        // for us when this connection drops, whether or not the app had a
+        // chance to say anything itself.
+        announcement?.let { hello ->
+            connectBuilder = connectBuilder
+                .willPublish()
+                .topic("$TOPIC_PREFIX/${hello.deviceId}/status")
+                .qos(MqttQos.AT_MOST_ONCE)
+                .retain(true)
+                .payload("offline".toByteArray(StandardCharsets.UTF_8))
+                .applyWillPublish()
+        }
         if (config.username.isNotBlank()) {
             connectBuilder = connectBuilder
                 .simpleAuth()

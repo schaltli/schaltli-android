@@ -41,14 +41,17 @@ one-time steps are needed before it builds:
   copies have to produce the same pixels. `ArcSinTable.kt` is generated -
   do not edit it, regenerate with the designer's
   `scripts/gen-arc-sin-table.js`.
-- `ddf-source/` - this device's Device Description File: what the designer
-  is allowed to place on it. Build the zip the designer serves with
-  `node tools/build-ddf.js` after any change here (`--check` verifies
-  without writing).
+- `ddf/` - this device's Device Description File, built at runtime from the
+  screen this phone actually has (`DdfBuilder`), served at
+  `http://<phone>:8080/ddf.zip` (`DdfServer`) and pointed at from the
+  retained MQTT `hello` (`MqttRepository.setAnnouncement`). It used to be a
+  file checked into the designer declaring a fixed 360x800, which is one
+  size for a class of devices whose sizes all differ - see the designer's
+  `docs/2026-09-21-android-self-announce.md`.
 
 ## What it renders
 
-Every object type `ddf-source/device.json` declares, which as of
+Every object type `DdfBuilder`'s own list declares, which as of
 2026-08-29 is the same set the Waveshare Knob-1.8 firmware renders:
 `label`, `MqttDataField`, `MQTTIconField`, `level-indicator`,
 `MqttDataLine`, `arc-level`, `SoftwareButton`, `Switch`, `tab-control` /
