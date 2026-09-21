@@ -165,10 +165,11 @@ fun DynamicObjectView(
     topicValues: Map<String, String>,
     assetFileOf: (String) -> File,
     onAction: (ButtonAction) -> Unit,
-    // Only an arc-level reads this, and only to decide what its
-    // anti-aliased edges mix into where its own background is transparent -
-    // see ArcLevelView. Passed down rather than looked up because a nested
-    // object has no way back to the screen that owns it.
+    // What a level's colours are worked out against: an arc's anti-aliased
+    // edges mix into it, and a bar's unfilled track is half of it (the
+    // designer's docs/2026-09-19-slider-look.md, decision 12 - the control
+    // has no background of its own any more). Passed down rather than looked
+    // up because a nested object has no way back to the screen that owns it.
     screenBackgroundColor: String?,
     // What a finger asked of a value, and where a set value goes: a settable
     // level draws the request as its marker and publishes on a tap
@@ -204,7 +205,9 @@ fun DynamicObjectView(
         // in the designer repo).
         "bar", "slider" -> {
             val value = resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues)
-            LevelIndicatorView(obj, project, value, markerValueFor(obj), onSetLevel)
+            LevelIndicatorView(
+                obj, project, value, markerValueFor(obj), screenBackgroundColor, assetFileOf, onSetLevel,
+            )
         }
         "gauge", "dial" -> {
             val value = resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues)

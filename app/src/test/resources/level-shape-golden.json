@@ -1,0 +1,1394 @@
+{
+  "generated": "2026-09-21T20:39:23.072Z",
+  "cases": {
+    "bar-45-percent": {
+      "input": {
+        "type": "bar",
+        "x": 20,
+        "y": 40,
+        "width": 280,
+        "height": 40,
+        "properties": {
+          "fillColor": "#4CAF50"
+        },
+        "fonts": [],
+        "percent": 45,
+        "setpointPercent": -1,
+        "background": "#101010",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "vertical": false,
+        "fillsFromEnd": false,
+        "thickness": 16,
+        "hasHandle": false,
+        "showsNumber": true,
+        "headerHeight": 0,
+        "valueWidth": 40,
+        "metrics": {
+          "ascent": 11,
+          "descent": 3,
+          "capHeight": 9
+        },
+        "layout": {
+          "header": null,
+          "baseline": 64,
+          "icon": null,
+          "text": null,
+          "value": {
+            "x": 260,
+            "y": 40,
+            "w": 40,
+            "h": 40,
+            "r": 0
+          },
+          "bar": {
+            "x": 20,
+            "y": 40,
+            "w": 234,
+            "h": 40,
+            "r": 0
+          },
+          "slot": {
+            "x": 20,
+            "y": 52,
+            "w": 234,
+            "h": 16,
+            "r": 0
+          },
+          "track": {
+            "x": 24,
+            "y": 52,
+            "w": 226,
+            "h": 16,
+            "r": 8
+          }
+        },
+        "track": {
+          "x": 24,
+          "y": 52,
+          "w": 226,
+          "h": 16,
+          "r": 8
+        },
+        "emptyTrack": {
+          "x": 24,
+          "y": 52,
+          "w": 226,
+          "h": 16,
+          "r": 8,
+          "role": "track",
+          "roundStart": true,
+          "roundEnd": true
+        },
+        "segments": [
+          {
+            "x": 24,
+            "y": 52,
+            "w": 101,
+            "h": 16,
+            "r": 8,
+            "role": "fill",
+            "roundStart": true,
+            "roundEnd": false
+          },
+          {
+            "x": 125,
+            "y": 52,
+            "w": 125,
+            "h": 16,
+            "r": 8,
+            "role": "track",
+            "roundStart": false,
+            "roundEnd": true
+          }
+        ],
+        "handle": null,
+        "trackLook": {
+          "track": "#2e5f30",
+          "framed": false
+        }
+      }
+    },
+    "bar-empty": {
+      "input": {
+        "type": "bar",
+        "x": 20,
+        "y": 40,
+        "width": 280,
+        "height": 40,
+        "properties": {
+          "fillColor": "#4CAF50"
+        },
+        "fonts": [],
+        "percent": 0,
+        "setpointPercent": -1,
+        "background": "#101010",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "vertical": false,
+        "fillsFromEnd": false,
+        "thickness": 16,
+        "hasHandle": false,
+        "showsNumber": true,
+        "headerHeight": 0,
+        "valueWidth": 40,
+        "metrics": {
+          "ascent": 11,
+          "descent": 3,
+          "capHeight": 9
+        },
+        "layout": {
+          "header": null,
+          "baseline": 64,
+          "icon": null,
+          "text": null,
+          "value": {
+            "x": 260,
+            "y": 40,
+            "w": 40,
+            "h": 40,
+            "r": 0
+          },
+          "bar": {
+            "x": 20,
+            "y": 40,
+            "w": 234,
+            "h": 40,
+            "r": 0
+          },
+          "slot": {
+            "x": 20,
+            "y": 52,
+            "w": 234,
+            "h": 16,
+            "r": 0
+          },
+          "track": {
+            "x": 24,
+            "y": 52,
+            "w": 226,
+            "h": 16,
+            "r": 8
+          }
+        },
+        "track": {
+          "x": 24,
+          "y": 52,
+          "w": 226,
+          "h": 16,
+          "r": 8
+        },
+        "emptyTrack": {
+          "x": 24,
+          "y": 52,
+          "w": 226,
+          "h": 16,
+          "r": 8,
+          "role": "track",
+          "roundStart": true,
+          "roundEnd": true
+        },
+        "segments": [
+          {
+            "x": 24,
+            "y": 52,
+            "w": 226,
+            "h": 16,
+            "r": 8,
+            "role": "track",
+            "roundStart": true,
+            "roundEnd": true
+          }
+        ],
+        "handle": null,
+        "trackLook": {
+          "track": "#2e5f30",
+          "framed": false
+        }
+      }
+    },
+    "bar-full": {
+      "input": {
+        "type": "bar",
+        "x": 20,
+        "y": 40,
+        "width": 280,
+        "height": 40,
+        "properties": {
+          "fillColor": "#4CAF50"
+        },
+        "fonts": [],
+        "percent": 100,
+        "setpointPercent": -1,
+        "background": "#101010",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "vertical": false,
+        "fillsFromEnd": false,
+        "thickness": 16,
+        "hasHandle": false,
+        "showsNumber": true,
+        "headerHeight": 0,
+        "valueWidth": 40,
+        "metrics": {
+          "ascent": 11,
+          "descent": 3,
+          "capHeight": 9
+        },
+        "layout": {
+          "header": null,
+          "baseline": 64,
+          "icon": null,
+          "text": null,
+          "value": {
+            "x": 260,
+            "y": 40,
+            "w": 40,
+            "h": 40,
+            "r": 0
+          },
+          "bar": {
+            "x": 20,
+            "y": 40,
+            "w": 234,
+            "h": 40,
+            "r": 0
+          },
+          "slot": {
+            "x": 20,
+            "y": 52,
+            "w": 234,
+            "h": 16,
+            "r": 0
+          },
+          "track": {
+            "x": 24,
+            "y": 52,
+            "w": 226,
+            "h": 16,
+            "r": 8
+          }
+        },
+        "track": {
+          "x": 24,
+          "y": 52,
+          "w": 226,
+          "h": 16,
+          "r": 8
+        },
+        "emptyTrack": {
+          "x": 24,
+          "y": 52,
+          "w": 226,
+          "h": 16,
+          "r": 8,
+          "role": "track",
+          "roundStart": true,
+          "roundEnd": true
+        },
+        "segments": [
+          {
+            "x": 24,
+            "y": 52,
+            "w": 226,
+            "h": 16,
+            "r": 8,
+            "role": "fill",
+            "roundStart": true,
+            "roundEnd": true
+          }
+        ],
+        "handle": null,
+        "trackLook": {
+          "track": "#2e5f30",
+          "framed": false
+        }
+      }
+    },
+    "bar-on-white": {
+      "input": {
+        "type": "bar",
+        "x": 20,
+        "y": 40,
+        "width": 280,
+        "height": 40,
+        "properties": {
+          "fillColor": "#4CAF50"
+        },
+        "fonts": [],
+        "percent": 45,
+        "setpointPercent": -1,
+        "background": "#ffffff",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "vertical": false,
+        "fillsFromEnd": false,
+        "thickness": 16,
+        "hasHandle": false,
+        "showsNumber": true,
+        "headerHeight": 0,
+        "valueWidth": 40,
+        "metrics": {
+          "ascent": 11,
+          "descent": 3,
+          "capHeight": 9
+        },
+        "layout": {
+          "header": null,
+          "baseline": 64,
+          "icon": null,
+          "text": null,
+          "value": {
+            "x": 260,
+            "y": 40,
+            "w": 40,
+            "h": 40,
+            "r": 0
+          },
+          "bar": {
+            "x": 20,
+            "y": 40,
+            "w": 234,
+            "h": 40,
+            "r": 0
+          },
+          "slot": {
+            "x": 20,
+            "y": 52,
+            "w": 234,
+            "h": 16,
+            "r": 0
+          },
+          "track": {
+            "x": 24,
+            "y": 52,
+            "w": 226,
+            "h": 16,
+            "r": 8
+          }
+        },
+        "track": {
+          "x": 24,
+          "y": 52,
+          "w": 226,
+          "h": 16,
+          "r": 8
+        },
+        "emptyTrack": {
+          "x": 24,
+          "y": 52,
+          "w": 226,
+          "h": 16,
+          "r": 8,
+          "role": "track",
+          "roundStart": true,
+          "roundEnd": true
+        },
+        "segments": [
+          {
+            "x": 24,
+            "y": 52,
+            "w": 101,
+            "h": 16,
+            "r": 8,
+            "role": "fill",
+            "roundStart": true,
+            "roundEnd": false
+          },
+          {
+            "x": 125,
+            "y": 52,
+            "w": 125,
+            "h": 16,
+            "r": 8,
+            "role": "track",
+            "roundStart": false,
+            "roundEnd": true
+          }
+        ],
+        "handle": null,
+        "trackLook": {
+          "track": "#a6d7a8",
+          "framed": false
+        }
+      }
+    },
+    "bar-with-name-and-number": {
+      "input": {
+        "type": "bar",
+        "x": 12,
+        "y": 12,
+        "width": 320,
+        "height": 64,
+        "properties": {
+          "fillColor": "#4CAF50",
+          "label": "Frischwasser",
+          "displayValue": "percentage"
+        },
+        "fonts": [],
+        "percent": 62,
+        "setpointPercent": -1,
+        "background": "#101010",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "vertical": false,
+        "fillsFromEnd": false,
+        "thickness": 16,
+        "hasHandle": false,
+        "showsNumber": true,
+        "headerHeight": 14,
+        "valueWidth": 40,
+        "metrics": {
+          "ascent": 11,
+          "descent": 3,
+          "capHeight": 9
+        },
+        "layout": {
+          "header": {
+            "x": 12,
+            "y": 12,
+            "w": 320,
+            "h": 14,
+            "r": 0
+          },
+          "baseline": 23,
+          "icon": null,
+          "text": {
+            "x": 12,
+            "y": 12,
+            "w": 320,
+            "h": 14,
+            "r": 0
+          },
+          "value": null,
+          "bar": {
+            "x": 12,
+            "y": 27,
+            "w": 320,
+            "h": 49,
+            "r": 0
+          },
+          "slot": {
+            "x": 12,
+            "y": 27,
+            "w": 320,
+            "h": 16,
+            "r": 0
+          },
+          "track": {
+            "x": 16,
+            "y": 27,
+            "w": 312,
+            "h": 16,
+            "r": 8
+          }
+        },
+        "track": {
+          "x": 16,
+          "y": 27,
+          "w": 312,
+          "h": 16,
+          "r": 8
+        },
+        "emptyTrack": {
+          "x": 16,
+          "y": 27,
+          "w": 312,
+          "h": 16,
+          "r": 8,
+          "role": "track",
+          "roundStart": true,
+          "roundEnd": true
+        },
+        "segments": [
+          {
+            "x": 16,
+            "y": 27,
+            "w": 193,
+            "h": 16,
+            "r": 8,
+            "role": "fill",
+            "roundStart": true,
+            "roundEnd": false
+          },
+          {
+            "x": 209,
+            "y": 27,
+            "w": 119,
+            "h": 16,
+            "r": 8,
+            "role": "track",
+            "roundStart": false,
+            "roundEnd": true
+          }
+        ],
+        "handle": null,
+        "trackLook": {
+          "track": "#2e5f30",
+          "framed": false
+        }
+      }
+    },
+    "slider-with-handle": {
+      "input": {
+        "type": "slider",
+        "x": 20,
+        "y": 40,
+        "width": 280,
+        "height": 48,
+        "properties": {
+          "fillColor": "#4CAF50",
+          "writeTopic": "hil/target"
+        },
+        "fonts": [],
+        "percent": 30,
+        "setpointPercent": 70,
+        "background": "#101010",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "vertical": false,
+        "fillsFromEnd": false,
+        "thickness": 16,
+        "hasHandle": true,
+        "showsNumber": true,
+        "headerHeight": 0,
+        "valueWidth": 40,
+        "metrics": {
+          "ascent": 11,
+          "descent": 3,
+          "capHeight": 9
+        },
+        "layout": {
+          "header": null,
+          "baseline": 68,
+          "icon": null,
+          "text": null,
+          "value": {
+            "x": 260,
+            "y": 40,
+            "w": 40,
+            "h": 48,
+            "r": 0
+          },
+          "bar": {
+            "x": 20,
+            "y": 40,
+            "w": 234,
+            "h": 48,
+            "r": 0
+          },
+          "slot": {
+            "x": 20,
+            "y": 42,
+            "w": 234,
+            "h": 44,
+            "r": 0
+          },
+          "track": {
+            "x": 24,
+            "y": 56,
+            "w": 226,
+            "h": 16,
+            "r": 8
+          }
+        },
+        "track": {
+          "x": 24,
+          "y": 56,
+          "w": 226,
+          "h": 16,
+          "r": 8
+        },
+        "emptyTrack": {
+          "x": 24,
+          "y": 56,
+          "w": 226,
+          "h": 16,
+          "r": 8,
+          "role": "track",
+          "roundStart": true,
+          "roundEnd": true
+        },
+        "segments": [
+          {
+            "x": 24,
+            "y": 56,
+            "w": 67,
+            "h": 16,
+            "r": 8,
+            "role": "fill",
+            "roundStart": true,
+            "roundEnd": false
+          },
+          {
+            "x": 91,
+            "y": 56,
+            "w": 83,
+            "h": 16,
+            "r": 8,
+            "role": "track",
+            "roundStart": false,
+            "roundEnd": false
+          },
+          {
+            "x": 190,
+            "y": 56,
+            "w": 60,
+            "h": 16,
+            "r": 8,
+            "role": "track",
+            "roundStart": false,
+            "roundEnd": true
+          }
+        ],
+        "handle": {
+          "x": 180,
+          "y": 42,
+          "w": 4,
+          "h": 44,
+          "r": 2
+        },
+        "trackLook": {
+          "track": "#2e5f30",
+          "framed": false
+        }
+      }
+    },
+    "bar-vertical": {
+      "input": {
+        "type": "bar",
+        "x": 40,
+        "y": 20,
+        "width": 48,
+        "height": 220,
+        "properties": {
+          "fillColor": "#4CAF50",
+          "barDirection": "bottom-to-top"
+        },
+        "fonts": [],
+        "percent": 35,
+        "setpointPercent": -1,
+        "background": "#101010",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "vertical": true,
+        "fillsFromEnd": true,
+        "thickness": 16,
+        "hasHandle": false,
+        "showsNumber": true,
+        "headerHeight": 0,
+        "valueWidth": 19,
+        "metrics": {
+          "ascent": 11,
+          "descent": 3,
+          "capHeight": 9
+        },
+        "layout": {
+          "header": null,
+          "baseline": 237,
+          "icon": null,
+          "text": null,
+          "value": {
+            "x": 40,
+            "y": 226,
+            "w": 48,
+            "h": 14,
+            "r": 0
+          },
+          "bar": {
+            "x": 40,
+            "y": 20,
+            "w": 48,
+            "h": 200,
+            "r": 0
+          },
+          "slot": {
+            "x": 56,
+            "y": 20,
+            "w": 16,
+            "h": 200,
+            "r": 0
+          },
+          "track": {
+            "x": 56,
+            "y": 24,
+            "w": 16,
+            "h": 192,
+            "r": 8
+          }
+        },
+        "track": {
+          "x": 56,
+          "y": 24,
+          "w": 16,
+          "h": 192,
+          "r": 8
+        },
+        "emptyTrack": {
+          "x": 56,
+          "y": 24,
+          "w": 16,
+          "h": 192,
+          "r": 8,
+          "role": "track",
+          "roundStart": true,
+          "roundEnd": true
+        },
+        "segments": [
+          {
+            "x": 56,
+            "y": 24,
+            "w": 16,
+            "h": 125,
+            "r": 8,
+            "role": "track",
+            "roundStart": true,
+            "roundEnd": false
+          },
+          {
+            "x": 56,
+            "y": 149,
+            "w": 16,
+            "h": 67,
+            "r": 8,
+            "role": "fill",
+            "roundStart": false,
+            "roundEnd": true
+          }
+        ],
+        "handle": null,
+        "trackLook": {
+          "track": "#2e5f30",
+          "framed": false
+        }
+      }
+    },
+    "bar-right-to-left": {
+      "input": {
+        "type": "bar",
+        "x": 20,
+        "y": 40,
+        "width": 280,
+        "height": 40,
+        "properties": {
+          "fillColor": "#4CAF50",
+          "barDirection": "right-to-left"
+        },
+        "fonts": [],
+        "percent": 25,
+        "setpointPercent": -1,
+        "background": "#101010",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "vertical": false,
+        "fillsFromEnd": true,
+        "thickness": 16,
+        "hasHandle": false,
+        "showsNumber": true,
+        "headerHeight": 0,
+        "valueWidth": 40,
+        "metrics": {
+          "ascent": 11,
+          "descent": 3,
+          "capHeight": 9
+        },
+        "layout": {
+          "header": null,
+          "baseline": 64,
+          "icon": null,
+          "text": null,
+          "value": {
+            "x": 260,
+            "y": 40,
+            "w": 40,
+            "h": 40,
+            "r": 0
+          },
+          "bar": {
+            "x": 20,
+            "y": 40,
+            "w": 234,
+            "h": 40,
+            "r": 0
+          },
+          "slot": {
+            "x": 20,
+            "y": 52,
+            "w": 234,
+            "h": 16,
+            "r": 0
+          },
+          "track": {
+            "x": 24,
+            "y": 52,
+            "w": 226,
+            "h": 16,
+            "r": 8
+          }
+        },
+        "track": {
+          "x": 24,
+          "y": 52,
+          "w": 226,
+          "h": 16,
+          "r": 8
+        },
+        "emptyTrack": {
+          "x": 24,
+          "y": 52,
+          "w": 226,
+          "h": 16,
+          "r": 8,
+          "role": "track",
+          "roundStart": true,
+          "roundEnd": true
+        },
+        "segments": [
+          {
+            "x": 24,
+            "y": 52,
+            "w": 170,
+            "h": 16,
+            "r": 8,
+            "role": "track",
+            "roundStart": true,
+            "roundEnd": false
+          },
+          {
+            "x": 194,
+            "y": 52,
+            "w": 56,
+            "h": 16,
+            "r": 8,
+            "role": "fill",
+            "roundStart": false,
+            "roundEnd": true
+          }
+        ],
+        "handle": null,
+        "trackLook": {
+          "track": "#2e5f30",
+          "framed": false
+        }
+      }
+    },
+    "bar-with-ddf-font": {
+      "input": {
+        "type": "bar",
+        "x": 16,
+        "y": 24,
+        "width": 300,
+        "height": 56,
+        "properties": {
+          "fillColor": "#4CAF50",
+          "label": "Frischwasser",
+          "displayValue": "percentage",
+          "fontId": "font-roboto-16"
+        },
+        "fonts": [
+          {
+            "id": "font-roboto-16",
+            "displayName": "Roboto 16px",
+            "size": 16,
+            "ascent": 15,
+            "descent": 4,
+            "path": "assets/fonts/Roboto.ttf"
+          }
+        ],
+        "percent": 62,
+        "setpointPercent": -1,
+        "background": "#101010",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "vertical": false,
+        "fillsFromEnd": false,
+        "thickness": 16,
+        "hasHandle": false,
+        "showsNumber": true,
+        "headerHeight": 16,
+        "valueWidth": 45,
+        "metrics": {
+          "ascent": 13,
+          "descent": 3,
+          "capHeight": 13
+        },
+        "layout": {
+          "header": {
+            "x": 16,
+            "y": 24,
+            "w": 300,
+            "h": 16,
+            "r": 0
+          },
+          "baseline": 37,
+          "icon": null,
+          "text": {
+            "x": 16,
+            "y": 24,
+            "w": 300,
+            "h": 16,
+            "r": 0
+          },
+          "value": null,
+          "bar": {
+            "x": 16,
+            "y": 41,
+            "w": 300,
+            "h": 39,
+            "r": 0
+          },
+          "slot": {
+            "x": 16,
+            "y": 41,
+            "w": 300,
+            "h": 16,
+            "r": 0
+          },
+          "track": {
+            "x": 20,
+            "y": 41,
+            "w": 292,
+            "h": 16,
+            "r": 8
+          }
+        },
+        "track": {
+          "x": 20,
+          "y": 41,
+          "w": 292,
+          "h": 16,
+          "r": 8
+        },
+        "emptyTrack": {
+          "x": 20,
+          "y": 41,
+          "w": 292,
+          "h": 16,
+          "r": 8,
+          "role": "track",
+          "roundStart": true,
+          "roundEnd": true
+        },
+        "segments": [
+          {
+            "x": 20,
+            "y": 41,
+            "w": 181,
+            "h": 16,
+            "r": 8,
+            "role": "fill",
+            "roundStart": true,
+            "roundEnd": false
+          },
+          {
+            "x": 201,
+            "y": 41,
+            "w": 111,
+            "h": 16,
+            "r": 8,
+            "role": "track",
+            "roundStart": false,
+            "roundEnd": true
+          }
+        ],
+        "handle": null,
+        "trackLook": {
+          "track": "#2e5f30",
+          "framed": false
+        }
+      }
+    },
+    "slider-with-measured-font": {
+      "input": {
+        "type": "slider",
+        "x": 16,
+        "y": 24,
+        "width": 300,
+        "height": 72,
+        "properties": {
+          "fillColor": "#4CAF50",
+          "label": "Dimmer",
+          "displayValue": "percentage",
+          "fontId": "font-measured-20",
+          "writeTopic": "hil/target"
+        },
+        "fonts": [
+          {
+            "id": "font-measured-20",
+            "displayName": "Roboto 20px",
+            "size": 20,
+            "ascent": 19,
+            "descent": 5,
+            "path": "assets/fonts/Roboto.ttf",
+            "baselineOffset": 14.2
+          }
+        ],
+        "percent": 40,
+        "setpointPercent": 55,
+        "background": "#101010",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "vertical": false,
+        "fillsFromEnd": false,
+        "thickness": 16,
+        "hasHandle": true,
+        "showsNumber": true,
+        "headerHeight": 20,
+        "valueWidth": 60,
+        "metrics": {
+          "ascent": 14,
+          "descent": 6,
+          "capHeight": 14
+        },
+        "layout": {
+          "header": {
+            "x": 16,
+            "y": 24,
+            "w": 300,
+            "h": 20,
+            "r": 0
+          },
+          "baseline": 38,
+          "icon": null,
+          "text": {
+            "x": 16,
+            "y": 24,
+            "w": 300,
+            "h": 20,
+            "r": 0
+          },
+          "value": null,
+          "bar": {
+            "x": 16,
+            "y": 45,
+            "w": 300,
+            "h": 51,
+            "r": 0
+          },
+          "slot": {
+            "x": 16,
+            "y": 45,
+            "w": 300,
+            "h": 44,
+            "r": 0
+          },
+          "track": {
+            "x": 20,
+            "y": 59,
+            "w": 292,
+            "h": 16,
+            "r": 8
+          }
+        },
+        "track": {
+          "x": 20,
+          "y": 59,
+          "w": 292,
+          "h": 16,
+          "r": 8
+        },
+        "emptyTrack": {
+          "x": 20,
+          "y": 59,
+          "w": 292,
+          "h": 16,
+          "r": 8,
+          "role": "track",
+          "roundStart": true,
+          "roundEnd": true
+        },
+        "segments": [
+          {
+            "x": 20,
+            "y": 59,
+            "w": 116,
+            "h": 16,
+            "r": 8,
+            "role": "fill",
+            "roundStart": true,
+            "roundEnd": false
+          },
+          {
+            "x": 136,
+            "y": 59,
+            "w": 36,
+            "h": 16,
+            "r": 8,
+            "role": "track",
+            "roundStart": false,
+            "roundEnd": false
+          },
+          {
+            "x": 188,
+            "y": 59,
+            "w": 124,
+            "h": 16,
+            "r": 8,
+            "role": "track",
+            "roundStart": false,
+            "roundEnd": true
+          }
+        ],
+        "handle": {
+          "x": 178,
+          "y": 45,
+          "w": 4,
+          "h": 44,
+          "r": 2
+        },
+        "trackLook": {
+          "track": "#2e5f30",
+          "framed": false
+        }
+      }
+    },
+    "bar-vertical-with-header": {
+      "input": {
+        "type": "bar",
+        "x": 40,
+        "y": 20,
+        "width": 90,
+        "height": 240,
+        "properties": {
+          "fillColor": "#4CAF50",
+          "label": "Tank",
+          "displayValue": "percentage",
+          "fontId": "font-roboto-16",
+          "barDirection": "bottom-to-top"
+        },
+        "fonts": [
+          {
+            "id": "font-roboto-16",
+            "displayName": "Roboto 16px",
+            "size": 16,
+            "ascent": 15,
+            "descent": 4,
+            "path": "assets/fonts/Roboto.ttf"
+          }
+        ],
+        "percent": 35,
+        "setpointPercent": -1,
+        "background": "#101010",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "vertical": true,
+        "fillsFromEnd": true,
+        "thickness": 16,
+        "hasHandle": false,
+        "showsNumber": true,
+        "headerHeight": 16,
+        "valueWidth": 36,
+        "metrics": {
+          "ascent": 13,
+          "descent": 3,
+          "capHeight": 13
+        },
+        "layout": {
+          "header": {
+            "x": 40,
+            "y": 20,
+            "w": 90,
+            "h": 16,
+            "r": 0
+          },
+          "baseline": 33,
+          "icon": null,
+          "text": {
+            "x": 40,
+            "y": 20,
+            "w": 90,
+            "h": 16,
+            "r": 0
+          },
+          "value": null,
+          "bar": {
+            "x": 40,
+            "y": 37,
+            "w": 90,
+            "h": 223,
+            "r": 0
+          },
+          "slot": {
+            "x": 77,
+            "y": 37,
+            "w": 16,
+            "h": 223,
+            "r": 0
+          },
+          "track": {
+            "x": 77,
+            "y": 41,
+            "w": 16,
+            "h": 215,
+            "r": 8
+          }
+        },
+        "track": {
+          "x": 77,
+          "y": 41,
+          "w": 16,
+          "h": 215,
+          "r": 8
+        },
+        "emptyTrack": {
+          "x": 77,
+          "y": 41,
+          "w": 16,
+          "h": 215,
+          "r": 8,
+          "role": "track",
+          "roundStart": true,
+          "roundEnd": true
+        },
+        "segments": [
+          {
+            "x": 77,
+            "y": 41,
+            "w": 16,
+            "h": 140,
+            "r": 8,
+            "role": "track",
+            "roundStart": true,
+            "roundEnd": false
+          },
+          {
+            "x": 77,
+            "y": 181,
+            "w": 16,
+            "h": 75,
+            "r": 8,
+            "role": "fill",
+            "roundStart": false,
+            "roundEnd": true
+          }
+        ],
+        "handle": null,
+        "trackLook": {
+          "track": "#2e5f30",
+          "framed": false
+        }
+      }
+    },
+    "bar-thick": {
+      "input": {
+        "type": "bar",
+        "x": 20,
+        "y": 40,
+        "width": 120,
+        "height": 24,
+        "properties": {
+          "fillColor": "#4CAF50",
+          "barThickness": 40
+        },
+        "fonts": [],
+        "percent": 50,
+        "setpointPercent": -1,
+        "background": "#101010",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "vertical": false,
+        "fillsFromEnd": false,
+        "thickness": 40,
+        "hasHandle": false,
+        "showsNumber": true,
+        "headerHeight": 0,
+        "valueWidth": 40,
+        "metrics": {
+          "ascent": 11,
+          "descent": 3,
+          "capHeight": 9
+        },
+        "layout": {
+          "header": null,
+          "baseline": 56,
+          "icon": null,
+          "text": null,
+          "value": {
+            "x": 100,
+            "y": 40,
+            "w": 40,
+            "h": 24,
+            "r": 0
+          },
+          "bar": {
+            "x": 20,
+            "y": 40,
+            "w": 74,
+            "h": 24,
+            "r": 0
+          },
+          "slot": {
+            "x": 20,
+            "y": 40,
+            "w": 74,
+            "h": 24,
+            "r": 0
+          },
+          "track": {
+            "x": 24,
+            "y": 40,
+            "w": 66,
+            "h": 24,
+            "r": 12
+          }
+        },
+        "track": {
+          "x": 24,
+          "y": 40,
+          "w": 66,
+          "h": 24,
+          "r": 12
+        },
+        "emptyTrack": {
+          "x": 24,
+          "y": 40,
+          "w": 66,
+          "h": 24,
+          "r": 12,
+          "role": "track",
+          "roundStart": true,
+          "roundEnd": true
+        },
+        "segments": [
+          {
+            "x": 24,
+            "y": 40,
+            "w": 33,
+            "h": 24,
+            "r": 12,
+            "role": "fill",
+            "roundStart": true,
+            "roundEnd": false
+          },
+          {
+            "x": 57,
+            "y": 40,
+            "w": 33,
+            "h": 24,
+            "r": 12,
+            "role": "track",
+            "roundStart": false,
+            "roundEnd": true
+          }
+        ],
+        "handle": null,
+        "trackLook": {
+          "track": "#2e5f30",
+          "framed": false
+        }
+      }
+    }
+  }
+}

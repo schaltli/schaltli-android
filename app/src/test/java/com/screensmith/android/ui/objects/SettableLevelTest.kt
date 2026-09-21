@@ -1,14 +1,19 @@
 package com.screensmith.android.ui.objects
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The arithmetic and the shapes a settable level needs, held to the same
- * answers the designer's own tests hold it to (its
- * e2e/settable-level.spec.ts, and docs/2026-09-17-settable-level.md for why
- * each rule is what it is).
+ * The arithmetic a settable level needs, held to the same answers the
+ * designer's own tests hold it to (its e2e/settable-level.spec.ts, and
+ * docs/2026-09-17-settable-level.md for why each rule is what it is).
+ *
+ * The shapes moved out on 2026-09-21: what a level is made of now comes from
+ * LevelShape.kt, which LevelShapeGoldenTest holds to the designer's own
+ * recorded numbers rather than to a second reading of them. The marker styles
+ * this file used to check - line, round, triangle - went with the old look:
+ * a stroke that means "settable" has to look the same everywhere it appears,
+ * so there is exactly one shape and no choice left to test.
  *
  * This is the one half of the Android renderer that can be checked without a
  * phone - the same reasoning as ArcRasterGoldenTest beside it. What it
@@ -63,50 +68,5 @@ class SettableLevelTest {
         assertEquals("80", formatSetValue(80.0))
         assertEquals("80", formatSetValue(79.9999))
         assertEquals("12.5", formatSetValue(12.5))
-    }
-
-    @Test
-    fun `a line marker is the default and crosses the whole track`() {
-        val line = MarkerShape.rects(20, 20, 200, 40, "left-to-right", 50.0, 4, "line")
-        val dflt = MarkerShape.rects(20, 20, 200, 40, "left-to-right", 50.0, 4, "")
-        assertEquals(line, dflt)
-        assertEquals(1, line.size)
-        assertEquals(40 - 8, line[0].h)
-        assertEquals(4, line[0].w)
-    }
-
-    @Test
-    fun `a knob is a disc around the same point`() {
-        val line = MarkerShape.line(20, 20, 200, 40, "left-to-right", 50.0, 4)
-        val round = MarkerShape.rects(20, 20, 200, 40, "left-to-right", 50.0, 4, "round")
-        val x0 = round.minOf { it.x }
-        val x1 = round.maxOf { it.x + it.w }
-        val y0 = round.minOf { it.y }
-        val y1 = round.maxOf { it.y + it.h }
-        val centre = line.x + line.w / 2
-        assertTrue(Math.abs((x0 + x1) / 2 - centre) <= 1)
-        assertEquals(x1 - x0, y1 - y0)
-        val area = round.sumOf { it.w * it.h }
-        assertTrue("round, not square", area < (x1 - x0) * (y1 - y0))
-        assertTrue("and not a sliver", area > (x1 - x0) * (y1 - y0) / 2)
-    }
-
-    @Test
-    fun `a triangle narrows to one pixel from the track's edge`() {
-        val rects = MarkerShape.rects(20, 20, 200, 40, "left-to-right", 50.0, 4, "triangle")
-        assertEquals(20 + MarkerShape.PADDING, rects.first().y)
-        assertEquals(1, rects.last().w)
-        assertTrue(rects.first().w > rects.last().w)
-        for (i in 1 until rects.size) {
-            assertEquals(rects[i - 1].y + 1, rects[i].y)
-            assertTrue(rects[i].w <= rects[i - 1].w)
-        }
-    }
-
-    @Test
-    fun `a vertical track turns every shape the other way`() {
-        val rects = MarkerShape.rects(20, 20, 40, 200, "bottom-to-top", 50.0, 4, "triangle")
-        assertTrue(rects.all { it.w == 1 })
-        assertTrue(rects.first().h > rects.last().h)
     }
 }

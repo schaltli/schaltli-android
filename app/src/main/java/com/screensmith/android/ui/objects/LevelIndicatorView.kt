@@ -1,7 +1,10 @@
 package com.screensmith.android.ui.objects
 
+import android.graphics.Canvas as NativeCanvas
+import android.graphics.Paint
 import android.graphics.Typeface
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
@@ -13,23 +16,37 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.screensmith.android.data.FontEntry
 import com.screensmith.android.data.Project
 import com.screensmith.android.data.ScreenObject
+import com.screensmith.android.render.LEVEL_GAP
+import com.screensmith.android.render.LevelRect
+import com.screensmith.android.render.LevelRole
+import com.screensmith.android.render.LevelSegment
+import com.screensmith.android.render.fillRoundRect
+import com.screensmith.android.render.levelEmptyTrack
+import com.screensmith.android.render.levelFontMetrics
+import com.screensmith.android.render.levelFontSize
+import com.screensmith.android.render.levelFrameInner
+import com.screensmith.android.render.levelHandleRect
+import com.screensmith.android.render.levelIsVertical
+import com.screensmith.android.render.levelLayout
+import com.screensmith.android.render.levelLineHeight
+import com.screensmith.android.render.levelName
+import com.screensmith.android.render.levelPercentFromPoint
+import com.screensmith.android.render.levelSegments
+import com.screensmith.android.render.levelShowsNumber
+import com.screensmith.android.render.levelShowsSub
+import com.screensmith.android.render.levelTrackLook
 import com.screensmith.android.ui.LocalBundleInstallation
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.doubleOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlin.math.roundToInt
-import kotlin.math.truncate
 
 /**
  * Mirrors the designer's `calculateLevelIndicatorFill` (`render-level-indicator.ts`)
@@ -116,59 +133,101 @@ fun parseCalibrationPoints(props: JsonObject): List<Pair<Double, Double>> {
     return points.ifEmpty { listOf(0.0 to 0.0, 100.0 to 100.0) }
 }
 
-private data class FillRect(val x: Float, val y: Float, val w: Float, val h: Float)
+/**
+ * A level is settable when it has somewhere to write to. Mirrors
+ * `isSettableLevel` in the designer's render-level-indicator.ts - and with it
+ * the reason a bar that can be set rests its handle on its own value: with
+ * nothing outstanding, what was last commanded IS what is reported, and a
+ * handle sitting on the fill's edge is what says "you can move this".
+ */
+private fun isSettableLevel(obj: ScreenObject): Boolean =
+    (obj.type == "bar" || obj.type == "slider" || obj.type == "gauge" || obj.type == "dial") &&
+        !obj.properties.stringOrNull("writeTopic").isNullOrBlank()
 
 /**
- * Mirrors render-level-indicator.ts's computeBarFillRect() exactly: a 4dp
- * inset on every side (the designer's `padding = 4`, in project units = dp
- * here), then Math.trunc (toward-zero truncation, same as the firmware's
- * `int fillWidth = (innerWidth * fillPercent) / 100`) - a plain float
- * fraction produced a partial-pixel edge that got anti-aliased into a
- * non-pure-color row/column, a real HIL mismatch (2026-07-21 finding on the
- * designer side; this Android view had never implemented the padding inset
- * at all, so it drifted independently until this stress test caught it,
- * 2026-07-27).
+ * The smaller font the measured value is written in, out of the project's own
+ * list - the designer's `levelSubFont`.
+ *
+ * A BDF font is a grid of bitmaps and cannot be scaled, so "smaller" has to
+ * mean *another font*, which is why this is a choice rather than a number.
+ * The same family first (`font-roboto-16` and `font-roboto-12` share
+ * `font-roboto-`), because mixing another face into the line looks like a
+ * mistake; then any font small enough; and if the project has nothing
+ * smaller, the object's own, which merely looks unremarkable.
  */
-private fun computeBarFillRect(width: Float, height: Float, fillPercent: Double, barDirection: String, paddingPx: Float): FillRect {
-    val padding = paddingPx
-    val innerX = padding
-    val innerY = padding
-    val innerWidth = width - padding * 2
-    val innerHeight = height - padding * 2
+private fun levelSubFont(fonts: List<FontEntry>, obj: ScreenObject): FontEntry? {
+    if (fonts.isEmpty()) return null
+    val own = fonts.firstOrNull { it.id == obj.properties.stringOrNull("fontId") }
+    // Two thirds of the object's own line - not of `fontSize`, which the font
+    // picker never updates.
+    val wanted = levelLineHeight(levelFontMetrics(obj, fonts)) * 2 / 3
+    fun family(id: String) = id.replace(Regex("[0-9]+$"), "")
+    val ownFamily = own?.let { family(it.id) } ?: ""
+    val smaller = fonts.filter { it.size <= wanted }
+    fun best(list: List<FontEntry>) = list.maxByOrNull { it.size }
+    return best(smaller.filter { family(it.id) == ownFamily }) ?: best(smaller) ?: own
+}
 
-    return when (barDirection) {
-        "right-to-left" -> {
-            val fillWidth = truncate(innerWidth * fillPercent / 100.0).toFloat()
-            FillRect(innerX + innerWidth - fillWidth, innerY, fillWidth, innerHeight)
-        }
-        "bottom-to-top" -> {
-            val fillHeight = truncate(innerHeight * fillPercent / 100.0).toFloat()
-            FillRect(innerX, innerY + innerHeight - fillHeight, innerWidth, fillHeight)
-        }
-        "top-to-bottom" -> {
-            val fillHeight = truncate(innerHeight * fillPercent / 100.0).toFloat()
-            FillRect(innerX, innerY, innerWidth, fillHeight)
-        }
-        else -> {
-            val fillWidth = truncate(innerWidth * fillPercent / 100.0).toFloat()
-            FillRect(innerX, innerY, fillWidth, innerHeight)
-        }
-    }
+/** The size the text is drawn at: a TTF's own, else the object's `fontSize`. */
+private fun levelTextSize(obj: ScreenObject, font: FontEntry?): Int =
+    if (font?.path != null && font.size > 0) font.size else levelFontSize(obj)
+
+/**
+ * The size the bracketed number is drawn at. A different font carries its own
+ * size; the object's own font, when nothing smaller was found, is drawn at two
+ * thirds.
+ */
+private fun levelSubTextSize(obj: ScreenObject, sub: FontEntry?, own: FontEntry?): Int {
+    if (sub != null && sub !== own) return levelTextSize(obj, sub)
+    return maxOf(6, levelTextSize(obj, own) * 2 / 3)
 }
 
 /**
- * Mirrors render-level-indicator.ts's drawTextBox background/border/text
- * pipeline: a native Canvas/Paint draw (not Compose's .background()/
- * .border() modifiers, which rendered a visibly thicker border than the
- * reference - same class of bug as TextBoxView's, 2026-07-27), and the
- * designer's two-pass text technique - the value/percentage text is drawn
- * once in the bar's own fillColor across the whole box, then drawn a
- * second time in the background color, clipped to just the bar's filled
- * rect, so it reads as background-colored ink *inside* the bar (visible
- * against the fill) and fillColor-colored ink *outside* it (visible
- * against the background) - never invisible against either. The previous
- * single fixed-black-text version was readable but a real color mismatch
- * against the designer at any fill level (2026-07-27 HIL finding).
+ * One piece of text on a level indicator: what it is written in, and how big.
+ *
+ * Measured in project units and drawn in device pixels, which is why there are
+ * two Paints. The designer measures with `ctx.measureText` at the font's own
+ * pixel size and rounds the answer up to a whole unit; measuring here at the
+ * scaled size and dividing back would put a density-dependent number into an
+ * arithmetic whose whole purpose is to land on the same integers.
+ */
+private class LevelTextPen(typeface: Typeface, sizeUnits: Int, scale: Float, argb: Int) {
+    val draw = Paint().apply {
+        isAntiAlias = true
+        this.typeface = typeface
+        textSize = sizeUnits * scale
+        color = argb
+        textAlign = Paint.Align.LEFT
+    }
+    private val measure = Paint().apply {
+        isAntiAlias = true
+        this.typeface = typeface
+        textSize = sizeUnits.toFloat()
+    }
+
+    /** How wide this text is drawn, in whole project units. */
+    fun widthOf(text: String): Int = kotlin.math.ceil(measure.measureText(text).toDouble()).toInt()
+}
+
+/**
+ * A level indicator: a tank gauge, and - with somewhere to write to - the
+ * slider that sets one.
+ *
+ * Everything it is made of comes from
+ * [com.screensmith.android.render.LevelShape], this repo's copy of the
+ * designer's `lib/level-shape.ts`, which a golden test holds to the designer's
+ * own numbers. This file turns those rectangles into pixels and does no
+ * geometry of its own - which is the whole reason the port was worth doing:
+ * the old version drew a bordered box with the number in the middle of it, a
+ * look the designer retired on 2026-09-19 (docs/2026-09-19-slider-look.md),
+ * and there was nowhere to put the difference except a HIL percentage.
+ *
+ * Not ported: the icon a header line can carry. The designer rasterises the
+ * icon's *ink* onto the baseline (`rasterisedIconOnBaseline`), trimming the
+ * SVG's own margin, and drawing it any other way would be a second set of
+ * pixels that disagrees rather than a missing one. A bar with an `iconAssetId`
+ * therefore shows its name and no picture here - and the export does not write
+ * the file for a level object either, so there is nothing to draw with yet.
  */
 @Composable
 fun LevelIndicatorView(
@@ -177,89 +236,87 @@ fun LevelIndicatorView(
     rawValue: String,
     // What the marker shows: the installation's setpoint, or what a finger
     // asked of this value and the installation has not answered yet (decision
-    // 6c). Empty means no marker.
+    // 6c). Empty means the handle rests on the value itself, on a bar that can
+    // be set at all.
     rawSetpoint: String = "",
+    // What the unfilled track is mixed into: the bar has no background of its
+    // own any more, so the screen's is half of its colour (decision 12).
+    screenBackgroundColor: String? = null,
+    assetFileOf: (String) -> java.io.File = { java.io.File("") },
     // A tap sets the value at the point it landed, on a level with a write
     // topic. Nothing is drawn from here: the marker follows from rawSetpoint,
     // which the caller feeds from the asked value.
     onSetLevel: (markerTopic: String, writeTopic: String, value: String) -> Unit = { _, _, _ -> },
 ) {
     val props = obj.properties
-    val backgroundColor = props.colorOrDefault("backgroundColor", Color.White)
-    val borderColor = props.colorOrDefault("borderColor", Color(0xFFCCCCCC))
-    val fillColor = props.colorOrDefault("fillColor", Color(0xFF4CAF50))
-    val displayValue = props.string("displayValue", "value")
-    val barDirection = props.string("barDirection", "left-to-right")
+    val fonts = project.fonts
+    val fillColor = props.string("fillColor", "#4CAF50")
+    val fillArgb = (parseHexColor(fillColor) ?: Color(0xFF4CAF50)).toArgb()
+    val look = levelTrackLook(fillColor, screenBackgroundColor ?: "#ffffff")
+    val trackArgb = (parseHexColor(look.track) ?: Color.Transparent).toArgb()
+    val textArgb = (props.stringOrNull("textColor")?.let(::parseHexColor) ?: Color.Black).toArgb()
 
-    val numericValue = rawValue.toDoubleOrNull() ?: 0.0
     val calibration = parseCalibrationPoints(props)
-    val fillPercent = calculateFillPercent(numericValue, calibration).coerceIn(0.0, 100.0)
+    // Nothing reported yet: the track alone. It is the shape of the control,
+    // the way a ring has always drawn itself without a value - while an empty
+    // *fill* would claim an empty tank (docs/2026-09-15-live-data.md).
+    val noValue = rawValue.isBlank()
+    val fillPercent = calculateFillPercent(rawValue.toDoubleOrNull() ?: 0.0, calibration).coerceIn(0.0, 100.0)
 
-    // The marker: what was asked for, beside what is measured. Drawn over the
-    // fill and under the second text pass, the order the designer draws it in.
-    val setpointPercent = rawSetpoint.takeIf { it.isNotBlank() }?.let {
-        calculateFillPercent(it.toDoubleOrNull() ?: 0.0, calibration).coerceIn(0.0, 100.0)
+    val rawMarker = when {
+        noValue -> ""
+        rawSetpoint.isNotBlank() -> rawSetpoint
+        isSettableLevel(obj) -> rawValue
+        else -> ""
     }
-    val markerColor = props.colorOrDefault("markerColor", Color.White)
-    val markerWidth = ((props["markerWidth"] as? JsonPrimitive)?.intOrNull ?: 4).coerceAtLeast(1)
-    val markerStyle = props.string("markerStyle", "line")
+    val setpointPercent = rawMarker.takeIf { it.isNotBlank() }
+        ?.let { calculateFillPercent(it.toDoubleOrNull() ?: 0.0, calibration).coerceIn(0.0, 100.0) }
 
     val writeTopic = props.stringOrNull("writeTopic") ?: ""
     val markerTopic = props.stringOrNull("setpointTopic")?.takeIf { it.isNotEmpty() }
         ?: props.stringOrNull("topic") ?: ""
     val step = (props["step"] as? JsonPrimitive)?.doubleOrNull ?: 1.0
 
-    val displayText = when (displayValue) {
-        "none" -> null
-        "percentage" -> "${fillPercent.roundToInt()}%"
-        else -> rawValue
-    }
+    val displayValue = props.string("displayValue", "value")
+    fun asText(raw: String, percent: Double): String =
+        if (displayValue == "percentage") "${percent.roundToInt()}%" else raw
+    val measured = asText(rawValue, fillPercent)
+    val commanded = if (setpointPercent != null) asText(rawMarker, setpointPercent) else measured
 
-    val fontId = (props["fontId"] as? JsonPrimitive)?.contentOrNull
-    val fontMeta: FontEntry? = project.fonts.find { it.id == fontId }
-    val fontSize = fontMeta?.size ?: 14
-    val typeface = remember(fontMeta?.path, LocalBundleInstallation.current) {
-        // fontMeta.path is bundle-relative (e.g. "assets/fonts/Roboto.ttf");
-        // resolving it needs assetFileOf, but this composable (unlike
-        // TextBoxView) isn't handed that function - falls back to the
-        // system default face rather than plumbing it through for a
-        // property the designer itself only uses for size, not glyph shape
-        // (render-level-indicator.ts's `isTtf ? levelFontMeta.size : ...`
-        // never reads a family/path either in its own fallback text path).
-        Typeface.DEFAULT
-    }
+    val ownFont: FontEntry? = fonts.firstOrNull { it.id == props.stringOrNull("fontId") }
+    val subFont = levelSubFont(fonts, obj)
+    val installation = LocalBundleInstallation.current
+    val ownTypeface = remember(ownFont?.path, installation) { typefaceOf(ownFont, assetFileOf) }
+    val subTypeface = remember(subFont?.path, installation) { typefaceOf(subFont, assetFileOf) }
 
     val density = LocalDensity.current
+    val layout = levelLayout(obj, fonts)
+    val vertical = levelIsVertical(obj)
+    val ox = obj.x.toInt()
+    val oy = obj.y.toInt()
 
     Box(
         modifier = Modifier
-            .offset(x = obj.x.dp, y = obj.y.dp)
+            .offset(x = ox.dp, y = oy.dp)
             .size(width = obj.width.dp, height = obj.height.dp)
             .then(
                 if (writeTopic.isEmpty()) {
                     Modifier
                 } else {
-                    // A tap sets the value at the point it landed: the same
-                    // rectangle arithmetic the fill uses, read backwards, and
-                    // snapped to the object's step (decision 5). In project
-                    // units, like every other touch in this app.
-                    Modifier.pointerInput(obj.id, writeTopic, step, calibration) {
+                    // A tap sets the value at the point it landed - measured
+                    // against the TRACK, not against the object, so the finger
+                    // and the picture cannot drift apart now that a header
+                    // line and a number take room off the rectangle.
+                    Modifier.pointerInput(obj.id, writeTopic, step, calibration, fonts) {
                         detectTapGestures { offset ->
-                            // density is the composable's Density, so the
-                            // scale factor is density.density - the same
-                            // conversion SwitchView's tap uses.
-                            val localX = (offset.x / density.density).toDouble()
-                            val localY = (offset.y / density.density).toDouble()
-                            val padding = MarkerShape.PADDING
-                            val innerWidth = (obj.width - padding * 2).coerceAtLeast(1.0)
-                            val innerHeight = (obj.height - padding * 2).coerceAtLeast(1.0)
-                            val along = when (barDirection) {
-                                "right-to-left" -> (innerWidth + padding - localX) / innerWidth
-                                "bottom-to-top" -> (innerHeight + padding - localY) / innerHeight
-                                "top-to-bottom" -> (localY - padding) / innerHeight
-                                else -> (localX - padding) / innerWidth
-                            }
-                            val percent = (along * 100).coerceIn(0.0, 100.0)
+                            val localX = offset.x / density.density
+                            val localY = offset.y / density.density
+                            val percent = levelPercentFromPoint(
+                                obj,
+                                ox + localX.toDouble(),
+                                oy + localY.toDouble(),
+                                fonts,
+                            )
                             val value = snapToStep(valueForFillPercent(percent, calibration), step)
                             onSetLevel(markerTopic, writeTopic, formatSetValue(value))
                         }
@@ -268,84 +325,132 @@ fun LevelIndicatorView(
             ),
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val w = size.width
-            val h = size.height
-            val borderWidthPx = with(density) { 1.dp.toPx() }
-            val barPaddingPx = with(density) { 4.dp.toPx() }
-
+            val scale = density.density
             drawIntoCanvas { canvas ->
-                val fillPaint = android.graphics.Paint().apply { isAntiAlias = false; style = android.graphics.Paint.Style.FILL }
+                val native = canvas.nativeCanvas
+                val paint = Paint().apply { isAntiAlias = false; style = Paint.Style.FILL }
 
-                if (borderColor != Color.Transparent) {
-                    fillPaint.color = borderColor.toArgb()
-                    canvas.nativeCanvas.drawRect(0f, 0f, w, h, fillPaint)
-                }
-                if (backgroundColor != Color.Transparent) {
-                    fillPaint.color = backgroundColor.toArgb()
-                    val inset = if (borderColor != Color.Transparent) borderWidthPx else 0f
-                    canvas.nativeCanvas.drawRect(inset, inset, w - inset, h - inset, fillPaint)
-                }
-
-                // No value yet: the frame, and neither bar nor text - an
-                // empty bar would claim an empty tank.
-                if (rawValue.isBlank()) return@drawIntoCanvas
-
-                val bar = computeBarFillRect(w, h, fillPercent, barDirection, barPaddingPx)
-                fillPaint.color = fillColor.toArgb()
-                canvas.nativeCanvas.drawRect(bar.x, bar.y, bar.x + bar.w, bar.y + bar.h, fillPaint)
-
-                // Over the fill, under the number - the designer's order, so
-                // the digits stay readable and the marker still covers what
-                // is outside the bar.
-                if (setpointPercent != null) {
-                    fillPaint.color = markerColor.toArgb()
-                    for (r in MarkerShape.rects(
-                        objX = 0,
-                        objY = 0,
-                        objWidth = obj.width.toInt(),
-                        objHeight = obj.height.toInt(),
-                        barDirection = barDirection,
-                        setpointPercent = setpointPercent,
-                        markerWidth = markerWidth,
-                        style = markerStyle,
-                    )) {
-                        if (r.w <= 0 || r.h <= 0) continue
-                        val left = with(density) { r.x.dp.toPx() }
-                        val top = with(density) { r.y.dp.toPx() }
-                        val right = with(density) { (r.x + r.w).dp.toPx() }
-                        val bottom = with(density) { (r.y + r.h).dp.toPx() }
-                        canvas.nativeCanvas.drawRect(left, top, right, bottom, fillPaint)
+                // One run of track or fill, drawn as a pill and then squared
+                // off at the ends that are not the track's own, so two runs
+                // meet instead of curving away from each other.
+                fun run(seg: LevelSegment, argb: Int) {
+                    paint.color = argb
+                    fillRoundRect(native, paint, seg.x - ox, seg.y - oy, seg.w, seg.h, seg.r, scale)
+                    val r = minOf(seg.r, minOf(seg.w, seg.h) / 2)
+                    if (r <= 0) return
+                    if (!seg.roundStart) {
+                        if (vertical) fillUnits(native, paint, seg.x - ox, seg.y - oy, seg.w, r, scale)
+                        else fillUnits(native, paint, seg.x - ox, seg.y - oy, r, seg.h, scale)
+                    }
+                    if (!seg.roundEnd) {
+                        if (vertical) fillUnits(native, paint, seg.x - ox, seg.y - oy + seg.h - r, seg.w, r, scale)
+                        else fillUnits(native, paint, seg.x - ox + seg.w - r, seg.y - oy, r, seg.h, scale)
                     }
                 }
 
-                if (displayText != null) {
-                    val textPaint = android.graphics.Paint().apply {
-                        isAntiAlias = true
-                        this.typeface = typeface
-                        this.textSize = with(density) { fontSize.dp.toPx() }
-                        textAlign = android.graphics.Paint.Align.CENTER
-                    }
-                    val centerX = w / 2f
-                    val centerY = h / 2f
-                    // Standard Paint vertical-centering formula, equivalent
-                    // to canvas's textBaseline = "middle" the designer's own
-                    // fallback text path uses.
-                    val baselineY = centerY - (textPaint.ascent() + textPaint.descent()) / 2f
+                // The unfilled track: a body in its mixed colour, or - where
+                // that colour cannot be told from the background - an outline
+                // in the bar's own colour, drawn as the run's outer pixel with
+                // the background painted back over the inside.
+                fun trackRun(seg: LevelSegment) {
+                    if (!look.framed) return run(seg, trackArgb)
+                    run(seg, fillArgb)
+                    levelFrameInner(seg, vertical)?.let { run(it, trackArgb) }
+                }
 
-                    textPaint.color = fillColor.toArgb()
-                    canvas.nativeCanvas.drawText(displayText, centerX, baselineY, textPaint)
+                val handle = setpointPercent?.let { levelHandleRect(obj, it, fonts) }
+                val segments = if (noValue) {
+                    listOf(levelEmptyTrack(obj, fonts))
+                } else {
+                    levelSegments(obj, fillPercent, handle, fonts)
+                }
+                for (seg in segments) {
+                    if (seg.role == LevelRole.FILL) run(seg, fillArgb) else trackRun(seg)
+                }
+                if (handle != null) {
+                    // The fill's own colour, and deliberately not a marker
+                    // colour: handle and active track are one object that the
+                    // gap separates.
+                    paint.color = fillArgb
+                    fillRoundRect(native, paint, handle.x - ox, handle.y - oy, handle.w, handle.h, handle.r, scale)
+                }
 
-                    val clipBounds = android.graphics.Rect(
-                        bar.x.roundToInt(), bar.y.roundToInt(),
-                        (bar.x + bar.w).roundToInt(), (bar.y + bar.h).roundToInt(),
+                val pen = LevelTextPen(ownTypeface, levelTextSize(obj, ownFont), scale, textArgb)
+                fun drawAt(p: LevelTextPen, clip: LevelRect, text: String, x: Int, baseline: Int) {
+                    if (text.isEmpty() || clip.w <= 0 || clip.h <= 0) return
+                    native.save()
+                    native.clipRect(
+                        (clip.x - ox) * scale,
+                        (clip.y - oy) * scale,
+                        (clip.x - ox + clip.w) * scale,
+                        (clip.y - oy + clip.h) * scale,
                     )
-                    canvas.nativeCanvas.save()
-                    canvas.nativeCanvas.clipRect(clipBounds)
-                    textPaint.color = backgroundColor.toArgb()
-                    canvas.nativeCanvas.drawText(displayText, centerX, baselineY, textPaint)
-                    canvas.nativeCanvas.restore()
+                    native.drawText(text, (x - ox) * scale, (baseline - oy) * scale, p.draw)
+                    native.restore()
+                }
+
+                /** Text whose right end is at [right]. Returns where its left end landed. */
+                fun drawRightAligned(p: LevelTextPen, clip: LevelRect, text: String, right: Int): Int {
+                    val left = right - p.widthOf(text)
+                    drawAt(p, clip, text, left, layout.baseline)
+                    return left
+                }
+
+                /** The name, from the start of the header's text run up to [right]. */
+                fun drawHeaderName(right: Int) {
+                    val name = levelName(obj)
+                    val runRect = layout.text ?: return
+                    if (name.isEmpty() || right <= runRect.x) return
+                    drawAt(pen, runRect.copy(w = right - runRect.x), name, runRect.x, layout.baseline)
+                }
+
+                if (noValue) {
+                    // The name, and neither fill nor number: a bar that has
+                    // heard nothing still says what it is.
+                    layout.text?.let { drawHeaderName(it.x + it.w) }
+                    return@drawIntoCanvas
+                }
+
+                // The numbers - never over the bar any more. With Material's
+                // 16 unit track no number fits inside it, so the old two-pass
+                // trick that straddled the fill's edge has nothing left to do.
+                // The big one is the commanded value, where the handle points;
+                // the measured one only appears when it says something the big
+                // one does not.
+                val textRun = layout.text
+                if (textRun != null) {
+                    var right = textRun.x + textRun.w
+                    if (levelShowsNumber(obj)) {
+                        right = drawRightAligned(pen, textRun, commanded, right) - LEVEL_GAP
+                        if (levelShowsSub(obj) && measured != commanded) {
+                            // In brackets rather than behind a word: a bracket
+                            // needs no language. Smaller too, and on the same
+                            // baseline as the big one.
+                            val subPen = LevelTextPen(
+                                subTypeface,
+                                levelSubTextSize(obj, subFont, ownFont),
+                                scale,
+                                textArgb,
+                            )
+                            right = drawRightAligned(subPen, textRun, "($measured)", right) - LEVEL_GAP
+                        }
+                    }
+                    drawHeaderName(right)
+                } else {
+                    layout.value?.let { drawRightAligned(pen, it, commanded, it.x + it.w) }
                 }
             }
         }
     }
 }
+
+/** One axis-aligned run of whole project units, drawn at [scale] device pixels per unit. */
+private fun fillUnits(canvas: NativeCanvas, paint: Paint, x: Int, y: Int, w: Int, h: Int, scale: Float) {
+    canvas.drawRect(x * scale, y * scale, (x + w) * scale, (y + h) * scale, paint)
+}
+
+/** The face a project font names, or the system's when it ships no file. */
+private fun typefaceOf(font: FontEntry?, assetFileOf: (String) -> java.io.File): Typeface =
+    font?.path?.let { assetFileOf(it) }?.takeIf { it.exists() }
+        ?.let { runCatching { Typeface.createFromFile(it) }.getOrNull() }
+        ?: Typeface.DEFAULT
