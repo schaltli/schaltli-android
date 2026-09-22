@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-22T04:55:14.433Z",
+  "generated": "2026-09-22T11:46:18.962Z",
   "cases": {
     "group-two-buttons": {
       "input": {
@@ -95,6 +95,18 @@
             "r": 12
           }
         ],
+        "quietKnobs": [
+          {
+            "cx": 36,
+            "cy": 64,
+            "r": 8
+          },
+          {
+            "cx": 60,
+            "cy": 64,
+            "r": 8
+          }
+        ],
         "pressedKnob": {
           "cx": 36,
           "cy": 64,
@@ -122,10 +134,10 @@
           "onKnob": "#6750A4"
         },
         "knobLookOff": {
-          "track": "#d9d3e8",
-          "trackOutline": "#b3a8d2",
-          "knob": "#b3a8d2",
-          "onKnob": "#000000"
+          "track": "#b3a8d2",
+          "trackOutline": "#6750A4",
+          "knob": "#6750A4",
+          "onKnob": "#ffffff"
         },
         "on": true
       }
@@ -230,17 +242,34 @@
           {
             "cx": 36,
             "cy": 64,
-            "r": 12
+            "r": 8
           },
           {
             "cx": 60,
             "cy": 64,
-            "r": 12
+            "r": 8
           },
           {
             "cx": 84,
             "cy": 64,
-            "r": 12
+            "r": 8
+          }
+        ],
+        "quietKnobs": [
+          {
+            "cx": 36,
+            "cy": 64,
+            "r": 8
+          },
+          {
+            "cx": 60,
+            "cy": 64,
+            "r": 8
+          },
+          {
+            "cx": 84,
+            "cy": 64,
+            "r": 8
           }
         ],
         "pressedKnob": {
@@ -264,16 +293,16 @@
           "ring": "#6750A4"
         },
         "knobLook": {
-          "track": "#d9d3e8",
-          "trackOutline": "#b3a8d2",
-          "knob": "#b3a8d2",
-          "onKnob": "#000000"
+          "track": "#b3a8d2",
+          "trackOutline": "#6750A4",
+          "knob": "#6750A4",
+          "onKnob": "#ffffff"
         },
         "knobLookOff": {
-          "track": "#d9d3e8",
-          "trackOutline": "#b3a8d2",
-          "knob": "#b3a8d2",
-          "onKnob": "#000000"
+          "track": "#b3a8d2",
+          "trackOutline": "#6750A4",
+          "knob": "#6750A4",
+          "onKnob": "#ffffff"
         },
         "on": false
       }
@@ -364,18 +393,30 @@
           {
             "cx": 52,
             "cy": 88,
-            "r": 24
+            "r": 16
           },
           {
             "cx": 100,
             "cy": 88,
-            "r": 24
+            "r": 16
+          }
+        ],
+        "quietKnobs": [
+          {
+            "cx": 52,
+            "cy": 88,
+            "r": 16
+          },
+          {
+            "cx": 100,
+            "cy": 88,
+            "r": 16
           }
         ],
         "pressedKnob": {
           "cx": 100,
           "cy": 88,
-          "r": 26
+          "r": 28
         },
         "shownIndex": 1,
         "content": {
@@ -399,16 +440,16 @@
           "ring": "#6750A4"
         },
         "knobLook": {
-          "track": "#d9d3e8",
-          "trackOutline": "#b3a8d2",
-          "knob": "#b3a8d2",
-          "onKnob": "#000000"
+          "track": "#b3a8d2",
+          "trackOutline": "#6750A4",
+          "knob": "#6750A4",
+          "onKnob": "#ffffff"
         },
         "knobLookOff": {
-          "track": "#d9d3e8",
-          "trackOutline": "#b3a8d2",
-          "knob": "#b3a8d2",
-          "onKnob": "#000000"
+          "track": "#b3a8d2",
+          "trackOutline": "#6750A4",
+          "knob": "#6750A4",
+          "onKnob": "#ffffff"
         },
         "on": false
       }
@@ -500,18 +541,30 @@
           {
             "cx": 34,
             "cy": 61,
-            "r": 11
+            "r": 10
           },
           {
             "cx": 57,
             "cy": 61,
-            "r": 11
+            "r": 10
+          }
+        ],
+        "quietKnobs": [
+          {
+            "cx": 34,
+            "cy": 61,
+            "r": 7
+          },
+          {
+            "cx": 57,
+            "cy": 61,
+            "r": 7
           }
         ],
         "pressedKnob": {
           "cx": 57,
           "cy": 61,
-          "r": 13
+          "r": 12
         },
         "shownIndex": 1,
         "content": {
@@ -535,9 +588,9 @@
           "onKnob": "#08443d"
         },
         "knobLookOff": {
-          "track": "#0c2a27",
-          "trackOutline": "#08443d",
-          "knob": "#08443d",
+          "track": "#08443d",
+          "trackOutline": "#00796B",
+          "knob": "#00796B",
           "onKnob": "#ffffff"
         },
         "on": true
@@ -628,18 +681,30 @@
           {
             "cx": 25,
             "cy": 32,
-            "r": 10
+            "r": 6
           },
           {
             "cx": 45,
             "cy": 32,
-            "r": 10
+            "r": 6
+          }
+        ],
+        "quietKnobs": [
+          {
+            "cx": 25,
+            "cy": 32,
+            "r": 6
+          },
+          {
+            "cx": 45,
+            "cy": 32,
+            "r": 6
           }
         ],
         "pressedKnob": {
           "cx": 25,
           "cy": 32,
-          "r": 12
+          "r": 11
         },
         "shownIndex": -1,
         "content": {
@@ -657,16 +722,16 @@
           "ring": "#6750A4"
         },
         "knobLook": {
-          "track": "#d9d3e8",
-          "trackOutline": "#b3a8d2",
-          "knob": "#b3a8d2",
-          "onKnob": "#000000"
+          "track": "#b3a8d2",
+          "trackOutline": "#6750A4",
+          "knob": "#6750A4",
+          "onKnob": "#ffffff"
         },
         "knobLookOff": {
-          "track": "#d9d3e8",
-          "trackOutline": "#b3a8d2",
-          "knob": "#b3a8d2",
-          "onKnob": "#000000"
+          "track": "#b3a8d2",
+          "trackOutline": "#6750A4",
+          "knob": "#6750A4",
+          "onKnob": "#ffffff"
         },
         "on": false
       }
@@ -767,12 +832,24 @@
           {
             "cx": 34,
             "cy": 51,
-            "r": 14
+            "r": 13
           },
           {
             "cx": 63,
             "cy": 51,
-            "r": 14
+            "r": 13
+          }
+        ],
+        "quietKnobs": [
+          {
+            "cx": 34,
+            "cy": 51,
+            "r": 9
+          },
+          {
+            "cx": 63,
+            "cy": 51,
+            "r": 9
           }
         ],
         "pressedKnob": {
@@ -808,10 +885,10 @@
           "onKnob": "#6750A4"
         },
         "knobLookOff": {
-          "track": "#d9d3e8",
-          "trackOutline": "#b3a8d2",
-          "knob": "#b3a8d2",
-          "onKnob": "#000000"
+          "track": "#b3a8d2",
+          "trackOutline": "#6750A4",
+          "knob": "#6750A4",
+          "onKnob": "#ffffff"
         },
         "on": true
       }
@@ -902,12 +979,24 @@
           {
             "cx": 40,
             "cy": 84,
-            "r": 12
+            "r": 8
           },
           {
             "cx": 64,
             "cy": 84,
-            "r": 12
+            "r": 8
+          }
+        ],
+        "quietKnobs": [
+          {
+            "cx": 40,
+            "cy": 84,
+            "r": 8
+          },
+          {
+            "cx": 64,
+            "cy": 84,
+            "r": 8
           }
         ],
         "pressedKnob": {
@@ -931,16 +1020,16 @@
           "ring": "#6750A4"
         },
         "knobLook": {
-          "track": "#d9d3e8",
-          "trackOutline": "#b3a8d2",
-          "knob": "#b3a8d2",
-          "onKnob": "#000000"
+          "track": "#b3a8d2",
+          "trackOutline": "#6750A4",
+          "knob": "#6750A4",
+          "onKnob": "#ffffff"
         },
         "knobLookOff": {
-          "track": "#d9d3e8",
-          "trackOutline": "#b3a8d2",
-          "knob": "#b3a8d2",
-          "onKnob": "#000000"
+          "track": "#b3a8d2",
+          "trackOutline": "#6750A4",
+          "knob": "#6750A4",
+          "onKnob": "#ffffff"
         },
         "on": false
       }
@@ -1039,6 +1128,18 @@
             "r": 12
           }
         ],
+        "quietKnobs": [
+          {
+            "cx": 40,
+            "cy": 84,
+            "r": 8
+          },
+          {
+            "cx": 64,
+            "cy": 84,
+            "r": 8
+          }
+        ],
         "pressedKnob": {
           "cx": 40,
           "cy": 84,
@@ -1066,10 +1167,10 @@
           "onKnob": "#6750A4"
         },
         "knobLookOff": {
-          "track": "#d9d3e8",
-          "trackOutline": "#b3a8d2",
-          "knob": "#b3a8d2",
-          "onKnob": "#000000"
+          "track": "#b3a8d2",
+          "trackOutline": "#6750A4",
+          "knob": "#6750A4",
+          "onKnob": "#ffffff"
         },
         "on": true
       }
@@ -1174,23 +1275,40 @@
           {
             "cx": 41,
             "cy": 86,
-            "r": 13
+            "r": 8
           },
           {
             "cx": 67,
             "cy": 86,
-            "r": 13
+            "r": 8
           },
           {
             "cx": 93,
             "cy": 86,
-            "r": 13
+            "r": 8
+          }
+        ],
+        "quietKnobs": [
+          {
+            "cx": 41,
+            "cy": 86,
+            "r": 8
+          },
+          {
+            "cx": 67,
+            "cy": 86,
+            "r": 8
+          },
+          {
+            "cx": 93,
+            "cy": 86,
+            "r": 8
           }
         ],
         "pressedKnob": {
           "cx": 67,
           "cy": 86,
-          "r": 15
+          "r": 14
         },
         "shownIndex": 1,
         "content": {
@@ -1208,15 +1326,15 @@
           "ring": "#00796B"
         },
         "knobLook": {
-          "track": "#0c2a27",
-          "trackOutline": "#08443d",
-          "knob": "#08443d",
+          "track": "#08443d",
+          "trackOutline": "#00796B",
+          "knob": "#00796B",
           "onKnob": "#ffffff"
         },
         "knobLookOff": {
-          "track": "#0c2a27",
-          "trackOutline": "#08443d",
-          "knob": "#08443d",
+          "track": "#08443d",
+          "trackOutline": "#00796B",
+          "knob": "#00796B",
           "onKnob": "#ffffff"
         },
         "on": false
@@ -1316,6 +1434,18 @@
             "r": 12
           }
         ],
+        "quietKnobs": [
+          {
+            "cx": 40,
+            "cy": 84,
+            "r": 8
+          },
+          {
+            "cx": 64,
+            "cy": 84,
+            "r": 8
+          }
+        ],
         "pressedKnob": {
           "cx": 40,
           "cy": 84,
@@ -1343,10 +1473,10 @@
           "onKnob": "#6750A4"
         },
         "knobLookOff": {
-          "track": "#d9d3e8",
-          "trackOutline": "#b3a8d2",
-          "knob": "#b3a8d2",
-          "onKnob": "#000000"
+          "track": "#b3a8d2",
+          "trackOutline": "#6750A4",
+          "knob": "#6750A4",
+          "onKnob": "#ffffff"
         },
         "on": true
       }
