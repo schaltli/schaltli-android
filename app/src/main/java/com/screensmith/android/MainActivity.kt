@@ -309,6 +309,10 @@ fun ScreensmithRoot(app: ScreensmithApp) {
                         showSettings = false
                     }
                 },
+                // Someone who only wanted to look has to be able to leave.
+                // The system's Back key is not that way out: a pinned kiosk
+                // does not offer one.
+                onCancel = { showSettings = false },
             )
             else -> {
                 val screen = activeProject.screens.find { it.id == currentScreenId } ?: activeProject.screens.first()
