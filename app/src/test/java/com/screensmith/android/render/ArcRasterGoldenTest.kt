@@ -54,7 +54,7 @@ class ArcRasterGoldenTest {
             val pixels = case.getJSONArray("pixels")
             val fill = case.getJSONArray("fill")
             val track = case.getJSONArray("track")
-            val marker = case.getJSONArray("marker")
+            val handle = case.getJSONArray("handle")
 
             for (p in 0 until pixels.length()) {
                 val pixel = pixels.getJSONArray(p)
@@ -67,7 +67,7 @@ class ArcRasterGoldenTest {
                 // and the first differing coordinate says which edge.
                 assertEquals("$name fill at ($px, $py)", fill.getInt(p), bands.fill)
                 assertEquals("$name track at ($px, $py)", track.getInt(p), bands.track)
-                assertEquals("$name marker at ($px, $py)", marker.getInt(p), bands.marker)
+                assertEquals("$name handle at ($px, $py)", handle.getInt(p), bands.handle)
                 checked++
             }
         }
@@ -80,7 +80,7 @@ class ArcRasterGoldenTest {
         val colours = golden.getJSONObject("colours")
         val trackColour = toRgb565(colours.getString("track"))
         val fillColour = toRgb565(colours.getString("fill"))
-        val markerColour = toRgb565(colours.getString("marker"))
+        val handleColour = toRgb565(colours.getString("handle"))
         val background = toRgb565(colours.getString("background"))
 
         val cases = golden.getJSONArray("cases")
@@ -90,18 +90,18 @@ class ArcRasterGoldenTest {
             val pixels = case.getJSONArray("pixels")
             val fill = case.getJSONArray("fill")
             val track = case.getJSONArray("track")
-            val marker = case.getJSONArray("marker")
+            val handle = case.getJSONArray("handle")
             val rgb = case.getJSONArray("rgb")
 
             for (p in 0 until pixels.length()) {
                 val f = fill.getInt(p)
                 val t = track.getInt(p)
-                val m = marker.getInt(p)
+                val m = handle.getInt(p)
                 val covered = f + t + m
                 val mixed = blendBands(
                     fillColour, f,
                     trackColour, t,
-                    markerColour, m,
+                    handleColour, m,
                     background, ARC_COVERAGE_MAX - covered,
                 )
                 // The golden carries 0xRRGGBB; rgb565ToArgb adds an opaque
@@ -130,10 +130,10 @@ class ArcRasterGoldenTest {
             val case = cases.getJSONObject(i)
             val fill = case.getJSONArray("fill")
             val track = case.getJSONArray("track")
-            val marker = case.getJSONArray("marker")
+            val handle = case.getJSONArray("handle")
             var partial = 0
             for (p in 0 until fill.length()) {
-                val covered = fill.getInt(p) + track.getInt(p) + marker.getInt(p)
+                val covered = fill.getInt(p) + track.getInt(p) + handle.getInt(p)
                 if (covered in 1 until ARC_COVERAGE_MAX) partial++
             }
             assertTrue(
@@ -143,11 +143,37 @@ class ArcRasterGoldenTest {
         }
     }
 
-    private fun geometryOf(case: JSONObject) = ArcRingGeometry(
-        size = case.getInt("size"),
-        thickness = case.getInt("thickness"),
-        track = makeArcSector(case.getInt("trackStart64"), case.getInt("trackSweep64")),
-        fill = makeArcSector(case.getInt("fillStart64"), case.getInt("fillSweep64")),
-        marker = makeArcSector(case.optInt("markerStart64", 0), case.optInt("markerSweep64", 0)),
-    )
+    /**
+     * The same inputs the recorder builds, and built the same way:
+     * `__arcRasterForTest` in the designer's app/test-render/page.tsx drives
+     * the renderer's own `arcCaps` and `arcHandleBand` rather than a copy of
+     * them, so this side does too. Half a pixel of cap is exactly what the
+     * comparison exists to catch, and a second implementation of it in a test
+     * could only ever agree with itself.
+     */
+    private fun geometryOf(case: JSONObject): ArcRingGeometry {
+        val size = case.getInt("size")
+        val thickness = case.getInt("thickness")
+        val inset = case.optInt("inset", 0)
+        val trackStart64 = case.getInt("trackStart64")
+        val trackSweep64 = case.getInt("trackSweep64")
+        val caps = arcCaps(size, thickness, inset, trackStart64, trackSweep64)
+        return ArcRingGeometry(
+            size = size,
+            thickness = thickness,
+            inset = inset,
+            track = makeArcSector(trackStart64, trackSweep64),
+            fill = makeArcSector(case.getInt("fillStart64"), case.getInt("fillSweep64")),
+            startCap = caps.startCap,
+            endCap = caps.endCap,
+            startCapFilled = case.optBoolean("startCapFilled", false),
+            endCapFilled = case.optBoolean("endCapFilled", false),
+            handle = if (case.has("handleAt64")) {
+                arcHandleBand(size, thickness, inset, case.getInt("handleAt64"), trackSweep64)
+            } else {
+                null
+            },
+            framed = case.optBoolean("framed", false),
+        )
+    }
 }

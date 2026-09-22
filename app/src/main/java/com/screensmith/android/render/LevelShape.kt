@@ -541,6 +541,24 @@ fun levelTrackLook(fillColor: String, backgroundColor: String): LevelTrackLook {
     return LevelTrackLook(track, t != null && t[0] == b[0] && t[1] == b[1] && t[2] == b[2])
 }
 
+/**
+ * What colour the handle takes - which is what says whether a finger can move
+ * it (the designer's `handleColourFor`, docs/2026-09-22-arc-look.md).
+ *
+ * A handle a finger can move keeps the bar's own colour: handle and filled
+ * track are one object that the gap separates. One that only reports the
+ * installation's target takes the track's quiet colour and steps back - the
+ * user, on the picture: "seine dimmed farbe sagt mir dass ich ihn nicht
+ * bewegen kann".
+ *
+ * On a framed track there is no quiet colour to step back into, so every
+ * handle stays solid there.
+ */
+fun handleColourFor(obj: ScreenObject, fillColor: String, look: LevelTrackLook): String {
+    val settable = obj.properties.nonBlank("writeTopic") != null
+    return if (settable || look.framed) fillColor else look.track
+}
+
 private fun clamp(v: Int, lo: Int, hi: Int): Int {
     if (hi < lo) return lo
     if (v < lo) return lo

@@ -51,8 +51,20 @@ const val SWITCH_INNER_CORNER = 8
 /** Icon to label, and track to label. */
 const val SWITCH_GAP = 8
 
-/** How much bigger the knob gets while a finger is on it (Material grows it too). */
-const val SWITCH_KNOB_PRESS = 2
+/**
+ * The knob has three sizes, as sixteenths of the track's height - quiet when
+ * the switch is off, bigger when it is on, bigger still while a finger is on
+ * it. Material does the same; a knob that only ever changed colour read as a
+ * dot that had been recoloured rather than a thing that had moved.
+ *
+ * Mirrors SWITCH_KNOB_*_16THS in the designer's lib/switch-shape.ts.
+ */
+const val SWITCH_KNOB_QUIET_16THS = 8
+const val SWITCH_KNOB_ON_16THS = 12
+const val SWITCH_KNOB_PRESSED_16THS = 14
+
+/** The outline an off track carries, flat, in the author's own colour. */
+const val SWITCH_TRACK_OUTLINE = 2
 
 enum class SwitchForm(val wire: String) {
     GROUP("group"),
@@ -161,11 +173,17 @@ fun switchKnobLook(obj: ScreenObject, background: String?, on: Boolean): SwitchK
     val color = switchColorOf(obj)
     val ground = if (background.isNullOrEmpty() || background == "transparent") "#ffffff" else background
     val tint = levelTrackLook(color, ground)
-    val quiet = if (tint.framed) color else tint.track
+    // Where the tint lands back on the background - every 1-bit panel - the
+    // quiet colour IS the background, and the outline carries the shape. Note
+    // this differs from switchLook's `quiet`, which falls back to the colour;
+    // the designer's switchKnobLook falls back to the ground.
+    val quiet = if (tint.framed) ground else tint.track
     if (on) return SwitchKnobLook(look.chosen, null, look.onChosen, look.chosen)
-    // Off is the quiet pair: a pale track with an outline, and the knob in
-    // the tint - "grau", without a grey that no palette here has.
-    return SwitchKnobLook(look.surface, quiet, quiet, onColorFor(quiet))
+    // Off, since 2026-09-22: the track is the half-strength tint, and the
+    // outline and the knob carry the author's colour at FULL strength. The
+    // older reading - a pale 25% track with everything else in the tint - made
+    // an off switch look switched off *and* disabled.
+    return SwitchKnobLook(quiet, color, color, onColorFor(color))
 }
 
 /** The container of a connected button group: the object's own rectangle, as a pill. */
@@ -241,15 +259,29 @@ fun switchTrack(obj: ScreenObject, count: Int): SwitchRect {
 /** The knob's circle, at slot [index]. */
 data class SwitchKnob(val cx: Int, val cy: Int, val r: Int)
 
-fun switchKnob(obj: ScreenObject, count: Int, index: Int, pressed: Boolean = false): SwitchKnob {
+fun switchKnob(
+    obj: ScreenObject,
+    count: Int,
+    index: Int,
+    pressed: Boolean = false,
+    on: Boolean = false,
+): SwitchKnob {
     val track = switchTrack(obj, count)
     val pad = maxOf(1, track.h / 8)
-    val knob = maxOf(2, track.h - 2 * pad)
+    // The slot's WIDTH is unchanged by state - a knob that grows must not also
+    // move - so the step stays the old full-size knob.
+    val step = maxOf(2, track.h - 2 * pad)
     val slot = maxOf(0, minOf(maxOf(1, count) - 1, index))
+    val sixteenths = when {
+        pressed -> SWITCH_KNOB_PRESSED_16THS
+        on -> SWITCH_KNOB_ON_16THS
+        else -> SWITCH_KNOB_QUIET_16THS
+    }
+    val d = maxOf(2, track.h * sixteenths / 16)
     return SwitchKnob(
-        cx = track.x + pad + slot * knob + knob / 2,
+        cx = track.x + pad + slot * step + step / 2,
         cy = track.y + track.h / 2,
-        r = knob / 2 + if (pressed) SWITCH_KNOB_PRESS else 0,
+        r = d / 2,
     )
 }
 

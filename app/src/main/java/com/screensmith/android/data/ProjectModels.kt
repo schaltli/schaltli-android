@@ -27,6 +27,21 @@ data class Project(
      * 2026-09-21, which were all native.
      */
     val rotation: Int = 0,
+    /**
+     * What the panel can hold, as the designer's `settings.colorDepth` names
+     * it: "24bit", "4bit" or "1bit".
+     *
+     * `lib/android-export.ts` writes no such field - it hard-codes 24 bit,
+     * because a phone is a phone - so in practice this is always the default.
+     * It is read rather than assumed all the same, because one rule depends on
+     * it and has to be stated where it is read: anti-aliasing is for 24 bit
+     * only. On a panel with two colours there is nothing to mix into, every
+     * soft pixel snaps to black or white on the way to the glass, and the
+     * firmware draws these shapes with whole pixels - so a soft edge here would
+     * disagree with every other copy at once (the designer's
+     * docs/2026-09-22-pill-raster.md, "Wo nicht geglättet wird").
+     */
+    val colorDepth: String = "24bit",
     val fonts: List<FontEntry> = emptyList(),
     val topics: List<Topic> = emptyList(),
     val screens: List<Screen> = emptyList(),

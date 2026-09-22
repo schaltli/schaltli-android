@@ -1,5 +1,7 @@
 package com.screensmith.android.render
 
+import kotlin.math.roundToInt
+
 /**
  * The shared rasterizer for arc-level objects - a direct port of the
  * designer's `lib/arc-raster.ts`, which also exists as `ArcRaster.cpp` in
@@ -140,19 +142,95 @@ fun inArcSector(s: ArcSector, x: Int, y: Int): Boolean {
     return if (s.wide) crossU >= 0 || crossV < 0 else crossU >= 0 && crossV < 0
 }
 
+/**
+ * A rounded end of the band: a disc on the centreline at the end angle.
+ *
+ * Which is the whole definition of a pill, read literally - the band is every
+ * point within half a thickness of its centreline arc, and past the last
+ * angle that is a disc. The cost is that the ends reach half a thickness past
+ * minAngle and maxAngle, exactly as a bar's pill reaches past its own run
+ * (the designer's docs/2026-09-22-arc-look.md).
+ *
+ * All lengths are in 1/8 pixel from the object's centre, like every other
+ * coordinate here; the tangent is a direction vector from the sine table,
+ * scaled by [ARC_SIN_SCALE] - kept because it says which way the band was
+ * heading when it stopped.
+ */
+data class ArcCap(
+    val cx: Int,
+    val cy: Int,
+    /** Outward along the band at this end. */
+    val tx: Int,
+    val ty: Int,
+    /** Half the band's thickness. */
+    val r: Int,
+)
+
+/**
+ * The setpoint handle: the bar's own, bent onto a ring.
+ *
+ * Same proportions as the slider's ([LevelShape.kt]): as long as eleven
+ * quarters of the thickness, an eleventh of that wide, with a gap of three
+ * twenty-seconds each side. It lies across the band on a straight line rather
+ * than following the curve, which is what a handle 60 units long on a ring 22
+ * thick looks like anyway - and what the bar does.
+ */
+data class ArcHandle(
+    /** Centre, on the ring's centreline at the setpoint's angle. */
+    val cx: Int,
+    val cy: Int,
+    /** Along the band (the handle's width runs this way). */
+    val tx: Int,
+    val ty: Int,
+    /** Outwards from the centre (the handle's length runs this way). */
+    val rx: Int,
+    val ry: Int,
+    val halfWidth: Int,
+    val halfLength: Int,
+    /** Cut out of the band on each side of the handle, on top of [halfWidth]. */
+    val gap: Int,
+)
+
 data class ArcRingGeometry(
     /** Side of the (square) object in pixels. */
     val size: Int,
-    /** Ring thickness in pixels, measured inwards from the object's edge. */
+    /** Ring thickness in pixels. */
     val thickness: Int,
+    /**
+     * How far the ring sits inside the object's own edge, in pixels.
+     *
+     * Room for the handle, which lies across the band and stands out of it on
+     * both sides: with the ring touching the object's edge the outer half of
+     * the handle would fall outside the object - and an object that draws past
+     * its own rectangle is clipped by the designer's buffer, by this app's box
+     * and by the firmware's object rect alike.
+     *
+     * Reserved whenever the object CAN have a handle rather than when one is
+     * being drawn, so the ring does not jump inwards the moment a setpoint
+     * arrives.
+     */
+    val inset: Int,
     val track: ArcSector,
     val fill: ArcSector,
-    val marker: ArcSector,
+    /** Null where the scale goes all the way round: nothing to round. */
+    val startCap: ArcCap? = null,
+    val endCap: ArcCap? = null,
+    /** Whether each cap belongs to the fill rather than to the track. */
+    val startCapFilled: Boolean = false,
+    val endCapFilled: Boolean = false,
+    val handle: ArcHandle? = null,
+    /**
+     * The track is drawn as its own outline, one pixel wide, instead of as a
+     * body - for a panel that cannot show the mixed colour the track would
+     * otherwise be. The bar answers the same question the same way
+     * ([levelTrackLook]'s `framed`, [levelFrameInner]).
+     */
+    val framed: Boolean = false,
 )
 
 /**
  * How many of a pixel's 16 sub-samples fall in each band, packed into one
- * Int: fill in bits 0-7, track in 8-15, marker in 16-23. Each count is at
+ * Int: fill in bits 0-7, track in 8-15, handle in 16-23. Each count is at
  * most 16, so a byte each is generous.
  *
  * The designer returns a small object here and is right to. This one is
@@ -165,13 +243,38 @@ data class ArcRingGeometry(
 value class ArcPixelBands(private val packed: Int) {
     val fill: Int get() = packed and 0xFF
     val track: Int get() = (packed shr 8) and 0xFF
-    val marker: Int get() = (packed shr 16) and 0xFF
+
+    /**
+     * The setpoint handle. Called `marker` until 2026-09-22, when it stopped
+     * being a wedge of the ring and became the slider's own handle: a pill
+     * lying across the band, standing out of it on both sides, with a gap cut
+     * either side of it.
+     */
+    val handle: Int get() = (packed shr 16) and 0xFF
 
     companion object {
         val EMPTY = ArcPixelBands(0)
-        fun of(fill: Int, track: Int, marker: Int) =
-            ArcPixelBands(fill or (track shl 8) or (marker shl 16))
+        fun of(fill: Int, track: Int, handle: Int) =
+            ArcPixelBands(fill or (track shl 8) or (handle shl 16))
     }
+}
+
+/** One pixel of the frame, in 1/8 units. */
+private const val ARC_FRAME = ARC_SUBPIXEL_SCALE
+
+/** Whether a point is inside a cap's half-disc. */
+private fun inArcCap(cap: ArcCap, x: Int, y: Int): Boolean {
+    val dx = x - cap.cx
+    val dy = y - cap.cy
+    return dx * dx + dy * dy <= cap.r * cap.r
+}
+
+/** Whether a point inside a cap is within the frame's own pixel of its edge. */
+private fun capEdge(cap: ArcCap, x: Int, y: Int): Boolean {
+    val dx = x - cap.cx
+    val dy = y - cap.cy
+    val inner = cap.r - ARC_FRAME
+    return dx * dx + dy * dy >= inner * inner
 }
 
 /**
@@ -187,16 +290,21 @@ value class ArcPixelBands(private val packed: Int) {
  */
 fun arcPixelBands(geom: ArcRingGeometry, px: Int, py: Int): ArcPixelBands {
     val s = ARC_SUBPIXEL_SCALE
-    // The ring touches the object's edge, so the outer radius is half the side.
     val centre = (geom.size * s) / 2
-    val rOuter = (geom.size * s) / 2
+    // The ring sits inside the object's edge by the room reserved for the
+    // handle; with no handle possible that room is zero and the band touches
+    // the edge, which is where a ring has always sat.
+    val rOuter = (geom.size * s) / 2 - geom.inset * s
     val rInner = rOuter - geom.thickness * s
     val rOuter2 = rOuter * rOuter
     val rInner2 = if (rInner > 0) rInner * rInner else 0
+    // Where the frame's own pixel ends, when the track is an outline.
+    val rOuterInner2 = (rOuter - ARC_FRAME) * (rOuter - ARC_FRAME)
+    val rInnerOuter2 = (rInner + ARC_FRAME) * (rInner + ARC_FRAME)
 
     var fill = 0
     var track = 0
-    var marker = 0
+    var handle = 0
 
     // Two exact short cuts before sampling - not approximations, so they can
     // live in the shared algorithm without either side having to reproduce a
@@ -213,8 +321,19 @@ fun arcPixelBands(geom: ArcRingGeometry, px: Int, py: Int): ArcPixelBands {
     val minAbsY = if (yLo <= 0 && yHi >= 0) 0 else minOf(kotlin.math.abs(yLo), kotlin.math.abs(yHi))
     val maxAbsX = maxOf(kotlin.math.abs(xLo), kotlin.math.abs(xHi))
     val maxAbsY = maxOf(kotlin.math.abs(yLo), kotlin.math.abs(yHi))
-    if (minAbsX * minAbsX + minAbsY * minAbsY >= rOuter2) return ArcPixelBands.EMPTY
-    if (maxAbsX * maxAbsX + maxAbsY * maxAbsY < rInner2) return ArcPixelBands.EMPTY
+    // The handle reaches out of the ring on both sides, so the short cuts have
+    // to allow for it - otherwise the very pixels it overhangs into are thrown
+    // away before it is ever tested, and the handle comes out as a sliver
+    // inside the band.
+    val h = geom.handle
+    val reach = h?.halfLength ?: 0
+    val rReachOuter = rOuter + reach
+    val rReachInner = if (rInner - reach > 0) rInner - reach else 0
+    if (minAbsX * minAbsX + minAbsY * minAbsY >= rReachOuter * rReachOuter) return ArcPixelBands.EMPTY
+    if (maxAbsX * maxAbsX + maxAbsY * maxAbsY < rReachInner * rReachInner) return ArcPixelBands.EMPTY
+
+    val startCap = geom.startCap
+    val endCap = geom.endCap
 
     for (j in 0 until ARC_SUBSAMPLES) {
         // Sub-sample centres sit at (2k+1)/8 of a pixel, i.e. 1/8, 3/8, 5/8, 7/8.
@@ -222,17 +341,181 @@ fun arcPixelBands(geom: ArcRingGeometry, px: Int, py: Int): ArcPixelBands {
         for (i in 0 until ARC_SUBSAMPLES) {
             val x = px * s + 2 * i + 1 - centre
             val d2 = x * x + y * y
+
+            // The handle first, and before the ring's own radii: it lies ACROSS
+            // the band and stands out of it on both sides, which is what says
+            // "a thing lying on top" rather than "a slice of the ring".
+            if (h != null) {
+                val dx = x - h.cx
+                val dy = y - h.cy
+                // Floating divides, not integer ones. The designer's are
+                // doubles and both results are squared below, so truncating
+                // here would move both of the handle's long edges.
+                val along = (dx.toDouble() * h.tx + dy.toDouble() * h.ty) / ARC_SIN_SCALE
+                val out = (dx.toDouble() * h.rx + dy.toDouble() * h.ry) / ARC_SIN_SCALE
+                if (out >= -h.halfLength && out <= h.halfLength) {
+                    val absAlong = if (along < 0) -along else along
+                    val absOut = if (out < 0) -out else out
+                    // A pill: straight sides, and a half-circle at each radial end.
+                    val straight = h.halfLength - h.halfWidth
+                    var inHandle = absAlong <= h.halfWidth
+                    if (inHandle && absOut > straight) {
+                        val over = absOut - straight
+                        inHandle = over * over + along * along <= h.halfWidth.toDouble() * h.halfWidth
+                    }
+                    if (inHandle) {
+                        handle++
+                        continue
+                    }
+                    // The gap: background either side of the handle, cut out of
+                    // the band rather than drawn over it.
+                    if (absAlong <= h.halfWidth + h.gap) continue
+                }
+            }
+
             if (d2 >= rOuter2 || d2 < rInner2) continue
 
-            if (inArcSector(geom.marker, x, y)) marker++
-            else if (inArcSector(geom.fill, x, y)) fill++
-            else if (inArcSector(geom.track, x, y)) track++
-            // Inside the annulus but outside the track - the gap at the bottom of
-            // a 270 degree dial. Stays background.
+            // The band is every point within half a thickness of its centreline:
+            // inside the scale's angles, or inside one of the end discs.
+            val inStartCap = startCap != null && inArcCap(startCap, x, y)
+            val inEndCap = endCap != null && inArcCap(endCap, x, y)
+            val inside = inArcSector(geom.track, x, y)
+            if (!inside && !inStartCap && !inEndCap) continue
+
+            // A cap belongs to whichever band reaches that end of the scale.
+            // Where a cap overlaps the band proper the sector decides -
+            // otherwise the fill's own straight edge would be rounded off by
+            // the track's cap.
+            val filled = when {
+                inside -> inArcSector(geom.fill, x, y)
+                inStartCap -> geom.startCapFilled
+                else -> geom.endCapFilled
+            }
+            if (filled) {
+                fill++
+                continue
+            }
+            if (!geom.framed) {
+                track++
+                continue
+            }
+            // An outline is the band's own outer pixel, and a pill's outline is
+            // two long edges that STOP where the rounded end begins, plus the
+            // half of that end which sticks out past it. Inside the scale's
+            // angles the band is an ordinary band and its radii are its edges;
+            // past them there is only the cap, and only its rim. Where the band
+            // was cut - at the fill's edge, at the handle's gap - the frame is
+            // left open, same as the bar's levelFrameInner.
+            val onRadius = inside && (d2 >= rOuterInner2 || d2 <= rInnerOuter2)
+            val onCapRim = !inside &&
+                ((inStartCap && capEdge(startCap!!, x, y)) || (inEndCap && capEdge(endCap!!, x, y)))
+            if (onRadius || onCapRim) track++
         }
     }
 
-    return ArcPixelBands.of(fill, track, marker)
+    return ArcPixelBands.of(fill, track, handle)
+}
+
+// --- the band's own geometry ------------------------------------------------
+
+/** The ring's centreline radius, in 1/8 pixel - where caps and handle sit. */
+private fun arcMidRadius(size: Int, thickness: Int, inset: Int): Int =
+    size * ARC_SUBPIXEL_SCALE / 2 - inset * ARC_SUBPIXEL_SCALE - thickness * ARC_SUBPIXEL_SCALE / 2
+
+/**
+ * A point on the centreline, in 1/8 pixel from the object's centre, packed
+ * x-then-y like [arcDirection]'s result.
+ *
+ * The divide is a floating one rounded half toward positive infinity, which is
+ * what JS's `Math.round` does and what [roundToInt] does; an integer divide
+ * here would truncate toward zero and put every cap and handle up to an eighth
+ * of a pixel out on the negative side of the dial.
+ */
+private fun arcPointAt(size: Int, thickness: Int, inset: Int, angle64: Int): Long {
+    val d = arcDirection(angle64)
+    val rMid = arcMidRadius(size, thickness, inset)
+    return packXY(
+        (unpackX(d).toDouble() * rMid / ARC_SIN_SCALE).roundToInt(),
+        (unpackY(d).toDouble() * rMid / ARC_SIN_SCALE).roundToInt(),
+    )
+}
+
+/** The two rounded ends of a scale - both null where it goes all the way round. */
+data class ArcCaps(val startCap: ArcCap?, val endCap: ArcCap?)
+
+fun arcCaps(size: Int, thickness: Int, inset: Int, start64: Int, sweep64: Int): ArcCaps {
+    if (sweep64 >= ARC_FULL_TURN) return ArcCaps(null, null)
+    val r = thickness * ARC_SUBPIXEL_SCALE / 2
+    val startTangent = arcDirection(start64 - 90 * ARC_ANGLE_SCALE)
+    val endTangent = arcDirection(start64 + sweep64 + 90 * ARC_ANGLE_SCALE)
+    val startAt = arcPointAt(size, thickness, inset, start64)
+    val endAt = arcPointAt(size, thickness, inset, start64 + sweep64)
+    return ArcCaps(
+        startCap = ArcCap(
+            cx = unpackX(startAt),
+            cy = unpackY(startAt),
+            tx = unpackX(startTangent),
+            ty = unpackY(startTangent),
+            r = r,
+        ),
+        endCap = ArcCap(
+            cx = unpackX(endAt),
+            cy = unpackY(endAt),
+            tx = unpackX(endTangent),
+            ty = unpackY(endTangent),
+            r = r,
+        ),
+    )
+}
+
+/** The handle's own measurements, in 1/8 pixel. */
+private data class ArcHandleSize(val length: Int, val width: Int, val gap: Int)
+
+/**
+ * Eleven quarters of the thickness long, an eleventh of that wide, with a gap
+ * of three twenty-seconds each side: exactly [levelHandleLength]/[levelHandleWidth]/
+ * [levelHandleGap], because "looks like the slider's" was the whole point.
+ *
+ * Two clamps a straight bar never needs. A handle longer than twice the
+ * centreline's radius would reach through the middle of the dial and out the
+ * other side; one longer than a third of the scale's own run leaves the fill
+ * nowhere to show. Width and gap follow the length the thickness ASKS for -
+ * what a small dial is short of is room along the handle, not across it.
+ */
+private fun arcHandleSize(thickness: Int, midRadius: Int, runLength: Int): ArcHandleSize {
+    val wanted = thickness * 11 / 4
+    return ArcHandleSize(
+        length = maxOf(2, minOf(wanted, 2 * midRadius, runLength / 3)),
+        width = maxOf(3, wanted / 11),
+        gap = maxOf(2, wanted * 3 / 22),
+    )
+}
+
+/** The handle lying across the band at [angle64]. See [arcHandleSize]. */
+fun arcHandleBand(size: Int, thickness: Int, inset: Int, angle64: Int, sweep64: Int): ArcHandle {
+    val rMid = arcMidRadius(size, thickness, inset)
+    // The scale's own length along the centreline: 2*pi*r * sweep/turn, in
+    // whole 1/8 pixels. 355/113 is pi to seven digits, in integers, so every
+    // copy of this arrives at the same number.
+    //
+    // In Long, not Int: a 360 px dial reaches 1.66e10 here, which overflows
+    // int32 and would hand the handle a length out of a wrapped-round number.
+    val runLength = ((2L * 355L * rMid * sweep64) / (113L * ARC_FULL_TURN)).toInt()
+    val measured = arcHandleSize(thickness * ARC_SUBPIXEL_SCALE, rMid, runLength)
+    val radial = arcDirection(angle64)
+    val tangent = arcDirection(angle64 + 90 * ARC_ANGLE_SCALE)
+    val at = arcPointAt(size, thickness, inset, angle64)
+    return ArcHandle(
+        cx = unpackX(at),
+        cy = unpackY(at),
+        tx = unpackX(tangent),
+        ty = unpackY(tangent),
+        rx = unpackX(radial),
+        ry = unpackY(radial),
+        halfWidth = maxOf(1, measured.width / 2),
+        halfLength = maxOf(1, measured.length / 2),
+        gap = measured.gap,
+    )
 }
 
 // --- colour -----------------------------------------------------------------
@@ -312,17 +595,17 @@ fun blendBands(
     fillCount: Int,
     trackColour: Rgb565,
     trackCount: Int,
-    markerColour: Rgb565,
-    markerCount: Int,
+    handleColour: Rgb565,
+    handleCount: Int,
     background: Rgb565,
     backgroundCount: Int,
 ): Rgb565 {
     val r = background.r * backgroundCount +
-        fillColour.r * fillCount + trackColour.r * trackCount + markerColour.r * markerCount
+        fillColour.r * fillCount + trackColour.r * trackCount + handleColour.r * handleCount
     val g = background.g * backgroundCount +
-        fillColour.g * fillCount + trackColour.g * trackCount + markerColour.g * markerCount
+        fillColour.g * fillCount + trackColour.g * trackCount + handleColour.g * handleCount
     val b = background.b * backgroundCount +
-        fillColour.b * fillCount + trackColour.b * trackCount + markerColour.b * markerCount
+        fillColour.b * fillCount + trackColour.b * trackCount + handleColour.b * handleCount
     val half = ARC_COVERAGE_MAX / 2
     // All operands are non-negative, so integer division floors - the same
     // thing Math.floor does on the designer's side.

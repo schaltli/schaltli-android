@@ -105,23 +105,40 @@ class SwitchShapeGoldenTest {
             assertEquals("$name: number of segments", wantSegments.size, segments.size)
             for (i in segments.indices) assertRect("$name: segment $i", wantSegments[i], segments[i])
 
+            // The knob has three sizes since 2026-09-22, so its state has to be
+            // known before any of them can be asked for.
+            val states = (obj.properties["states"] as? JsonArray).orEmpty()
+            val on = activeIndex >= 0 && activeIndex < states.size && switchStateIsOn(states[activeIndex].jsonObject)
+            assertEquals("$name: on", want.bool("on"), on)
+
             // Every slot the knob can stand in, not only the one in use: a
             // port that gets the step wrong is right about the first slot.
             val wantKnobs = want["knobs"]!!.jsonArray
             assertEquals("$name: number of slots", wantKnobs.size, count)
-            for (i in 0 until count) assertKnob("$name: knob $i", wantKnobs[i].jsonObject, switchKnob(obj, count, i))
+            for (i in 0 until count) {
+                assertKnob("$name: knob $i", wantKnobs[i].jsonObject, switchKnob(obj, count, i, on = on))
+            }
+
+            // And the quiet size, which the recorder writes for every case
+            // whether it is on or not. Without this a port that knows only one
+            // resting size passes every case that happens to be on.
+            want["quietKnobs"]?.jsonArray?.let { wantQuiet ->
+                for (i in 0 until minOf(count, wantQuiet.size)) {
+                    assertKnob(
+                        "$name: quiet knob $i",
+                        wantQuiet[i].jsonObject,
+                        switchKnob(obj, count, i, on = false),
+                    )
+                }
+            }
 
             val shown = if (askedIndex >= 0) askedIndex else activeIndex
             assertEquals("$name: shownIndex", want.int("shownIndex"), shown)
             assertKnob(
                 "$name: pressed knob",
                 want["pressedKnob"]!!.jsonObject,
-                switchKnob(obj, count, maxOf(0, shown), pressed = true),
+                switchKnob(obj, count, maxOf(0, shown), pressed = true, on = on),
             )
-
-            val states = (obj.properties["states"] as? JsonArray).orEmpty()
-            val on = activeIndex >= 0 && activeIndex < states.size && switchStateIsOn(states[activeIndex].jsonObject)
-            assertEquals("$name: on", want.bool("on"), on)
 
             // The content is laid out in whichever box the form puts it in -
             // the label box for a knob, the first button for a group - and

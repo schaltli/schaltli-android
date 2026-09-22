@@ -28,12 +28,20 @@ import com.screensmith.android.data.ButtonAction
 import com.screensmith.android.data.FontEntry
 import com.screensmith.android.data.Project
 import com.screensmith.android.data.ScreenObject
+import com.screensmith.android.render.PaintedPill
+import com.screensmith.android.render.PillBand
+import com.screensmith.android.render.SWITCH_TRACK_OUTLINE
 import com.screensmith.android.render.SwitchForm
+import com.screensmith.android.render.SwitchKnobLook
+import com.screensmith.android.render.SwitchLook
 import com.screensmith.android.render.SwitchRect
+import com.screensmith.android.render.drawPills
 import com.screensmith.android.render.fillRoundRect
 import com.screensmith.android.render.fillRoundRectRing
 import com.screensmith.android.render.fillRoundRectSides
 import com.screensmith.android.render.onColorFor
+import com.screensmith.android.render.pillBitmap
+import com.screensmith.android.render.switchContainer
 import com.screensmith.android.render.switchContent
 import com.screensmith.android.render.switchFontMetrics
 import com.screensmith.android.render.switchForm
@@ -178,6 +186,10 @@ fun SwitchView(
     // reported - yet".
     var pressedIndex by remember(obj.id) { mutableIntStateOf(-1) }
 
+    // Anti-aliased on 24 bit and nowhere else - see Project.colorDepth. Below
+    // it the whole-pixel path runs exactly as it always has.
+    val soft = project.colorDepth == "24bit"
+
     val knobForm = switchForm(obj) == SwitchForm.KNOB
     val on = activeIndex >= 0 && states[activeIndex].isOn
     val look = switchLook(obj, background)
@@ -205,6 +217,20 @@ fun SwitchView(
     val writeTopic = props.stringOrNull("writeTopic")
     val ox = obj.x.toInt()
     val oy = obj.y.toInt()
+
+    // Rasterized once and kept, the way ArcLevelView keeps its ring: the soft
+    // path walks sixteen sub-samples of every pixel of the control against
+    // every run of it, and a finger held on a button redraws. Keyed on
+    // everything the picture depends on - which state is reported, which was
+    // asked for, which is held down, and what the control stands on.
+    val pills = if (!soft || states.isEmpty()) null else remember(
+        obj.id, obj.width, obj.height, props, activeIndex, askedIndex, pressedIndex, background,
+    ) {
+        pillBitmap(
+            switchPills(obj, states.size, knobForm, on, look, knobLook, activeIndex, askedIndex, pressedIndex),
+            background,
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -296,14 +322,21 @@ fun SwitchView(
                 val size = fontMeta?.size ?: 14
                 if (knobForm) {
                     val track = switchTrack(obj, states.size)
-                    fill(track, knobLook.track)
-                    knobLook.trackOutline?.let { ring(track, it, 2) }
+                    val shown = if (askedIndex >= 0) askedIndex else activeIndex
+                    val knob =
+                        if (shown < 0) null else switchKnob(obj, states.size, shown, pressedIndex >= 0, on)
+
+                    if (soft) {
+                        drawPills(native, pills, ox, oy, scale)
+                    } else {
+                        fill(track, knobLook.track)
+                        knobLook.trackOutline?.let { ring(track, it, 2) }
+                    }
 
                     val ink = onColorFor(background)
                     val pen = UnitTextPen(typeface, size, scale, argbOf(ink) ?: Color.Black.toArgb())
                     val box = switchLabelBox(obj, states.size)
-                    val shown = if (askedIndex >= 0) askedIndex else activeIndex
-                    if (shown < 0) {
+                    if (shown < 0 || knob == null) {
                         // Nothing reported: no knob, because every position
                         // belongs to a state and standing somewhere would
                         // claim one nobody has reported.
@@ -313,31 +346,42 @@ fun SwitchView(
                     }
 
                     val state = states[shown]
-                    val knob = switchKnob(obj, states.size, shown, pressedIndex >= 0)
                     val d = knob.r * 2
-                    fill(SwitchRect(knob.cx - knob.r, knob.cy - knob.r, d, d, knob.r), knobLook.knob)
+                    if (!soft) fill(SwitchRect(knob.cx - knob.r, knob.cy - knob.r, d, d, knob.r), knobLook.knob)
 
-                    val iconSize = maxOf(1, d * 3 / 5)
-                    icon(
-                        if (on) state.activePath ?: state.path else state.path,
-                        SwitchRect(knob.cx - iconSize / 2, knob.cy - iconSize / 2, iconSize, iconSize, 0),
-                    )
+                    // Only a knob that is ON carries an icon. The quiet knob is
+                    // half the track's height, and an icon squeezed into it read
+                    // as a smudge rather than a symbol.
+                    if (on) {
+                        val iconSize = maxOf(1, d * 3 / 5)
+                        icon(
+                            state.activePath ?: state.path,
+                            SwitchRect(knob.cx - iconSize / 2, knob.cy - iconSize / 2, iconSize, iconSize, 0),
+                        )
+                    }
 
                     val content = switchContent(box, metrics, false, pen.widthOf(state.label))
                     label(pen, box, state.label, box.x, content.baseline)
                     return@drawIntoCanvas
                 }
 
-                val container = com.screensmith.android.render.switchContainer(obj)
+                val container = switchContainer(obj)
                 val outline = look.surfaceOutline
-                if (outline != null) ring(container, outline, 1) else fill(container, look.surface)
-
                 val segments = switchSegments(obj, states.size)
+
+                if (soft) {
+                    drawPills(native, pills, ox, oy, scale)
+                } else {
+                    if (outline != null) ring(container, outline, 1) else fill(container, look.surface)
+                }
+
                 segments.forEachIndexed { index, seg ->
                     val state = states[index]
                     val chosen = index == activeIndex
-                    if (chosen) fill(seg, look.chosen)
-                    if (index == askedIndex || index == pressedIndex) ring(seg, look.ring, 2)
+                    if (!soft) {
+                        if (chosen) fill(seg, look.chosen)
+                        if (index == askedIndex || index == pressedIndex) ring(seg, look.ring, 2)
+                    }
 
                     val ink = if (chosen) look.onChosen else look.onSurface
                     val pen = UnitTextPen(typeface, size, scale, argbOf(ink) ?: Color.Black.toArgb())
@@ -361,3 +405,103 @@ fun SwitchView(
 
 /** A "#rrggbb" from the shape rules as an ARGB int; null for "transparent". */
 private fun argbOf(color: String): Int? = parseHexColor(color)?.takeIf { it != Color.Transparent }?.toArgb()
+
+/**
+ * Every shape the control is made of, in priority order - the designer's own
+ * `drawGroup` and `drawKnobSwitch` up to the point they hand the list over.
+ *
+ * A sub-sample belongs to the first run that contains it and to no other, so
+ * the ORDER here is the picture. Drawn one over the other instead, each rounded
+ * end would carry a rim of whatever it covers - which is what a stair-stepped
+ * pill beside an anti-aliased ring asked about in the first place (2026-09-22).
+ */
+private fun switchPills(
+    obj: ScreenObject,
+    stateCount: Int,
+    knobForm: Boolean,
+    on: Boolean,
+    look: SwitchLook,
+    knobLook: SwitchKnobLook,
+    activeIndex: Int,
+    askedIndex: Int,
+    pressedIndex: Int,
+): List<PaintedPill> {
+    val painted = mutableListOf<PaintedPill>()
+
+    if (knobForm) {
+        // Knob first, then the track it stands on: the knob wins every
+        // sub-sample it covers, so no rim of track colour is left around it.
+        val shown = if (askedIndex >= 0) askedIndex else activeIndex
+        if (shown >= 0) {
+            val knob = switchKnob(obj, stateCount, shown, pressedIndex >= 0, on)
+            val d = knob.r * 2
+            painted += wholePill(SwitchRect(knob.cx - knob.r, knob.cy - knob.r, d, d, knob.r), knobLook.knob)
+        }
+        val track = switchTrack(obj, stateCount)
+        val trackOutline = knobLook.trackOutline
+        if (trackOutline != null) {
+            painted += pillInside(track, SWITCH_TRACK_OUTLINE, knobLook.track)
+            painted += wholePill(track, trackOutline)
+        } else {
+            painted += wholePill(track, knobLook.track)
+        }
+        return painted
+    }
+
+    val outline = look.surfaceOutline
+    switchSegments(obj, stateCount).forEachIndexed { index, seg ->
+        val chosen = index == activeIndex
+        // A finger on a segment, and a tap whose answer has not come back: the
+        // same ring. Both mean "this is not what is reported - yet".
+        if (index == askedIndex || index == pressedIndex) {
+            // A ring is its outer pill with the inside taken back, so what the
+            // ring encloses has to be said out loud: the chosen pill, the
+            // container, or - where the container is only an outline - nothing
+            // at all.
+            painted += pillInside(seg, 2, if (chosen) look.chosen else if (outline != null) null else look.surface)
+            painted += wholePill(seg, look.ring)
+            return@forEachIndexed
+        }
+        if (chosen) painted += wholePill(seg, look.chosen)
+    }
+    val container = switchContainer(obj)
+    if (outline != null) {
+        painted += pillInside(container, 1, null)
+        painted += wholePill(container, outline)
+    } else {
+        painted += wholePill(container, look.surface)
+    }
+    return painted
+}
+
+/**
+ * One rounded rectangle as a run for the rasterizer, and the run inside it -
+ * the designer's `wholePill`/`pillInside` in render-switch.ts.
+ *
+ * Everything this control is made of is a pill: the container, a segment, the
+ * track, the knob. They are described rather than painted, because the
+ * rasterizer needs them all at once to give each sub-sample to exactly one of
+ * them ([drawPills]).
+ *
+ * [pillInside] is what a ring leaves untouched - [fillRoundRectRing]'s own
+ * arithmetic, so a ring comes out where it always did. Its colour is whatever
+ * lies under the ring, and null where that is the screen itself: a run with no
+ * colour still claims its pixels, it simply paints nothing in them.
+ */
+private fun wholePill(r: SwitchRect, colour: String?): PaintedPill =
+    PaintedPill(PillBand(r.x, r.y, r.w, r.h, r.r, r.rRight ?: r.r), colour)
+
+private fun pillInside(r: SwitchRect, thickness: Int, colour: String?): PaintedPill {
+    val t = maxOf(1, thickness)
+    return PaintedPill(
+        PillBand(
+            x = r.x + t,
+            y = r.y + t,
+            w = r.w - 2 * t,
+            h = r.h - 2 * t,
+            rLow = maxOf(0, r.r - t),
+            rHigh = maxOf(0, (r.rRight ?: r.r) - t),
+        ),
+        colour,
+    )
+}

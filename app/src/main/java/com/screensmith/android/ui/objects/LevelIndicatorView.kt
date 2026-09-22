@@ -29,7 +29,13 @@ import com.screensmith.android.render.LEVEL_GAP
 import com.screensmith.android.render.LevelRect
 import com.screensmith.android.render.LevelRole
 import com.screensmith.android.render.LevelSegment
+import com.screensmith.android.render.LevelTrackLook
+import com.screensmith.android.render.PaintedPill
+import com.screensmith.android.render.PillBand
+import com.screensmith.android.render.drawPills
 import com.screensmith.android.render.fillRoundRect
+import com.screensmith.android.render.handleColourFor
+import com.screensmith.android.render.pillBitmap
 import com.screensmith.android.render.levelEmptyTrack
 import com.screensmith.android.render.levelFontMetrics
 import com.screensmith.android.render.levelFontSize
@@ -158,7 +164,7 @@ private fun isSettableLevel(obj: ScreenObject): Boolean =
  * mistake; then any font small enough; and if the project has nothing
  * smaller, the object's own, which merely looks unremarkable.
  */
-private fun levelSubFont(fonts: List<FontEntry>, obj: ScreenObject): FontEntry? {
+internal fun levelSubFont(fonts: List<FontEntry>, obj: ScreenObject): FontEntry? {
     if (fonts.isEmpty()) return null
     val own = fonts.firstOrNull { it.id == obj.properties.stringOrNull("fontId") }
     // Two thirds of the object's own line - not of `fontSize`, which the font
@@ -172,7 +178,7 @@ private fun levelSubFont(fonts: List<FontEntry>, obj: ScreenObject): FontEntry? 
 }
 
 /** The size the text is drawn at: a TTF's own, else the object's `fontSize`. */
-private fun levelTextSize(obj: ScreenObject, font: FontEntry?): Int =
+internal fun levelTextSize(obj: ScreenObject, font: FontEntry?): Int =
     if (font?.path != null && font.size > 0) font.size else levelFontSize(obj)
 
 /**
@@ -180,7 +186,7 @@ private fun levelTextSize(obj: ScreenObject, font: FontEntry?): Int =
  * size; the object's own font, when nothing smaller was found, is drawn at two
  * thirds.
  */
-private fun levelSubTextSize(obj: ScreenObject, sub: FontEntry?, own: FontEntry?): Int {
+internal fun levelSubTextSize(obj: ScreenObject, sub: FontEntry?, own: FontEntry?): Int {
     if (sub != null && sub !== own) return levelTextSize(obj, sub)
     return maxOf(6, levelTextSize(obj, own) * 2 / 3)
 }
@@ -228,7 +234,13 @@ fun LevelIndicatorView(
     val fonts = project.fonts
     val fillColor = props.string("fillColor", "#4CAF50")
     val fillArgb = (parseHexColor(fillColor) ?: Color(0xFF4CAF50)).toArgb()
-    val look = levelTrackLook(fillColor, screenBackgroundColor ?: "#ffffff")
+    // What the control stands on: half of what the track's colour is mixed
+    // from, and what the soft edges of every run are mixed into.
+    val background = screenBackgroundColor ?: "#ffffff"
+    val look = levelTrackLook(fillColor, background)
+    // Anti-aliased on 24 bit and nowhere else - see Project.colorDepth. Below
+    // it the whole-pixel path below runs exactly as it always has.
+    val soft = project.colorDepth == "24bit"
     val trackArgb = (parseHexColor(look.track) ?: Color.Transparent).toArgb()
     val textArgb = (props.stringOrNull("textColor")?.let(::parseHexColor) ?: Color.Black).toArgb()
 
@@ -277,6 +289,23 @@ fun LevelIndicatorView(
     val vertical = levelIsVertical(obj)
     val ox = obj.x.toInt()
     val oy = obj.y.toInt()
+
+    val handle = setpointPercent?.let { levelHandleRect(obj, it, fonts) }
+    val segments = if (noValue) {
+        listOf(levelEmptyTrack(obj, fonts))
+    } else {
+        levelSegments(obj, fillPercent, handle, fonts)
+    }
+    // Rasterized once and kept, the way ArcLevelView keeps its ring: the soft
+    // path walks sixteen sub-samples of every pixel of the bar against every
+    // run of it, and a slider is dragged. Keyed on everything the picture
+    // depends on - the two values it shows, the object itself, and what it
+    // stands on.
+    val pills = if (!soft) null else remember(
+        obj.id, obj.width, obj.height, props, fonts, rawValue, rawSetpoint, background,
+    ) {
+        pillBitmap(levelPills(obj, segments, handle, vertical, fillColor, look), background)
+    }
 
     Box(
         modifier = Modifier
@@ -341,21 +370,19 @@ fun LevelIndicatorView(
                     levelFrameInner(seg, vertical)?.let { run(it, trackArgb) }
                 }
 
-                val handle = setpointPercent?.let { levelHandleRect(obj, it, fonts) }
-                val segments = if (noValue) {
-                    listOf(levelEmptyTrack(obj, fonts))
+                if (soft) {
+                    drawPills(native, pills, ox, oy, scale)
                 } else {
-                    levelSegments(obj, fillPercent, handle, fonts)
-                }
-                for (seg in segments) {
-                    if (seg.role == LevelRole.FILL) run(seg, fillArgb) else trackRun(seg)
-                }
-                if (handle != null) {
-                    // The fill's own colour, and deliberately not a marker
-                    // colour: handle and active track are one object that the
-                    // gap separates.
-                    paint.color = fillArgb
-                    fillRoundRect(native, paint, handle.x - ox, handle.y - oy, handle.w, handle.h, handle.r, scale)
+                    for (seg in segments) {
+                        if (seg.role == LevelRole.FILL) run(seg, fillArgb) else trackRun(seg)
+                    }
+                    if (handle != null) {
+                        // The fill's own colour, and deliberately not a marker
+                        // colour: handle and active track are one object that the
+                        // gap separates.
+                        paint.color = fillArgb
+                        fillRoundRect(native, paint, handle.x - ox, handle.y - oy, handle.w, handle.h, handle.r, scale)
+                    }
                 }
 
                 // Before anything that depends on a value: a bar that has
@@ -444,13 +471,76 @@ fun LevelIndicatorView(
     }
 }
 
+/**
+ * Everything the bar is made of, described rather than painted, and handed to
+ * one rasterizer ([pillBitmap]) - the designer's `drawLevelShape`.
+ *
+ * The ORDER is the picture: a sub-sample belongs to the first run that contains
+ * it and to no other. Painting the handle over the track would leave a ring of
+ * track colour around it where the two meet - and the same along the value's
+ * edge, which is the one place on a bar anybody looks at.
+ */
+private fun levelPills(
+    obj: ScreenObject,
+    segments: List<LevelSegment>,
+    handle: LevelRect?,
+    vertical: Boolean,
+    fillColor: String,
+    look: LevelTrackLook,
+): List<PaintedPill> {
+    // A run's two ends: rounded where the track itself ends, square where
+    // something cut it - the fill's edge, or the handle's gap. That is
+    // Material's 2 dp inner corner taken to its limit (LevelShape.kt).
+    fun bandOf(seg: LevelSegment) = PillBand(
+        x = seg.x,
+        y = seg.y,
+        w = seg.w,
+        h = seg.h,
+        rLow = if (seg.roundStart) seg.r else 0,
+        rHigh = if (seg.roundEnd) seg.r else 0,
+        vertical = vertical,
+    )
+
+    val painted = mutableListOf<PaintedPill>()
+    if (handle != null) {
+        // It lies ACROSS the bar, so its own long axis is the other one. The
+        // colour says whether a finger can move it ([handleColourFor]) - which
+        // the whole-pixel path above does not yet ask, having been written
+        // before that rule existed.
+        painted += PaintedPill(
+            PillBand(handle.x, handle.y, handle.w, handle.h, handle.r, handle.r, !vertical),
+            handleColourFor(obj, fillColor, look),
+        )
+    }
+    for (seg in segments) {
+        if (seg.role == LevelRole.FILL) {
+            painted += PaintedPill(bandOf(seg), fillColor)
+            continue
+        }
+        // The unfilled track: a body in its mixed colour, or - where that
+        // colour cannot be told from the background - an outline in the bar's
+        // own colour. The outline is the run's outer pixel with its inside
+        // taken back, not a ring behind it, so it ends straight where a run was
+        // cut instead of in a rounded cap. The inside comes first, being the
+        // one that wins the pixels it covers.
+        if (!look.framed) {
+            painted += PaintedPill(bandOf(seg), look.track)
+            continue
+        }
+        levelFrameInner(seg, vertical)?.let { painted += PaintedPill(bandOf(it), look.track) }
+        painted += PaintedPill(bandOf(seg), fillColor)
+    }
+
+    return painted
+}
+
 /** One axis-aligned run of whole project units, drawn at [scale] device pixels per unit. */
 private fun fillUnits(canvas: NativeCanvas, paint: Paint, x: Int, y: Int, w: Int, h: Int, scale: Float) {
     canvas.drawRect(x * scale, y * scale, (x + w) * scale, (y + h) * scale, paint)
 }
 
 /** The face a project font names, or the system's when it ships no file. */
-private fun typefaceOf(font: FontEntry?, assetFileOf: (String) -> java.io.File): Typeface =
+internal fun typefaceOf(font: FontEntry?, assetFileOf: (String) -> java.io.File): Typeface =
     font?.path?.let { assetFileOf(it) }?.takeIf { it.exists() }
         ?.let { runCatching { Typeface.createFromFile(it) }.getOrNull() }
         ?: Typeface.DEFAULT
