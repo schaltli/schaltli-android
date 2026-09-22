@@ -125,6 +125,12 @@ data class ScreenObject(
     // designer's ScreenmanObject.children.
     val children: List<ScreenObject> = emptyList(),
     // Only meaningful on "icon" objects and live-icon's valueIconPairs
-    // entries - path to the icon's SVG inside the bundle.
+    // entries - path to the icon's SVG inside the bundle. On a "button" it is
+    // something else: the whole button, baked as a bitmap by the designer
+    // (lib/android-export.ts), because a Material button's pill, colours,
+    // trimmed icon and measured label are rules that repo owns and a second
+    // drawing of them here would be a second set of pixels to keep in step.
     val path: String? = null,
+    /** A "button" held down - the other of its two baked states. */
+    val pressedPath: String? = null,
 )
