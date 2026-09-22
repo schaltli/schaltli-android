@@ -9,14 +9,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import android.app.Activity
+import android.graphics.drawable.ColorDrawable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -26,8 +22,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -40,6 +37,8 @@ import com.screensmith.android.ddf.DdfBuilder
 import com.screensmith.android.ddf.DdfServer
 import com.screensmith.android.ddf.DeviceIdentity
 import com.screensmith.android.ddf.NativeScreen
+import com.screensmith.android.ui.SetupHold
+import com.screensmith.android.ui.objects.parseHexColor
 import com.screensmith.android.mqtt.DeployReceiver
 import com.screensmith.android.mqtt.MqttRepository
 import com.screensmith.android.ui.ImportScreen
@@ -313,6 +312,21 @@ fun ScreensmithRoot(app: ScreensmithApp) {
             )
             else -> {
                 val screen = activeProject.screens.find { it.id == currentScreenId } ?: activeProject.screens.first()
+                // The window under everything takes the screen's own colour.
+                //
+                // A phone is taller than the area it gives an app: the
+                // hidden status bar and the gesture bar leave 43 and 25
+                // units of window that no project covers, and they were
+                // showing the app's own light theme - two white stripes
+                // around a dark design (measured on the P20, 2026-09-22).
+                // Nothing about the drawn screen changes, so the DDF still
+                // announces the same size and no project moves; only what
+                // surrounds it does.
+                val activity = LocalContext.current as? Activity
+                val surround = screen.backgroundColor?.let(::parseHexColor) ?: Color.White
+                LaunchedEffect(activity, surround) {
+                    activity?.window?.setBackgroundDrawable(ColorDrawable(surround.toArgb()))
+                }
                 // A swipe is looked up in this screen's own buttonActions and
                 // then dispatched like any other bound button - the app has
                 // no built-in idea that swiping left means "next". Which
@@ -322,6 +336,7 @@ fun ScreensmithRoot(app: ScreensmithApp) {
                 // Where the binding does lead to another screen, the picture
                 // travels under the finger while the gesture is being made,
                 // and the same dispatch happens when it is let go.
+                SetupHold(enabled = true, onEnterSetup = { showSettings = true }) {
                 FollowingScreens(
                     screen = screen,
                     followTargetFor = { buttonId ->
@@ -357,6 +372,7 @@ fun ScreensmithRoot(app: ScreensmithApp) {
                         },
                     )
                 }
+                }
                 if (showScreenMenu) {
                     ScreenMenuOverlay(
                         screens = activeProject.screens,
@@ -368,24 +384,5 @@ fun ScreensmithRoot(app: ScreensmithApp) {
             }
         }
 
-        if (activeProject != null) {
-            IconButton(
-                onClick = { showSettings = !showSettings },
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    // enableEdgeToEdge() draws app content behind the status
-                    // bar, so without this the icon's touch target sits
-                    // entirely inside the status bar's own window and every
-                    // tap is intercepted before it ever reaches the app
-                    // (confirmed via `dumpsys window displays` - statusBars
-                    // inset frame [0,0][*,113] fully contained the icon's
-                    // [45,99] y-range; 2026-07-27 finding while wiring up a
-                    // broker for the first time).
-                    .statusBarsPadding()
-                    .padding(8.dp),
-            ) {
-                Icon(Icons.Default.Settings, contentDescription = "Settings")
-            }
-        }
     }
 }
