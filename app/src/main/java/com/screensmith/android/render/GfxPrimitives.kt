@@ -2,6 +2,8 @@ package com.screensmith.android.render
 
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
 
 /**
  * Adafruit_GFX's rounded-rectangle fill, ported for the third time.
@@ -90,13 +92,78 @@ fun fillRoundRect(
     h: Int,
     radius: Int,
     scale: Float,
-) {
-    val maxRadius = minOf(w, h) / 2
-    var r = radius
-    if (r > maxRadius) r = maxRadius
-    if (r < 0) r = 0
+) = fillRoundRectSides(canvas, paint, x, y, w, h, radius, radius, scale)
 
-    span(canvas, paint, x + r, y, w - 2 * r, h, scale)
-    fillCircleHelper(canvas, paint, x + w - r - 1, y + r, r, 1, h - 2 * r - 1, scale)
-    fillCircleHelper(canvas, paint, x + r, y + r, r, 2, h - 2 * r - 1, scale)
+/**
+ * The same rectangle with a radius per side - the designer's
+ * `fillRoundRectSides` in render-box.ts.
+ *
+ * One radius cannot describe a button in a connected button group, which is
+ * what a Switch in its group form is: Material 3 gives such a button a fully
+ * round outer end and a small inner one, and a single radius forces a choice
+ * between an outer end that does not follow its container and an inner end
+ * that rounds away from its neighbour. Asked for either, a segment about as
+ * tall as it is wide simply clamps to a circle.
+ *
+ * With both radii equal this is exactly the shape [fillRoundRect] always drew,
+ * down to the pixel: the straight middle runs between the two arcs and each
+ * end is the same Adafruit_GFX quarter-circle pair.
+ */
+fun fillRoundRectSides(
+    canvas: Canvas,
+    paint: Paint,
+    x: Int,
+    y: Int,
+    w: Int,
+    h: Int,
+    rLeft: Int,
+    rRight: Int,
+    scale: Float,
+) {
+    if (w <= 0 || h <= 0) return
+    val maxRadius = minOf(w, h) / 2
+    val left = maxOf(0, minOf(maxRadius, rLeft))
+    val right = maxOf(0, minOf(maxRadius, rRight))
+
+    span(canvas, paint, x + left, y, w - left - right, h, scale)
+    if (right > 0) fillCircleHelper(canvas, paint, x + w - right - 1, y + right, right, 1, h - 2 * right - 1, scale)
+    if (left > 0) fillCircleHelper(canvas, paint, x + left, y + left, left, 2, h - 2 * left - 1, scale)
+}
+
+/**
+ * A rounded-rectangle ring [thickness] units thick, cut out of a filled shape
+ * rather than stroked - the designer's `fillRoundRectRing`.
+ *
+ * Stroked, a thin ring is anti-aliased and breaks up wherever the picture is
+ * later cut to one bit; cut out of two integer-rasterised shapes it is whole
+ * at any depth. Cut, not painted over, so whatever is behind the control
+ * still shows inside it - which is why this needs a layer of its own.
+ */
+fun fillRoundRectRing(
+    canvas: Canvas,
+    paint: Paint,
+    x: Int,
+    y: Int,
+    w: Int,
+    h: Int,
+    r: Int,
+    thickness: Int,
+    scale: Float,
+    rRight: Int = r,
+) {
+    if (w <= 0 || h <= 0) return
+    val t = maxOf(1, thickness)
+    val layer = canvas.saveLayer(null, null)
+    fillRoundRectSides(canvas, paint, x, y, w, h, r, rRight, scale)
+    if (w > 2 * t && h > 2 * t) {
+        val cut = Paint().apply {
+            isAntiAlias = false
+            xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
+        }
+        fillRoundRectSides(
+            canvas, cut, x + t, y + t, w - 2 * t, h - 2 * t,
+            maxOf(0, r - t), maxOf(0, rRight - t), scale,
+        )
+    }
+    canvas.restoreToCount(layer)
 }

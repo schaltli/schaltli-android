@@ -504,25 +504,6 @@ fun levelPercentFromPoint(obj: ScreenObject, x: Double, y: Double, fonts: List<F
     return (along * 100).coerceIn(0.0, 100.0)
 }
 
-/** One colour as three whole channels, or null for anything that is not a hex colour. */
-private fun levelChannels(color: String): IntArray? {
-    val c = color.trim().lowercase()
-    if (Regex("^#[0-9a-f]{3}$").matches(c)) {
-        return intArrayOf(
-            "${c[1]}${c[1]}".toInt(16),
-            "${c[2]}${c[2]}".toInt(16),
-            "${c[3]}${c[3]}".toInt(16),
-        )
-    }
-    if (Regex("^#[0-9a-f]{6}([0-9a-f]{2})?$").matches(c)) {
-        return intArrayOf(c.substring(1, 3).toInt(16), c.substring(3, 5).toInt(16), c.substring(5, 7).toInt(16))
-    }
-    return null
-}
-
-private fun levelHex(channels: IntArray): String =
-    "#" + channels.joinToString("") { it.toString(16).padStart(2, '0') }
-
 /**
  * What the unfilled part of the track looks like, worked out from the two
  * colours the author already has: the bar's colour and the screen's
@@ -545,8 +526,8 @@ private fun levelHex(channels: IntArray): String =
  * case the designer's comment describes.
  */
 fun levelTrackLook(fillColor: String, backgroundColor: String): LevelTrackLook {
-    val f = levelChannels(fillColor)
-    val b = levelChannels(backgroundColor)
+    val f = colorChannels(fillColor)
+    val b = colorChannels(backgroundColor)
     // A colour that cannot be read is not guessed at: the track becomes the
     // background, which puts up the outline and leaves the bar visible.
     if (f == null || b == null) return LevelTrackLook(backgroundColor, true)
@@ -555,8 +536,8 @@ fun levelTrackLook(fillColor: String, backgroundColor: String): LevelTrackLook {
         b[1] + (f[1] - b[1]) / 2,
         b[2] + (f[2] - b[2]) / 2,
     )
-    val track = levelHex(mixed)
-    val t = levelChannels(track)
+    val track = colorHex(mixed)
+    val t = colorChannels(track)
     return LevelTrackLook(track, t != null && t[0] == b[0] && t[1] == b[1] && t[2] == b[2])
 }
 

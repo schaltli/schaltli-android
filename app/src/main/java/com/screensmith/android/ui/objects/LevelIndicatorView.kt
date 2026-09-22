@@ -183,33 +183,6 @@ private fun levelSubTextSize(obj: ScreenObject, sub: FontEntry?, own: FontEntry?
 }
 
 /**
- * One piece of text on a level indicator: what it is written in, and how big.
- *
- * Measured in project units and drawn in device pixels, which is why there are
- * two Paints. The designer measures with `ctx.measureText` at the font's own
- * pixel size and rounds the answer up to a whole unit; measuring here at the
- * scaled size and dividing back would put a density-dependent number into an
- * arithmetic whose whole purpose is to land on the same integers.
- */
-private class LevelTextPen(typeface: Typeface, sizeUnits: Int, scale: Float, argb: Int) {
-    val draw = Paint().apply {
-        isAntiAlias = true
-        this.typeface = typeface
-        textSize = sizeUnits * scale
-        color = argb
-        textAlign = Paint.Align.LEFT
-    }
-    private val measure = Paint().apply {
-        isAntiAlias = true
-        this.typeface = typeface
-        textSize = sizeUnits.toFloat()
-    }
-
-    /** How wide this text is drawn, in whole project units. */
-    fun widthOf(text: String): Int = kotlin.math.ceil(measure.measureText(text).toDouble()).toInt()
-}
-
-/**
  * A level indicator: a tank gauge, and - with somewhere to write to - the
  * slider that sets one.
  *
@@ -375,8 +348,8 @@ fun LevelIndicatorView(
                     fillRoundRect(native, paint, handle.x - ox, handle.y - oy, handle.w, handle.h, handle.r, scale)
                 }
 
-                val pen = LevelTextPen(ownTypeface, levelTextSize(obj, ownFont), scale, textArgb)
-                fun drawAt(p: LevelTextPen, clip: LevelRect, text: String, x: Int, baseline: Int) {
+                val pen = UnitTextPen(ownTypeface, levelTextSize(obj, ownFont), scale, textArgb)
+                fun drawAt(p: UnitTextPen, clip: LevelRect, text: String, x: Int, baseline: Int) {
                     if (text.isEmpty() || clip.w <= 0 || clip.h <= 0) return
                     native.save()
                     native.clipRect(
@@ -390,7 +363,7 @@ fun LevelIndicatorView(
                 }
 
                 /** Text whose right end is at [right]. Returns where its left end landed. */
-                fun drawRightAligned(p: LevelTextPen, clip: LevelRect, text: String, right: Int): Int {
+                fun drawRightAligned(p: UnitTextPen, clip: LevelRect, text: String, right: Int): Int {
                     val left = right - p.widthOf(text)
                     drawAt(p, clip, text, left, layout.baseline)
                     return left
@@ -426,7 +399,7 @@ fun LevelIndicatorView(
                             // In brackets rather than behind a word: a bracket
                             // needs no language. Smaller too, and on the same
                             // baseline as the big one.
-                            val subPen = LevelTextPen(
+                            val subPen = UnitTextPen(
                                 subTypeface,
                                 levelSubTextSize(obj, subFont, ownFont),
                                 scale,

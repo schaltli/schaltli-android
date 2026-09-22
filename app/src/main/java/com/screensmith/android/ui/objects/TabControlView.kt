@@ -35,6 +35,7 @@ fun TabControlView(
     // panel is settable too.
     askedValues: Map<String, String> = emptyMap(),
     onSetLevel: (markerTopic: String, writeTopic: String, value: String) -> Unit = { _, _, _ -> },
+    onAsked: (readTopic: String, readValue: String) -> Unit = { _, _ -> },
 ) {
     val topicRef = obj.properties.stringOrNull("topic")
     val currentValue = resolveTopicValue(topicRef, project, topicValues)
@@ -73,6 +74,7 @@ fun TabControlView(
                 screenBackgroundColor,
                 askedValues,
                 onSetLevel,
+                onAsked,
             )
         }
     }

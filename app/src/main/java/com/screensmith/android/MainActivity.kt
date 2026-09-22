@@ -349,6 +349,12 @@ fun ScreensmithRoot(app: ScreensmithApp) {
                             mqttRepository.noteAsked(markerTopic, value)
                             mqttRepository.publish(writeTopic, value)
                         },
+                        // A Switch publishes through the action dispatcher
+                        // like a button does, so only the remembering is
+                        // left for it here.
+                        onAsked = { readTopic, readValue ->
+                            mqttRepository.noteAsked(readTopic, readValue)
+                        },
                     )
                 }
                 if (showScreenMenu) {

@@ -1,0 +1,1355 @@
+{
+  "generated": "2026-09-22T04:55:14.433Z",
+  "cases": {
+    "group-two-buttons": {
+      "input": {
+        "type": "button-group",
+        "x": 20,
+        "y": 40,
+        "width": 200,
+        "height": 48,
+        "properties": {
+          "switchColor": "#6750A4",
+          "states": [
+            {
+              "id": "st-on",
+              "label": "An",
+              "readValue": "ON",
+              "writeValue": "ON",
+              "showAsOn": true
+            },
+            {
+              "id": "st-off",
+              "label": "Aus",
+              "readValue": "OFF",
+              "writeValue": "OFF"
+            }
+          ]
+        },
+        "fonts": [],
+        "stateCount": 2,
+        "activeIndex": 0,
+        "askedIndex": -1,
+        "pressedIndex": -1,
+        "textWidth": 18,
+        "hasIcon": false,
+        "background": "#ffffff",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "form": "group",
+        "metrics": {
+          "ascent": 11,
+          "descent": 3,
+          "capHeight": 9
+        },
+        "corner": 24,
+        "container": {
+          "x": 20,
+          "y": 40,
+          "w": 200,
+          "h": 48,
+          "r": 24
+        },
+        "segments": [
+          {
+            "x": 22,
+            "y": 42,
+            "w": 98,
+            "h": 44,
+            "r": 22,
+            "rRight": 8
+          },
+          {
+            "x": 122,
+            "y": 42,
+            "w": 96,
+            "h": 44,
+            "r": 8,
+            "rRight": 22
+          }
+        ],
+        "track": {
+          "x": 20,
+          "y": 48,
+          "w": 56,
+          "h": 32,
+          "r": 16
+        },
+        "labelBox": {
+          "x": 84,
+          "y": 40,
+          "w": 136,
+          "h": 48,
+          "r": 0
+        },
+        "knobs": [
+          {
+            "cx": 36,
+            "cy": 64,
+            "r": 12
+          },
+          {
+            "cx": 60,
+            "cy": 64,
+            "r": 12
+          }
+        ],
+        "pressedKnob": {
+          "cx": 36,
+          "cy": 64,
+          "r": 14
+        },
+        "shownIndex": 0,
+        "content": {
+          "icon": null,
+          "textX": 62,
+          "baseline": 68,
+          "beside": true
+        },
+        "look": {
+          "surface": "#d9d3e8",
+          "surfaceOutline": null,
+          "chosen": "#6750A4",
+          "onChosen": "#ffffff",
+          "onSurface": "#000000",
+          "ring": "#6750A4"
+        },
+        "knobLook": {
+          "track": "#6750A4",
+          "trackOutline": null,
+          "knob": "#ffffff",
+          "onKnob": "#6750A4"
+        },
+        "knobLookOff": {
+          "track": "#d9d3e8",
+          "trackOutline": "#b3a8d2",
+          "knob": "#b3a8d2",
+          "onKnob": "#000000"
+        },
+        "on": true
+      }
+    },
+    "group-three-buttons": {
+      "input": {
+        "type": "button-group",
+        "x": 20,
+        "y": 40,
+        "width": 300,
+        "height": 48,
+        "properties": {
+          "switchColor": "#6750A4",
+          "states": [
+            {
+              "id": "st-a",
+              "label": "Auto",
+              "readValue": "AUTO",
+              "writeValue": "AUTO"
+            },
+            {
+              "id": "st-b",
+              "label": "Manuell",
+              "readValue": "MANUAL",
+              "writeValue": "MANUAL"
+            },
+            {
+              "id": "st-c",
+              "label": "Aus",
+              "readValue": "OFF",
+              "writeValue": "OFF",
+              "showAsOn": false
+            }
+          ]
+        },
+        "fonts": [],
+        "stateCount": 3,
+        "activeIndex": 1,
+        "askedIndex": -1,
+        "pressedIndex": -1,
+        "textWidth": 44,
+        "hasIcon": false,
+        "background": "#ffffff",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "form": "group",
+        "metrics": {
+          "ascent": 11,
+          "descent": 3,
+          "capHeight": 9
+        },
+        "corner": 24,
+        "container": {
+          "x": 20,
+          "y": 40,
+          "w": 300,
+          "h": 48,
+          "r": 24
+        },
+        "segments": [
+          {
+            "x": 22,
+            "y": 42,
+            "w": 98,
+            "h": 44,
+            "r": 22,
+            "rRight": 8
+          },
+          {
+            "x": 122,
+            "y": 42,
+            "w": 97,
+            "h": 44,
+            "r": 8,
+            "rRight": 8
+          },
+          {
+            "x": 221,
+            "y": 42,
+            "w": 97,
+            "h": 44,
+            "r": 8,
+            "rRight": 22
+          }
+        ],
+        "track": {
+          "x": 20,
+          "y": 48,
+          "w": 80,
+          "h": 32,
+          "r": 16
+        },
+        "labelBox": {
+          "x": 108,
+          "y": 40,
+          "w": 212,
+          "h": 48,
+          "r": 0
+        },
+        "knobs": [
+          {
+            "cx": 36,
+            "cy": 64,
+            "r": 12
+          },
+          {
+            "cx": 60,
+            "cy": 64,
+            "r": 12
+          },
+          {
+            "cx": 84,
+            "cy": 64,
+            "r": 12
+          }
+        ],
+        "pressedKnob": {
+          "cx": 60,
+          "cy": 64,
+          "r": 14
+        },
+        "shownIndex": 1,
+        "content": {
+          "icon": null,
+          "textX": 49,
+          "baseline": 68,
+          "beside": true
+        },
+        "look": {
+          "surface": "#d9d3e8",
+          "surfaceOutline": null,
+          "chosen": "#6750A4",
+          "onChosen": "#ffffff",
+          "onSurface": "#000000",
+          "ring": "#6750A4"
+        },
+        "knobLook": {
+          "track": "#d9d3e8",
+          "trackOutline": "#b3a8d2",
+          "knob": "#b3a8d2",
+          "onKnob": "#000000"
+        },
+        "knobLookOff": {
+          "track": "#d9d3e8",
+          "trackOutline": "#b3a8d2",
+          "knob": "#b3a8d2",
+          "onKnob": "#000000"
+        },
+        "on": false
+      }
+    },
+    "group-square": {
+      "input": {
+        "type": "button-group",
+        "x": 20,
+        "y": 40,
+        "width": 96,
+        "height": 96,
+        "properties": {
+          "switchColor": "#6750A4",
+          "states": [
+            {
+              "id": "st-on",
+              "label": "An",
+              "readValue": "ON",
+              "writeValue": "ON",
+              "showAsOn": true
+            },
+            {
+              "id": "st-off",
+              "label": "Aus",
+              "readValue": "OFF",
+              "writeValue": "OFF"
+            }
+          ]
+        },
+        "fonts": [],
+        "stateCount": 2,
+        "activeIndex": 1,
+        "askedIndex": -1,
+        "pressedIndex": -1,
+        "textWidth": 18,
+        "hasIcon": true,
+        "background": "#ffffff",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "form": "group",
+        "metrics": {
+          "ascent": 11,
+          "descent": 3,
+          "capHeight": 9
+        },
+        "corner": 28,
+        "container": {
+          "x": 20,
+          "y": 40,
+          "w": 96,
+          "h": 96,
+          "r": 28
+        },
+        "segments": [
+          {
+            "x": 22,
+            "y": 42,
+            "w": 46,
+            "h": 92,
+            "r": 26,
+            "rRight": 8
+          },
+          {
+            "x": 70,
+            "y": 42,
+            "w": 44,
+            "h": 92,
+            "r": 8,
+            "rRight": 26
+          }
+        ],
+        "track": {
+          "x": 20,
+          "y": 56,
+          "w": 96,
+          "h": 64,
+          "r": 32
+        },
+        "labelBox": {
+          "x": 124,
+          "y": 40,
+          "w": 0,
+          "h": 96,
+          "r": 0
+        },
+        "knobs": [
+          {
+            "cx": 52,
+            "cy": 88,
+            "r": 24
+          },
+          {
+            "cx": 100,
+            "cy": 88,
+            "r": 24
+          }
+        ],
+        "pressedKnob": {
+          "cx": 100,
+          "cy": 88,
+          "r": 26
+        },
+        "shownIndex": 1,
+        "content": {
+          "icon": {
+            "x": 40,
+            "y": 73,
+            "w": 9,
+            "h": 9,
+            "r": 0
+          },
+          "textX": 36,
+          "baseline": 99,
+          "beside": false
+        },
+        "look": {
+          "surface": "#d9d3e8",
+          "surfaceOutline": null,
+          "chosen": "#6750A4",
+          "onChosen": "#ffffff",
+          "onSurface": "#000000",
+          "ring": "#6750A4"
+        },
+        "knobLook": {
+          "track": "#d9d3e8",
+          "trackOutline": "#b3a8d2",
+          "knob": "#b3a8d2",
+          "onKnob": "#000000"
+        },
+        "knobLookOff": {
+          "track": "#d9d3e8",
+          "trackOutline": "#b3a8d2",
+          "knob": "#b3a8d2",
+          "onKnob": "#000000"
+        },
+        "on": false
+      }
+    },
+    "group-tonal-on-dark": {
+      "input": {
+        "type": "button-group",
+        "x": 20,
+        "y": 40,
+        "width": 220,
+        "height": 44,
+        "properties": {
+          "switchColor": "#00796B",
+          "switchStyle": "tonal",
+          "states": [
+            {
+              "id": "st-on",
+              "label": "An",
+              "readValue": "ON",
+              "writeValue": "ON",
+              "showAsOn": true
+            },
+            {
+              "id": "st-off",
+              "label": "Aus",
+              "readValue": "OFF",
+              "writeValue": "OFF"
+            }
+          ]
+        },
+        "fonts": [],
+        "stateCount": 2,
+        "activeIndex": 0,
+        "askedIndex": 1,
+        "pressedIndex": -1,
+        "textWidth": 26,
+        "hasIcon": false,
+        "background": "#101010",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "form": "group",
+        "metrics": {
+          "ascent": 11,
+          "descent": 3,
+          "capHeight": 9
+        },
+        "corner": 22,
+        "container": {
+          "x": 20,
+          "y": 40,
+          "w": 220,
+          "h": 44,
+          "r": 22
+        },
+        "segments": [
+          {
+            "x": 22,
+            "y": 42,
+            "w": 108,
+            "h": 40,
+            "r": 20,
+            "rRight": 8
+          },
+          {
+            "x": 132,
+            "y": 42,
+            "w": 106,
+            "h": 40,
+            "r": 8,
+            "rRight": 20
+          }
+        ],
+        "track": {
+          "x": 20,
+          "y": 47,
+          "w": 52,
+          "h": 29,
+          "r": 14
+        },
+        "labelBox": {
+          "x": 80,
+          "y": 40,
+          "w": 160,
+          "h": 44,
+          "r": 0
+        },
+        "knobs": [
+          {
+            "cx": 34,
+            "cy": 61,
+            "r": 11
+          },
+          {
+            "cx": 57,
+            "cy": 61,
+            "r": 11
+          }
+        ],
+        "pressedKnob": {
+          "cx": 57,
+          "cy": 61,
+          "r": 13
+        },
+        "shownIndex": 1,
+        "content": {
+          "icon": null,
+          "textX": 63,
+          "baseline": 66,
+          "beside": true
+        },
+        "look": {
+          "surface": "#0c2a27",
+          "surfaceOutline": null,
+          "chosen": "#08443d",
+          "onChosen": "#ffffff",
+          "onSurface": "#ffffff",
+          "ring": "#00796B"
+        },
+        "knobLook": {
+          "track": "#08443d",
+          "trackOutline": null,
+          "knob": "#ffffff",
+          "onKnob": "#08443d"
+        },
+        "knobLookOff": {
+          "track": "#0c2a27",
+          "trackOutline": "#08443d",
+          "knob": "#08443d",
+          "onKnob": "#ffffff"
+        },
+        "on": true
+      }
+    },
+    "group-default-colour": {
+      "input": {
+        "type": "button-group",
+        "x": 12,
+        "y": 12,
+        "width": 180,
+        "height": 40,
+        "properties": {
+          "states": [
+            {
+              "id": "st-on",
+              "label": "An",
+              "readValue": "ON",
+              "writeValue": "ON",
+              "showAsOn": true
+            },
+            {
+              "id": "st-off",
+              "label": "Aus",
+              "readValue": "OFF",
+              "writeValue": "OFF"
+            }
+          ]
+        },
+        "fonts": [],
+        "stateCount": 2,
+        "activeIndex": -1,
+        "askedIndex": -1,
+        "pressedIndex": -1,
+        "textWidth": 18,
+        "hasIcon": false,
+        "background": "#ffffff",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "form": "group",
+        "metrics": {
+          "ascent": 11,
+          "descent": 3,
+          "capHeight": 9
+        },
+        "corner": 20,
+        "container": {
+          "x": 12,
+          "y": 12,
+          "w": 180,
+          "h": 40,
+          "r": 20
+        },
+        "segments": [
+          {
+            "x": 14,
+            "y": 14,
+            "w": 88,
+            "h": 36,
+            "r": 18,
+            "rRight": 8
+          },
+          {
+            "x": 104,
+            "y": 14,
+            "w": 86,
+            "h": 36,
+            "r": 8,
+            "rRight": 18
+          }
+        ],
+        "track": {
+          "x": 12,
+          "y": 19,
+          "w": 46,
+          "h": 26,
+          "r": 13
+        },
+        "labelBox": {
+          "x": 66,
+          "y": 12,
+          "w": 126,
+          "h": 40,
+          "r": 0
+        },
+        "knobs": [
+          {
+            "cx": 25,
+            "cy": 32,
+            "r": 10
+          },
+          {
+            "cx": 45,
+            "cy": 32,
+            "r": 10
+          }
+        ],
+        "pressedKnob": {
+          "cx": 25,
+          "cy": 32,
+          "r": 12
+        },
+        "shownIndex": -1,
+        "content": {
+          "icon": null,
+          "textX": 49,
+          "baseline": 36,
+          "beside": true
+        },
+        "look": {
+          "surface": "#d9d3e8",
+          "surfaceOutline": null,
+          "chosen": "#6750A4",
+          "onChosen": "#ffffff",
+          "onSurface": "#000000",
+          "ring": "#6750A4"
+        },
+        "knobLook": {
+          "track": "#d9d3e8",
+          "trackOutline": "#b3a8d2",
+          "knob": "#b3a8d2",
+          "onKnob": "#000000"
+        },
+        "knobLookOff": {
+          "track": "#d9d3e8",
+          "trackOutline": "#b3a8d2",
+          "knob": "#b3a8d2",
+          "onKnob": "#000000"
+        },
+        "on": false
+      }
+    },
+    "group-with-font": {
+      "input": {
+        "type": "button-group",
+        "x": 16,
+        "y": 24,
+        "width": 240,
+        "height": 56,
+        "properties": {
+          "switchColor": "#6750A4",
+          "states": [
+            {
+              "id": "st-on",
+              "label": "An",
+              "readValue": "ON",
+              "writeValue": "ON",
+              "showAsOn": true
+            },
+            {
+              "id": "st-off",
+              "label": "Aus",
+              "readValue": "OFF",
+              "writeValue": "OFF"
+            }
+          ],
+          "fontId": "font-roboto-16"
+        },
+        "fonts": [
+          {
+            "id": "font-roboto-16",
+            "displayName": "Roboto 16px",
+            "size": 16,
+            "ascent": 15,
+            "descent": 4,
+            "path": "assets/fonts/Roboto.ttf"
+          }
+        ],
+        "stateCount": 2,
+        "activeIndex": 0,
+        "askedIndex": -1,
+        "pressedIndex": -1,
+        "textWidth": 22,
+        "hasIcon": true,
+        "background": "#ffffff",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "form": "group",
+        "metrics": {
+          "ascent": 13,
+          "descent": 3,
+          "capHeight": 13
+        },
+        "corner": 28,
+        "container": {
+          "x": 16,
+          "y": 24,
+          "w": 240,
+          "h": 56,
+          "r": 28
+        },
+        "segments": [
+          {
+            "x": 18,
+            "y": 26,
+            "w": 118,
+            "h": 52,
+            "r": 26,
+            "rRight": 8
+          },
+          {
+            "x": 138,
+            "y": 26,
+            "w": 116,
+            "h": 52,
+            "r": 8,
+            "rRight": 26
+          }
+        ],
+        "track": {
+          "x": 16,
+          "y": 33,
+          "w": 66,
+          "h": 37,
+          "r": 18
+        },
+        "labelBox": {
+          "x": 90,
+          "y": 24,
+          "w": 166,
+          "h": 56,
+          "r": 0
+        },
+        "knobs": [
+          {
+            "cx": 34,
+            "cy": 51,
+            "r": 14
+          },
+          {
+            "cx": 63,
+            "cy": 51,
+            "r": 14
+          }
+        ],
+        "pressedKnob": {
+          "cx": 34,
+          "cy": 51,
+          "r": 16
+        },
+        "shownIndex": 0,
+        "content": {
+          "icon": {
+            "x": 55,
+            "y": 44,
+            "w": 13,
+            "h": 13,
+            "r": 0
+          },
+          "textX": 76,
+          "baseline": 57,
+          "beside": true
+        },
+        "look": {
+          "surface": "#d9d3e8",
+          "surfaceOutline": null,
+          "chosen": "#6750A4",
+          "onChosen": "#ffffff",
+          "onSurface": "#000000",
+          "ring": "#6750A4"
+        },
+        "knobLook": {
+          "track": "#6750A4",
+          "trackOutline": null,
+          "knob": "#ffffff",
+          "onKnob": "#6750A4"
+        },
+        "knobLookOff": {
+          "track": "#d9d3e8",
+          "trackOutline": "#b3a8d2",
+          "knob": "#b3a8d2",
+          "onKnob": "#000000"
+        },
+        "on": true
+      }
+    },
+    "knob-off": {
+      "input": {
+        "type": "switch",
+        "x": 24,
+        "y": 60,
+        "width": 200,
+        "height": 48,
+        "properties": {
+          "switchColor": "#6750A4",
+          "states": [
+            {
+              "id": "st-on",
+              "label": "An",
+              "readValue": "ON",
+              "writeValue": "ON",
+              "showAsOn": true
+            },
+            {
+              "id": "st-off",
+              "label": "Aus",
+              "readValue": "OFF",
+              "writeValue": "OFF"
+            }
+          ]
+        },
+        "fonts": [],
+        "stateCount": 2,
+        "activeIndex": 1,
+        "askedIndex": -1,
+        "pressedIndex": -1,
+        "textWidth": 30,
+        "hasIcon": false,
+        "background": "#ffffff",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "form": "knob",
+        "metrics": {
+          "ascent": 11,
+          "descent": 3,
+          "capHeight": 9
+        },
+        "corner": 24,
+        "container": {
+          "x": 24,
+          "y": 60,
+          "w": 200,
+          "h": 48,
+          "r": 24
+        },
+        "segments": [
+          {
+            "x": 26,
+            "y": 62,
+            "w": 98,
+            "h": 44,
+            "r": 22,
+            "rRight": 8
+          },
+          {
+            "x": 126,
+            "y": 62,
+            "w": 96,
+            "h": 44,
+            "r": 8,
+            "rRight": 22
+          }
+        ],
+        "track": {
+          "x": 24,
+          "y": 68,
+          "w": 56,
+          "h": 32,
+          "r": 16
+        },
+        "labelBox": {
+          "x": 88,
+          "y": 60,
+          "w": 136,
+          "h": 48,
+          "r": 0
+        },
+        "knobs": [
+          {
+            "cx": 40,
+            "cy": 84,
+            "r": 12
+          },
+          {
+            "cx": 64,
+            "cy": 84,
+            "r": 12
+          }
+        ],
+        "pressedKnob": {
+          "cx": 64,
+          "cy": 84,
+          "r": 14
+        },
+        "shownIndex": 1,
+        "content": {
+          "icon": null,
+          "textX": 141,
+          "baseline": 88,
+          "beside": true
+        },
+        "look": {
+          "surface": "#d9d3e8",
+          "surfaceOutline": null,
+          "chosen": "#6750A4",
+          "onChosen": "#ffffff",
+          "onSurface": "#000000",
+          "ring": "#6750A4"
+        },
+        "knobLook": {
+          "track": "#d9d3e8",
+          "trackOutline": "#b3a8d2",
+          "knob": "#b3a8d2",
+          "onKnob": "#000000"
+        },
+        "knobLookOff": {
+          "track": "#d9d3e8",
+          "trackOutline": "#b3a8d2",
+          "knob": "#b3a8d2",
+          "onKnob": "#000000"
+        },
+        "on": false
+      }
+    },
+    "knob-on": {
+      "input": {
+        "type": "switch",
+        "x": 24,
+        "y": 60,
+        "width": 200,
+        "height": 48,
+        "properties": {
+          "switchColor": "#6750A4",
+          "states": [
+            {
+              "id": "st-on",
+              "label": "An",
+              "readValue": "ON",
+              "writeValue": "ON",
+              "showAsOn": true
+            },
+            {
+              "id": "st-off",
+              "label": "Aus",
+              "readValue": "OFF",
+              "writeValue": "OFF"
+            }
+          ]
+        },
+        "fonts": [],
+        "stateCount": 2,
+        "activeIndex": 0,
+        "askedIndex": -1,
+        "pressedIndex": -1,
+        "textWidth": 22,
+        "hasIcon": false,
+        "background": "#ffffff",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "form": "knob",
+        "metrics": {
+          "ascent": 11,
+          "descent": 3,
+          "capHeight": 9
+        },
+        "corner": 24,
+        "container": {
+          "x": 24,
+          "y": 60,
+          "w": 200,
+          "h": 48,
+          "r": 24
+        },
+        "segments": [
+          {
+            "x": 26,
+            "y": 62,
+            "w": 98,
+            "h": 44,
+            "r": 22,
+            "rRight": 8
+          },
+          {
+            "x": 126,
+            "y": 62,
+            "w": 96,
+            "h": 44,
+            "r": 8,
+            "rRight": 22
+          }
+        ],
+        "track": {
+          "x": 24,
+          "y": 68,
+          "w": 56,
+          "h": 32,
+          "r": 16
+        },
+        "labelBox": {
+          "x": 88,
+          "y": 60,
+          "w": 136,
+          "h": 48,
+          "r": 0
+        },
+        "knobs": [
+          {
+            "cx": 40,
+            "cy": 84,
+            "r": 12
+          },
+          {
+            "cx": 64,
+            "cy": 84,
+            "r": 12
+          }
+        ],
+        "pressedKnob": {
+          "cx": 40,
+          "cy": 84,
+          "r": 14
+        },
+        "shownIndex": 0,
+        "content": {
+          "icon": null,
+          "textX": 145,
+          "baseline": 88,
+          "beside": true
+        },
+        "look": {
+          "surface": "#d9d3e8",
+          "surfaceOutline": null,
+          "chosen": "#6750A4",
+          "onChosen": "#ffffff",
+          "onSurface": "#000000",
+          "ring": "#6750A4"
+        },
+        "knobLook": {
+          "track": "#6750A4",
+          "trackOutline": null,
+          "knob": "#ffffff",
+          "onKnob": "#6750A4"
+        },
+        "knobLookOff": {
+          "track": "#d9d3e8",
+          "trackOutline": "#b3a8d2",
+          "knob": "#b3a8d2",
+          "onKnob": "#000000"
+        },
+        "on": true
+      }
+    },
+    "knob-three-slots-on-dark": {
+      "input": {
+        "type": "switch",
+        "x": 24,
+        "y": 60,
+        "width": 260,
+        "height": 52,
+        "properties": {
+          "switchColor": "#00796B",
+          "states": [
+            {
+              "id": "st-a",
+              "label": "Auto",
+              "readValue": "AUTO",
+              "writeValue": "AUTO"
+            },
+            {
+              "id": "st-b",
+              "label": "Manuell",
+              "readValue": "MANUAL",
+              "writeValue": "MANUAL"
+            },
+            {
+              "id": "st-c",
+              "label": "Aus",
+              "readValue": "OFF",
+              "writeValue": "OFF",
+              "showAsOn": false
+            }
+          ]
+        },
+        "fonts": [],
+        "stateCount": 3,
+        "activeIndex": 2,
+        "askedIndex": 1,
+        "pressedIndex": -1,
+        "textWidth": 52,
+        "hasIcon": false,
+        "background": "#101010",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "form": "knob",
+        "metrics": {
+          "ascent": 11,
+          "descent": 3,
+          "capHeight": 9
+        },
+        "corner": 26,
+        "container": {
+          "x": 24,
+          "y": 60,
+          "w": 260,
+          "h": 52,
+          "r": 26
+        },
+        "segments": [
+          {
+            "x": 26,
+            "y": 62,
+            "w": 85,
+            "h": 48,
+            "r": 24,
+            "rRight": 8
+          },
+          {
+            "x": 113,
+            "y": 62,
+            "w": 83,
+            "h": 48,
+            "r": 8,
+            "rRight": 8
+          },
+          {
+            "x": 198,
+            "y": 62,
+            "w": 84,
+            "h": 48,
+            "r": 8,
+            "rRight": 24
+          }
+        ],
+        "track": {
+          "x": 24,
+          "y": 69,
+          "w": 86,
+          "h": 34,
+          "r": 17
+        },
+        "labelBox": {
+          "x": 118,
+          "y": 60,
+          "w": 166,
+          "h": 52,
+          "r": 0
+        },
+        "knobs": [
+          {
+            "cx": 41,
+            "cy": 86,
+            "r": 13
+          },
+          {
+            "cx": 67,
+            "cy": 86,
+            "r": 13
+          },
+          {
+            "cx": 93,
+            "cy": 86,
+            "r": 13
+          }
+        ],
+        "pressedKnob": {
+          "cx": 67,
+          "cy": 86,
+          "r": 15
+        },
+        "shownIndex": 1,
+        "content": {
+          "icon": null,
+          "textX": 175,
+          "baseline": 90,
+          "beside": true
+        },
+        "look": {
+          "surface": "#0c2a27",
+          "surfaceOutline": null,
+          "chosen": "#00796B",
+          "onChosen": "#ffffff",
+          "onSurface": "#ffffff",
+          "ring": "#00796B"
+        },
+        "knobLook": {
+          "track": "#0c2a27",
+          "trackOutline": "#08443d",
+          "knob": "#08443d",
+          "onKnob": "#ffffff"
+        },
+        "knobLookOff": {
+          "track": "#0c2a27",
+          "trackOutline": "#08443d",
+          "knob": "#08443d",
+          "onKnob": "#ffffff"
+        },
+        "on": false
+      }
+    },
+    "knob-too-narrow": {
+      "input": {
+        "type": "switch",
+        "x": 24,
+        "y": 60,
+        "width": 40,
+        "height": 48,
+        "properties": {
+          "switchColor": "#6750A4",
+          "states": [
+            {
+              "id": "st-on",
+              "label": "An",
+              "readValue": "ON",
+              "writeValue": "ON",
+              "showAsOn": true
+            },
+            {
+              "id": "st-off",
+              "label": "Aus",
+              "readValue": "OFF",
+              "writeValue": "OFF"
+            }
+          ]
+        },
+        "fonts": [],
+        "stateCount": 2,
+        "activeIndex": 0,
+        "askedIndex": -1,
+        "pressedIndex": -1,
+        "textWidth": 22,
+        "hasIcon": false,
+        "background": "#ffffff",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "form": "knob",
+        "metrics": {
+          "ascent": 11,
+          "descent": 3,
+          "capHeight": 9
+        },
+        "corner": 13,
+        "container": {
+          "x": 24,
+          "y": 60,
+          "w": 40,
+          "h": 48,
+          "r": 13
+        },
+        "segments": [
+          {
+            "x": 26,
+            "y": 62,
+            "w": 18,
+            "h": 44,
+            "r": 11,
+            "rRight": 8
+          },
+          {
+            "x": 46,
+            "y": 62,
+            "w": 16,
+            "h": 44,
+            "r": 8,
+            "rRight": 11
+          }
+        ],
+        "track": {
+          "x": 24,
+          "y": 68,
+          "w": 40,
+          "h": 32,
+          "r": 16
+        },
+        "labelBox": {
+          "x": 72,
+          "y": 60,
+          "w": 0,
+          "h": 48,
+          "r": 0
+        },
+        "knobs": [
+          {
+            "cx": 40,
+            "cy": 84,
+            "r": 12
+          },
+          {
+            "cx": 64,
+            "cy": 84,
+            "r": 12
+          }
+        ],
+        "pressedKnob": {
+          "cx": 40,
+          "cy": 84,
+          "r": 14
+        },
+        "shownIndex": 0,
+        "content": {
+          "icon": null,
+          "textX": 72,
+          "baseline": 88,
+          "beside": false
+        },
+        "look": {
+          "surface": "#d9d3e8",
+          "surfaceOutline": null,
+          "chosen": "#6750A4",
+          "onChosen": "#ffffff",
+          "onSurface": "#000000",
+          "ring": "#6750A4"
+        },
+        "knobLook": {
+          "track": "#6750A4",
+          "trackOutline": null,
+          "knob": "#ffffff",
+          "onKnob": "#6750A4"
+        },
+        "knobLookOff": {
+          "track": "#d9d3e8",
+          "trackOutline": "#b3a8d2",
+          "knob": "#b3a8d2",
+          "onKnob": "#000000"
+        },
+        "on": true
+      }
+    }
+  }
+}

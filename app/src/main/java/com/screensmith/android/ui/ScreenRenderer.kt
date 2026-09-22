@@ -57,6 +57,10 @@ fun ScreenRenderer(
     // value is remembered for the marker topic so the marker shows it until
     // the installation answers (decision 6c).
     onSetLevel: (markerTopic: String, writeTopic: String, value: String) -> Unit = { _, _, _ -> },
+    // A finger chose a Switch state: it publishes through [onAction] like a
+    // button, and this remembers what was asked so the ring stays up until
+    // the installation answers on the read topic.
+    onAsked: (readTopic: String, readValue: String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     val backgroundColor = screen.backgroundColor?.let(::parseHexColor) ?: Color.White
@@ -122,6 +126,7 @@ fun ScreenRenderer(
                 screen.backgroundColor,
                 askedValues,
                 onSetLevel,
+                onAsked,
             )
         }
     }
@@ -176,6 +181,8 @@ fun DynamicObjectView(
     // (docs/2026-09-17-settable-level.md in the designer repo).
     askedValues: Map<String, String> = emptyMap(),
     onSetLevel: (markerTopic: String, writeTopic: String, value: String) -> Unit = { _, _, _ -> },
+    /** A Switch's own version of the above: it publishes through [onAction]. */
+    onAsked: (readTopic: String, readValue: String) -> Unit = { _, _ -> },
 ) {
     // The marker's value for a level object: what a finger asked of it, else
     // what the installation says its setpoint is. Keyed by topic, because two
@@ -221,12 +228,26 @@ fun DynamicObjectView(
             ArcLevelView(obj, project, value, setpoint, screenBackgroundColor, assetFileOf, onSetLevel)
         }
         "switch", "button-group" -> {
-            val value = resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues)
-            SwitchView(obj, project, value, assetFileOf, onAction)
+            val topic = obj.properties.stringOrNull("topic")
+            val value = resolveTopicValue(topic, project, topicValues)
+            // What a finger asked of this switch and nothing has confirmed
+            // yet - the ring, the same thing a level's marker is. Keyed by
+            // the read topic, exactly as the designer keys its own.
+            SwitchView(
+                obj, project, value,
+                askedValue = topic?.let { askedValues[it] } ?: "",
+                screenBackgroundColor = screenBackgroundColor,
+                assetFileOf = assetFileOf,
+                onAction = onAction,
+                onAsked = onAsked,
+            )
         }
         "button" -> SoftwareButtonView(obj, project, assetFileOf, onAction)
         "switcher" ->
-            TabControlView(obj, project, topicValues, assetFileOf, onAction, screenBackgroundColor, askedValues, onSetLevel)
+            TabControlView(
+                obj, project, topicValues, assetFileOf, onAction, screenBackgroundColor,
+                askedValues, onSetLevel, onAsked,
+            )
         "live-line" -> {
             val value = resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues)
             MqttDataLineView(obj, value)
