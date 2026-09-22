@@ -1,7 +1,10 @@
 package com.screensmith.android.ui.objects
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas as NativeCanvas
 import android.graphics.Paint
+import android.graphics.Rect
 import android.graphics.Typeface
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -195,12 +198,12 @@ private fun levelSubTextSize(obj: ScreenObject, sub: FontEntry?, own: FontEntry?
  * look the designer retired on 2026-09-19 (docs/2026-09-19-slider-look.md),
  * and there was nowhere to put the difference except a HIL percentage.
  *
- * Not ported: the icon a header line can carry. The designer rasterises the
- * icon's *ink* onto the baseline (`rasterisedIconOnBaseline`), trimming the
- * SVG's own margin, and drawing it any other way would be a second set of
- * pixels that disagrees rather than a missing one. A bar with an `iconAssetId`
- * therefore shows its name and no picture here - and the export does not write
- * the file for a level object either, so there is nothing to draw with yet.
+ * The icon a header line can carry arrives baked, like a Switch's: the
+ * designer draws it as tall as a capital of the object's own font and trims
+ * it to its own ink, so that it stands on the baseline as a letter of the
+ * name rather than floating above it as a picture beside it. Rasterising the
+ * SVG here instead would be a second set of pixels that disagrees rather than
+ * a missing one.
  */
 @Composable
 fun LevelIndicatorView(
@@ -260,6 +263,13 @@ fun LevelIndicatorView(
     val subFont = levelSubFont(fonts, obj)
     val installation = LocalBundleInstallation.current
     val ownTypeface = remember(ownFont?.path, installation) { typefaceOf(ownFont, assetFileOf) }
+    // The header's icon, baked by the export at the size the header draws it.
+    // Keyed by the installation as well as the path: two bundles have the
+    // same file names, so the path alone would hand back the previous
+    // project's picture.
+    val headerIcon: Bitmap? = remember(obj.path, installation) {
+        obj.path?.let { assetFileOf(it) }?.takeIf { it.exists() }?.let { BitmapFactory.decodeFile(it.path) }
+    }
     val subTypeface = remember(subFont?.path, installation) { typefaceOf(subFont, assetFileOf) }
 
     val density = LocalDensity.current
@@ -346,6 +356,23 @@ fun LevelIndicatorView(
                     // gap separates.
                     paint.color = fillArgb
                     fillRoundRect(native, paint, handle.x - ox, handle.y - oy, handle.w, handle.h, handle.r, scale)
+                }
+
+                // Before anything that depends on a value: a bar that has
+                // heard nothing still says what it is.
+                val iconRect = layout.icon
+                if (headerIcon != null && iconRect != null) {
+                    native.drawBitmap(
+                        headerIcon,
+                        null,
+                        Rect(
+                            ((iconRect.x - ox) * scale).toInt(),
+                            ((iconRect.y - oy) * scale).toInt(),
+                            ((iconRect.x - ox + iconRect.w) * scale).toInt(),
+                            ((iconRect.y - oy + iconRect.h) * scale).toInt(),
+                        ),
+                        Paint().apply { isAntiAlias = false; isFilterBitmap = false },
+                    )
                 }
 
                 val pen = UnitTextPen(ownTypeface, levelTextSize(obj, ownFont), scale, textArgb)
