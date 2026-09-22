@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-22T11:46:18.962Z",
+  "generated": "2026-09-22T20:44:03.125Z",
   "cases": {
     "group-two-buttons": {
       "input": {
@@ -68,6 +68,10 @@
             "r": 8,
             "rRight": 22
           }
+        ],
+        "ringFills": [
+          "#6750A4",
+          "#d9d3e8"
         ],
         "track": {
           "x": 20,
@@ -224,6 +228,11 @@
             "rRight": 22
           }
         ],
+        "ringFills": [
+          "#d9d3e8",
+          "#6750A4",
+          "#d9d3e8"
+        ],
         "track": {
           "x": 20,
           "y": 48,
@@ -375,6 +384,10 @@
             "rRight": 26
           }
         ],
+        "ringFills": [
+          "#d9d3e8",
+          "#6750A4"
+        ],
         "track": {
           "x": 20,
           "y": 56,
@@ -523,6 +536,10 @@
             "rRight": 20
           }
         ],
+        "ringFills": [
+          "#08443d",
+          "#0c2a27"
+        ],
         "track": {
           "x": 20,
           "y": 47,
@@ -662,6 +679,10 @@
             "r": 8,
             "rRight": 18
           }
+        ],
+        "ringFills": [
+          "#d9d3e8",
+          "#d9d3e8"
         ],
         "track": {
           "x": 12,
@@ -814,6 +835,10 @@
             "rRight": 26
           }
         ],
+        "ringFills": [
+          "#6750A4",
+          "#d9d3e8"
+        ],
         "track": {
           "x": 16,
           "y": 33,
@@ -893,6 +918,176 @@
         "on": true
       }
     },
+    "group-asked-for-what-is-already-chosen": {
+      "input": {
+        "type": "button-group",
+        "x": 20,
+        "y": 40,
+        "width": 300,
+        "height": 48,
+        "properties": {
+          "switchColor": "#6750A4",
+          "states": [
+            {
+              "id": "st-a",
+              "label": "Auto",
+              "readValue": "AUTO",
+              "writeValue": "AUTO"
+            },
+            {
+              "id": "st-b",
+              "label": "Manuell",
+              "readValue": "MANUAL",
+              "writeValue": "MANUAL"
+            },
+            {
+              "id": "st-c",
+              "label": "Aus",
+              "readValue": "OFF",
+              "writeValue": "OFF",
+              "showAsOn": false
+            }
+          ]
+        },
+        "fonts": [],
+        "stateCount": 3,
+        "activeIndex": 1,
+        "askedIndex": 1,
+        "pressedIndex": -1,
+        "textWidth": 44,
+        "hasIcon": false,
+        "background": "#101010",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "form": "group",
+        "metrics": {
+          "ascent": 11,
+          "descent": 3,
+          "capHeight": 9
+        },
+        "corner": 24,
+        "container": {
+          "x": 20,
+          "y": 40,
+          "w": 300,
+          "h": 48,
+          "r": 24
+        },
+        "segments": [
+          {
+            "x": 22,
+            "y": 42,
+            "w": 98,
+            "h": 44,
+            "r": 22,
+            "rRight": 8
+          },
+          {
+            "x": 122,
+            "y": 42,
+            "w": 97,
+            "h": 44,
+            "r": 8,
+            "rRight": 8
+          },
+          {
+            "x": 221,
+            "y": 42,
+            "w": 97,
+            "h": 44,
+            "r": 8,
+            "rRight": 22
+          }
+        ],
+        "ringFills": [
+          "#262035",
+          "#6750A4",
+          "#262035"
+        ],
+        "track": {
+          "x": 20,
+          "y": 48,
+          "w": 80,
+          "h": 32,
+          "r": 16
+        },
+        "labelBox": {
+          "x": 108,
+          "y": 40,
+          "w": 212,
+          "h": 48,
+          "r": 0
+        },
+        "knobs": [
+          {
+            "cx": 36,
+            "cy": 64,
+            "r": 8
+          },
+          {
+            "cx": 60,
+            "cy": 64,
+            "r": 8
+          },
+          {
+            "cx": 84,
+            "cy": 64,
+            "r": 8
+          }
+        ],
+        "quietKnobs": [
+          {
+            "cx": 36,
+            "cy": 64,
+            "r": 8
+          },
+          {
+            "cx": 60,
+            "cy": 64,
+            "r": 8
+          },
+          {
+            "cx": 84,
+            "cy": 64,
+            "r": 8
+          }
+        ],
+        "pressedKnob": {
+          "cx": 60,
+          "cy": 64,
+          "r": 14
+        },
+        "shownIndex": 1,
+        "content": {
+          "icon": null,
+          "textX": 49,
+          "baseline": 68,
+          "beside": true
+        },
+        "look": {
+          "surface": "#262035",
+          "surfaceOutline": null,
+          "chosen": "#6750A4",
+          "onChosen": "#ffffff",
+          "onSurface": "#ffffff",
+          "ring": "#6750A4"
+        },
+        "knobLook": {
+          "track": "#3b305a",
+          "trackOutline": "#6750A4",
+          "knob": "#6750A4",
+          "onKnob": "#ffffff"
+        },
+        "knobLookOff": {
+          "track": "#3b305a",
+          "trackOutline": "#6750A4",
+          "knob": "#6750A4",
+          "onKnob": "#ffffff"
+        },
+        "on": false
+      }
+    },
     "knob-off": {
       "input": {
         "type": "switch",
@@ -960,6 +1155,10 @@
             "r": 8,
             "rRight": 22
           }
+        ],
+        "ringFills": [
+          "#d9d3e8",
+          "#6750A4"
         ],
         "track": {
           "x": 24,
@@ -1101,6 +1300,10 @@
             "r": 8,
             "rRight": 22
           }
+        ],
+        "ringFills": [
+          "#6750A4",
+          "#d9d3e8"
         ],
         "track": {
           "x": 24,
@@ -1257,6 +1460,11 @@
             "rRight": 24
           }
         ],
+        "ringFills": [
+          "#0c2a27",
+          "#0c2a27",
+          "#00796B"
+        ],
         "track": {
           "x": 24,
           "y": 69,
@@ -1407,6 +1615,10 @@
             "r": 8,
             "rRight": 11
           }
+        ],
+        "ringFills": [
+          "#6750A4",
+          "#d9d3e8"
         ],
         "track": {
           "x": 24,

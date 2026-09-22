@@ -105,6 +105,23 @@ class SwitchShapeGoldenTest {
             assertEquals("$name: number of segments", wantSegments.size, segments.size)
             for (i in segments.indices) assertRect("$name: segment $i", wantSegments[i], segments[i])
 
+            // What a ring on each button would enclose. A ring is its outer
+            // pill with the inside taken back, so the colour under it is
+            // decided rather than inherited - and only a button that is at once
+            // the reported state AND the one a finger asked for tells the right
+            // reading (its own colour) from the wrong one (the container's).
+            want["ringFills"]?.jsonArray?.let { wantFills ->
+                val look = switchLook(obj, background)
+                assertEquals("$name: number of ring fills", wantFills.size, count)
+                for (i in 0 until count) {
+                    assertEquals(
+                        "$name: what a ring on button $i encloses",
+                        (wantFills[i] as? JsonPrimitive)?.takeIf { it !is JsonNull }?.content,
+                        switchRingFill(look, i == activeIndex),
+                    )
+                }
+            }
+
             // The knob has three sizes since 2026-09-22, so its state has to be
             // known before any of them can be asked for.
             val states = (obj.properties["states"] as? JsonArray).orEmpty()

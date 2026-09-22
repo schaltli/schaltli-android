@@ -160,6 +160,26 @@ fun switchLook(obj: ScreenObject, background: String?): SwitchLook {
     )
 }
 
+/**
+ * What a ring on one button of a group encloses - the designer's
+ * `switchRingFill`.
+ *
+ * A ring is its outer pill with the inside taken back, so whatever the ring
+ * stands on has to be named: every sub-sample belongs to exactly one run, and a
+ * run nobody claims shows the screen itself. Three answers:
+ *
+ *   - the chosen button keeps its OWN colour inside the ring. It is still the
+ *     reported state; the ring only says a different one has been asked for.
+ *   - any other button shows the container it sits in.
+ *   - null where the container is only an outline: nothing lies behind it.
+ *
+ * Only the first of those needs a button that is at once the reported state
+ * and the one a finger asked for, which the recording had no case for until
+ * `group-asked-for-what-is-already-chosen`.
+ */
+fun switchRingFill(look: SwitchLook, chosen: Boolean): String? =
+    if (chosen) look.chosen else if (look.surfaceOutline != null) null else look.surface
+
 /** The track and the knob of the switch form, in the state it is currently in. */
 data class SwitchKnobLook(
     val track: String,
@@ -283,6 +303,22 @@ fun switchKnob(
         cy = track.y + track.h / 2,
         r = d / 2,
     )
+}
+
+/**
+ * Where a knob's state icon goes, given that knob's circle.
+ *
+ * Three fifths of the diameter, centred - not the font's cap height, which is
+ * what [switchContent] sizes a button's icon by. A knob is round, and its own
+ * size already says how big the picture inside it can be.
+ *
+ * Named rather than written out where it is drawn, because the designer bakes
+ * the bitmap this draws and has to arrive at the same number. On 2026-09-22
+ * the firmware's bake did not, and it cost 522 differing pixels on glass.
+ */
+fun switchKnobIcon(knob: SwitchKnob): SwitchRect {
+    val size = maxOf(1, knob.r * 2 * 3 / 5)
+    return SwitchRect(knob.cx - size / 2, knob.cy - size / 2, size, size, 0)
 }
 
 /** Which slot a finger at [x] means; -1 where it is past the track, on the label. */

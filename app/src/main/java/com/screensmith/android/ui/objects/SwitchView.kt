@@ -46,9 +46,11 @@ import com.screensmith.android.render.switchContent
 import com.screensmith.android.render.switchFontMetrics
 import com.screensmith.android.render.switchForm
 import com.screensmith.android.render.switchKnob
+import com.screensmith.android.render.switchKnobIcon
 import com.screensmith.android.render.switchKnobLook
 import com.screensmith.android.render.switchLabelBox
 import com.screensmith.android.render.switchLook
+import com.screensmith.android.render.switchRingFill
 import com.screensmith.android.render.switchSegmentAt
 import com.screensmith.android.render.switchSegments
 import com.screensmith.android.render.switchSlotAt
@@ -353,11 +355,10 @@ fun SwitchView(
                     // half the track's height, and an icon squeezed into it read
                     // as a smudge rather than a symbol.
                     if (on) {
-                        val iconSize = maxOf(1, d * 3 / 5)
-                        icon(
-                            state.activePath ?: state.path,
-                            SwitchRect(knob.cx - iconSize / 2, knob.cy - iconSize / 2, iconSize, iconSize, 0),
-                        )
+                        // switchKnobIcon, not three fifths worked out here: the
+                        // designer bakes the bitmap to that rule and the two
+                        // have to be the same number.
+                        icon(state.activePath ?: state.path, switchKnobIcon(knob))
                     }
 
                     val content = switchContent(box, metrics, false, pen.widthOf(state.label))
@@ -457,8 +458,9 @@ private fun switchPills(
             // A ring is its outer pill with the inside taken back, so what the
             // ring encloses has to be said out loud: the chosen pill, the
             // container, or - where the container is only an outline - nothing
-            // at all.
-            painted += pillInside(seg, 2, if (chosen) look.chosen else if (outline != null) null else look.surface)
+            // at all (switchRingFill, which the designer and the firmware read
+            // from their own copy of the same rule).
+            painted += pillInside(seg, 2, switchRingFill(look, chosen))
             painted += wholePill(seg, look.ring)
             return@forEachIndexed
         }

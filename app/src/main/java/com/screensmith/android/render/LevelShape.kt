@@ -345,6 +345,25 @@ private fun trackInside(slot: LevelRect, vertical: Boolean, thickness: Int): Lev
     return LevelRect(x, y, w, h, minOf(w, h) / 2)
 }
 
+/**
+ * How long the handle is across the bar, as the THICKNESS asks for it - not as
+ * the object had room for.
+ *
+ * Everything that runs ALONG the bar is measured from this: the handle's own
+ * width, the radius that follows from it, and the gap it cuts out of the track
+ * on each side. An object shorter than the handle clamps the handle's LENGTH -
+ * it cannot stand out of a bar that is not there ([levelLayout]'s slot) - but
+ * its width runs along the bar, where nothing is short of room.
+ *
+ * Deriving those from the clamped slot instead made a bar squeezed by its own
+ * header draw a 3-wide handle where a bar with room drew 4, with the gap
+ * around it 2 instead of 6 - which moved both runs of track as well. The same
+ * fault cost 170 of 384000 pixels on the 4.3B's panel (the designer's
+ * `levelHandleSpan`, 2026-09-22); this copy carried it until the recording
+ * grew a case with no room to spare, `slider-squeezed-by-its-header`.
+ */
+fun levelHandleSpan(obj: ScreenObject): Int = levelHandleLength(levelThickness(obj))
+
 /** How wide the handle is: Material's 4 dp on a 44 dp row. */
 fun levelHandleWidth(across: Int): Int {
     val w = across / 11
@@ -382,12 +401,12 @@ fun levelHandleRect(obj: ScreenObject, percent: Double, fonts: List<FontEntry>?)
     val layout = levelLayout(obj, fonts)
     val slot = layout.slot
     val track = layout.track
-    val across = if (vertical) slot.w else slot.h
     // Never more than a third of the run it slides along. Without that, a bar
     // far wider than it is long gets a handle longer than its own track and the
     // clamp below has no room to work in.
     val span = if (vertical) track.h else track.w
-    val thickness = maxOf(2, minOf(levelHandleWidth(across), span / 3))
+    // From the thickness, not from the slot: see [levelHandleSpan].
+    val thickness = maxOf(2, minOf(levelHandleWidth(levelHandleSpan(obj)), span / 3))
     val edge = levelEdgeFor(track, vertical, levelFillsFromEnd(obj), percent)
     val r = thickness / 2
 
@@ -414,7 +433,6 @@ fun levelSegments(
 ): List<LevelSegment> {
     val vertical = levelIsVertical(obj)
     val layout = levelLayout(obj, fonts)
-    val slot = layout.slot
     val track = layout.track
     val fromEnd = levelFillsFromEnd(obj)
     val edge = levelEdgeFor(track, vertical, fromEnd, fillPercent)
@@ -428,8 +446,10 @@ fun levelSegments(
         listOf(Triple(start, edge, LevelRole.FILL), Triple(edge, end, LevelRole.TRACK))
     }
 
-    val across = if (vertical) slot.w else slot.h
-    val gap = levelHandleGap(across)
+    // From the thickness, not from the room across the bar: see
+    // [levelHandleSpan]. The gap is what the runs of track are cut back to, so
+    // reading it off a squeezed slot moves the picture along the bar.
+    val gap = levelHandleGap(levelHandleSpan(obj))
     val cutA = if (handle != null) (if (vertical) handle.y else handle.x) - gap else 0
     val cutB = if (handle != null) (if (vertical) handle.y + handle.h else handle.x + handle.w) + gap else 0
 

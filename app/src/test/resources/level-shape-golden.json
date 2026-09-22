@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-21T20:39:23.072Z",
+  "generated": "2026-09-22T20:43:57.511Z",
   "cases": {
     "bar-45-percent": {
       "input": {
@@ -1384,6 +1384,300 @@
           }
         ],
         "handle": null,
+        "trackLook": {
+          "track": "#2e5f30",
+          "framed": false
+        }
+      }
+    },
+    "slider-squeezed-by-its-header": {
+      "input": {
+        "type": "slider",
+        "x": 123,
+        "y": 12,
+        "width": 555,
+        "height": 46,
+        "properties": {
+          "fillColor": "#4CAF50",
+          "label": "Tank",
+          "displayValue": "percentage",
+          "iconAssetId": "icon-tank",
+          "fontId": "font-helvR18",
+          "setpointTopic": "hil/target"
+        },
+        "fonts": [
+          {
+            "id": "font-helvR18",
+            "displayName": "helvR18",
+            "size": 18,
+            "ascent": 22,
+            "descent": 5
+          }
+        ],
+        "percent": 64,
+        "setpointPercent": 78,
+        "background": "#101010",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "vertical": false,
+        "fillsFromEnd": false,
+        "thickness": 16,
+        "hasHandle": true,
+        "showsNumber": true,
+        "headerHeight": 27,
+        "valueWidth": 80,
+        "metrics": {
+          "ascent": 22,
+          "descent": 5,
+          "capHeight": 22
+        },
+        "layout": {
+          "header": {
+            "x": 123,
+            "y": 12,
+            "w": 555,
+            "h": 27,
+            "r": 0
+          },
+          "baseline": 34,
+          "icon": {
+            "x": 123,
+            "y": 12,
+            "w": 22,
+            "h": 22,
+            "r": 0
+          },
+          "text": {
+            "x": 151,
+            "y": 12,
+            "w": 527,
+            "h": 27,
+            "r": 0
+          },
+          "value": null,
+          "bar": {
+            "x": 123,
+            "y": 40,
+            "w": 555,
+            "h": 18,
+            "r": 0
+          },
+          "slot": {
+            "x": 123,
+            "y": 40,
+            "w": 555,
+            "h": 18,
+            "r": 0
+          },
+          "track": {
+            "x": 127,
+            "y": 41,
+            "w": 547,
+            "h": 16,
+            "r": 8
+          }
+        },
+        "track": {
+          "x": 127,
+          "y": 41,
+          "w": 547,
+          "h": 16,
+          "r": 8
+        },
+        "emptyTrack": {
+          "x": 127,
+          "y": 41,
+          "w": 547,
+          "h": 16,
+          "r": 8,
+          "role": "track",
+          "roundStart": true,
+          "roundEnd": true
+        },
+        "segments": [
+          {
+            "x": 127,
+            "y": 41,
+            "w": 350,
+            "h": 16,
+            "r": 8,
+            "role": "fill",
+            "roundStart": true,
+            "roundEnd": false
+          },
+          {
+            "x": 477,
+            "y": 41,
+            "w": 68,
+            "h": 16,
+            "r": 8,
+            "role": "track",
+            "roundStart": false,
+            "roundEnd": false
+          },
+          {
+            "x": 561,
+            "y": 41,
+            "w": 113,
+            "h": 16,
+            "r": 8,
+            "role": "track",
+            "roundStart": false,
+            "roundEnd": true
+          }
+        ],
+        "handle": {
+          "x": 551,
+          "y": 40,
+          "w": 4,
+          "h": 18,
+          "r": 2
+        },
+        "trackLook": {
+          "track": "#2e5f30",
+          "framed": false
+        }
+      }
+    },
+    "slider-vertical-squeezed-across": {
+      "input": {
+        "type": "slider",
+        "x": 40,
+        "y": 20,
+        "width": 34,
+        "height": 240,
+        "properties": {
+          "fillColor": "#4CAF50",
+          "label": "Tank",
+          "displayValue": "percentage",
+          "barDirection": "bottom-to-top",
+          "fontId": "font-helvR18",
+          "setpointTopic": "hil/target"
+        },
+        "fonts": [
+          {
+            "id": "font-helvR18",
+            "displayName": "helvR18",
+            "size": 18,
+            "ascent": 22,
+            "descent": 5
+          }
+        ],
+        "percent": 35,
+        "setpointPercent": 60,
+        "background": "#101010",
+        "colorDepth": "24bit"
+      },
+      "shape": {
+        "vertical": true,
+        "fillsFromEnd": true,
+        "thickness": 16,
+        "hasHandle": true,
+        "showsNumber": true,
+        "headerHeight": 27,
+        "valueWidth": 13,
+        "metrics": {
+          "ascent": 22,
+          "descent": 5,
+          "capHeight": 22
+        },
+        "layout": {
+          "header": {
+            "x": 40,
+            "y": 20,
+            "w": 34,
+            "h": 27,
+            "r": 0
+          },
+          "baseline": 42,
+          "icon": null,
+          "text": {
+            "x": 40,
+            "y": 20,
+            "w": 34,
+            "h": 27,
+            "r": 0
+          },
+          "value": null,
+          "bar": {
+            "x": 40,
+            "y": 48,
+            "w": 34,
+            "h": 212,
+            "r": 0
+          },
+          "slot": {
+            "x": 40,
+            "y": 48,
+            "w": 34,
+            "h": 212,
+            "r": 0
+          },
+          "track": {
+            "x": 49,
+            "y": 52,
+            "w": 16,
+            "h": 204,
+            "r": 8
+          }
+        },
+        "track": {
+          "x": 49,
+          "y": 52,
+          "w": 16,
+          "h": 204,
+          "r": 8
+        },
+        "emptyTrack": {
+          "x": 49,
+          "y": 52,
+          "w": 16,
+          "h": 204,
+          "r": 8,
+          "role": "track",
+          "roundStart": true,
+          "roundEnd": true
+        },
+        "segments": [
+          {
+            "x": 49,
+            "y": 52,
+            "w": 16,
+            "h": 74,
+            "r": 8,
+            "role": "track",
+            "roundStart": true,
+            "roundEnd": false
+          },
+          {
+            "x": 49,
+            "y": 142,
+            "w": 16,
+            "h": 43,
+            "r": 8,
+            "role": "track",
+            "roundStart": false,
+            "roundEnd": false
+          },
+          {
+            "x": 49,
+            "y": 185,
+            "w": 16,
+            "h": 71,
+            "r": 8,
+            "role": "fill",
+            "roundStart": false,
+            "roundEnd": true
+          }
+        ],
+        "handle": {
+          "x": 40,
+          "y": 132,
+          "w": 34,
+          "h": 4,
+          "r": 2
+        },
         "trackLook": {
           "track": "#2e5f30",
           "framed": false
