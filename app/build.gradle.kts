@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.screensmith.android"
+    namespace = "com.schaltli.android"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.screensmith.android"
+        applicationId = "com.schaltli.android"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

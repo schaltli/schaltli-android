@@ -4,5 +4,5 @@
          to exist so the manifest/activity have a valid pre-Compose theme
          reference (the system briefly uses it for the launch splash/window
          background before Compose takes over). -->
-    <style name="Theme.Screensmith" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.Schaltli" parent="android:Theme.Material.Light.NoActionBar" />
 </resources>

@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "ScreensmithAndroid"
+rootProject.name = "schaltli-android"
 include(":app")

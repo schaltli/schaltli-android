@@ -1,10 +1,10 @@
-# Screensmith Android
+# Schaltli Android
 
 Consumes the "Android Phone" bundle exported from the
-[Screensmith designer](https://github.com/) (`v0-screenman-editor-design`,
+[Schaltli designer](https://github.com/) (`v0-screenman-editor-design`,
 `lib/android-export.ts`) - a `project.json` + flattened background PNGs +
 TTF fonts - and renders it live over MQTT, mirroring the
-[MqttEPaperDisplay2](../MqttEPaperDisplay2) firmware's topic-subscription,
+[schaltli-eink](../schaltli-eink) firmware's topic-subscription,
 button-dispatch, and tab-control semantics so the same exported project
 behaves the same way on both real render targets.
 
@@ -16,7 +16,7 @@ one-time steps are needed before it builds:
 1. Open Android Studio (already installed). On first launch it runs a setup
    wizard that downloads the Android SDK, platform tools, and a system
    image for the emulator - let that finish.
-2. **File > Open**, select this folder (`C:\GitHub\ScreensmithAndroid`).
+2. **File > Open**, select this folder (`C:\GitHub\schaltli-android`).
    Android Studio will notice the Gradle wrapper's `gradle-wrapper.jar` is
    missing (only the wrapper's small `.properties` file was hand-written)
    and offer to regenerate it automatically during Gradle Sync - accept
