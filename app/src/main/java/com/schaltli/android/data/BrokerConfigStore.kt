@@ -23,6 +23,7 @@ class BrokerConfigStore(private val context: Context) {
         val PORT = intPreferencesKey("broker_port")
         val USERNAME = stringPreferencesKey("broker_username")
         val PASSWORD = stringPreferencesKey("broker_password")
+        val DISPLAY_OFF_SECONDS = intPreferencesKey("display_off_seconds")
     }
 
     val config: Flow<BrokerConfig> = context.settingsDataStore.data.map { prefs ->
@@ -32,6 +33,19 @@ class BrokerConfigStore(private val context: Context) {
             username = prefs[Keys.USERNAME] ?: "",
             password = prefs[Keys.PASSWORD] ?: "",
         )
+    }
+
+    /**
+     * Seconds without a touch before the panel goes dark (ScreenSleep.kt); 0
+     * keeps it on. A setting of the phone, like its broker, not of the
+     * project: the same project may hang in a bright van and a dark one.
+     */
+    val displayOffSeconds: Flow<Int> = context.settingsDataStore.data.map { prefs ->
+        prefs[Keys.DISPLAY_OFF_SECONDS] ?: com.schaltli.android.ScreenSleep.DEFAULT_SECONDS
+    }
+
+    suspend fun saveDisplayOffSeconds(seconds: Int) {
+        context.settingsDataStore.edit { prefs -> prefs[Keys.DISPLAY_OFF_SECONDS] = seconds.coerceAtLeast(0) }
     }
 
     suspend fun save(config: BrokerConfig) {

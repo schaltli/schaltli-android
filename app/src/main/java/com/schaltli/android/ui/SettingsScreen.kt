@@ -49,7 +49,10 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     initialConfig: BrokerConfig,
-    onSave: (BrokerConfig) -> Unit,
+    // The display timeout (ScreenSleep.kt) is saved with the broker: one
+    // form, one Save.
+    initialDisplayOffSeconds: Int,
+    onSave: (BrokerConfig, displayOffSeconds: Int) -> Unit,
     onCancel: () -> Unit = {},
     // Android's "Default home app" choice (HomeApp.kt): the way to make this
     // phone start Schaltli by itself, and the way back to its usual launcher.
@@ -61,6 +64,7 @@ fun SettingsScreen(
     var port by remember(initialConfig) { mutableStateOf(initialConfig.port.toString()) }
     var username by remember(initialConfig) { mutableStateOf(initialConfig.username) }
     var password by remember(initialConfig) { mutableStateOf(initialConfig.password) }
+    var displayOff by remember(initialDisplayOffSeconds) { mutableStateOf(initialDisplayOffSeconds.toString()) }
     var testing by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -122,6 +126,19 @@ fun SettingsScreen(
                 Text(text = message, style = MaterialTheme.typography.bodyMedium)
             }
 
+            Text(text = "Display", style = MaterialTheme.typography.titleMedium)
+            OutlinedTextField(
+                value = displayOff,
+                onValueChange = { displayOff = it.filter(Char::isDigit).take(5) },
+                label = { Text("Turn the display off after (seconds)") },
+                supportingText = {
+                    Text("Without a touch. 0 keeps it on. Values arriving over MQTT do not count, and the touch that wakes the display does nothing else.")
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -146,7 +163,7 @@ fun SettingsScreen(
                     Text("Test")
                 }
                 Button(
-                    onClick = { onSave(entered()) },
+                    onClick = { onSave(entered(), displayOff.toIntOrNull() ?: 0) },
                     modifier = Modifier.weight(2f),
                 ) {
                     Text("Save & Connect")

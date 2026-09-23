@@ -3,6 +3,9 @@ package com.schaltli.android
 import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.view.WindowManager
+import androidx.lifecycle.lifecycleScope
+import androidx.compose.foundation.background
+import android.view.MotionEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -64,8 +67,11 @@ import kotlinx.coroutines.launch
  * can't be flipped from app code without Device Owner privileges either.
  */
 class MainActivity : ComponentActivity() {
+    private lateinit var screenSleep: ScreenSleep
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        screenSleep = ScreenSleep(this)
         enableEdgeToEdge()
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         hideSystemBars()
@@ -82,7 +88,12 @@ class MainActivity : ComponentActivity() {
                 val installation by app.projectRepository.installation
                     .collectAsStateWithLifecycle()
                 CompositionLocalProvider(LocalBundleInstallation provides installation) {
-                    SchaltliRoot(app)
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        SchaltliRoot(app)
+                        if (screenSleep.asleep.value) {
+                            Box(modifier = Modifier.fillMaxSize().background(Color.Black))
+                        }
+                    }
                 }
             }
         }
@@ -103,6 +114,22 @@ class MainActivity : ComponentActivity() {
         // already leads back here, and pinning would put Android's confirmation
         // in front of the panel after every restart (HomeApp.kt).
         if (!BuildConfig.DEBUG && !HomeApp.isDefault(this)) startLockTask()
+
+        lifecycleScope.launch {
+            BrokerConfigStore(this@MainActivity).displayOffSeconds.collect { screenSleep.setTimeout(it) }
+        }
+    }
+
+    // Every touch, before any screen sees it: the one that wakes a dark panel
+    // is spent on waking it (ScreenSleep.kt).
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (screenSleep.onTouch(ev)) return true
+        return super.dispatchTouchEvent(ev)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        screenSleep.onPause()
     }
 
     // The screen coming back on (power key, a charger plugged in) brings the
@@ -110,6 +137,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         HomeApp.skipSwipeLock(this)
+        screenSleep.onResume()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -144,6 +172,7 @@ fun SchaltliRoot(app: SchaltliApp) {
     val project by app.projectRepository.project.collectAsStateWithLifecycle()
     val brokerConfigStore = remember { BrokerConfigStore(context) }
     val brokerConfig by brokerConfigStore.config.collectAsStateWithLifecycle(initialValue = BrokerConfig(host = ""))
+    val displayOffSeconds by brokerConfigStore.displayOffSeconds.collectAsStateWithLifecycle(initialValue = ScreenSleep.DEFAULT_SECONDS)
     val mqttRepository = remember { MqttRepository() }
     val topicValues by mqttRepository.topicValues.collectAsStateWithLifecycle()
     // What a finger asked of a value: a settable level draws it as its marker
@@ -165,8 +194,12 @@ fun SchaltliRoot(app: SchaltliApp) {
     // Read from the project's rotation rather than from whether it is wider
     // than it is tall, because a half turn leaves those numbers alone.
     val activity = context as? android.app.Activity
-    LaunchedEffect(activity, project?.rotation) {
-        activity?.requestedOrientation = when (project?.rotation ?: 0) {
+    //
+    // Without a project there is nothing to say which way up the panel hangs,
+    // so the welcome screen (and the settings reached from it) follows the
+    // phone instead of forcing portrait on a phone that lies on its side.
+    LaunchedEffect(activity, project == null, project?.rotation) {
+        activity?.requestedOrientation = if (project == null) ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR else when (project?.rotation ?: 0) {
             90 -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
             180 -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
             270 -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
@@ -310,8 +343,10 @@ fun SchaltliRoot(app: SchaltliApp) {
             // would let it receive anything (2026-09-23).
             showSettings -> SettingsScreen(
                 initialConfig = brokerConfig,
-                onSave = { newConfig ->
+                initialDisplayOffSeconds = displayOffSeconds,
+                onSave = { newConfig, newDisplayOff ->
                     scope.launch {
+                        brokerConfigStore.saveDisplayOffSeconds(newDisplayOff)
                         brokerConfigStore.save(newConfig)
                         showSettings = false
                     }

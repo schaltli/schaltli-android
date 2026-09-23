@@ -3,6 +3,11 @@ package com.schaltli.android.ui
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -39,9 +44,15 @@ fun ImportScreen(
         uri?.let(onBundleSelected)
     }
 
+    // Centred while it fits, scrolling when it does not: this screen turns
+    // with the phone (there is no project yet to say which way up), and on its
+    // side a phone is not tall enough for the mark, the text and both buttons.
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .heightIn(min = maxHeight)
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -52,32 +63,33 @@ fun ImportScreen(
         SchaltliIntro(
             modifier = Modifier
                 .fillMaxWidth(0.7f)
+                .widthIn(max = 320.dp)
                 .aspectRatio(BrandGlyphs.WIDTH / (BrandGlyphs.HEIGHT + 44f))
                 .padding(bottom = 16.dp),
             ink = MaterialTheme.colorScheme.onBackground,
             knock = MaterialTheme.colorScheme.background,
         )
         Text(
-            text = "Dieses Telefon hat noch kein Projekt.",
+            text = "This phone has no project yet.",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 8.dp),
         )
         Text(
-            text = "Ein Projekt kommt normalerweise über den Broker vom Designer. " +
-                "Dafür muss das Telefon wissen, wo der Broker steht.",
+            text = "A project normally comes from the designer, over the broker. " +
+                "For that, the phone needs to know where the broker is.",
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
         )
         Button(onClick = onConfigureBroker) {
-            Text("MQTT-Verbindung einrichten…")
+            Text("Set up MQTT connection…")
         }
         OutlinedButton(
             onClick = { pickBundle.launch(arrayOf("application/zip", "application/octet-stream")) },
             modifier = Modifier.padding(top = 12.dp),
         ) {
-            Text("Projekt aus Datei laden…")
+            Text("Load project from file…")
         }
         if (errorMessage != null) {
             Text(
@@ -87,5 +99,6 @@ fun ImportScreen(
                 modifier = Modifier.padding(top = 16.dp),
             )
         }
+    }
     }
 }
