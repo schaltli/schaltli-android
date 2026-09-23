@@ -291,16 +291,11 @@ fun SchaltliRoot(app: SchaltliApp) {
     Box(modifier = Modifier.fillMaxSize()) {
         val activeProject = project
         when {
-            activeProject == null -> ImportScreen(
-                errorMessage = importError,
-                onBundleSelected = { uri ->
-                    scope.launch {
-                        app.projectRepository.importBundle(uri)
-                            .onSuccess { importError = null }
-                            .onFailure { importError = it.message ?: "Import failed" }
-                    }
-                },
-            )
+            // Settings first, and that order is the whole point: while it sat
+            // below "no project yet", the broker could only be configured from
+            // a phone that already had a project on it - and a project arrives
+            // over MQTT. A fresh install could not reach the one screen that
+            // would let it receive anything (2026-09-23).
             showSettings -> SettingsScreen(
                 initialConfig = brokerConfig,
                 onSave = { newConfig ->
@@ -313,6 +308,17 @@ fun SchaltliRoot(app: SchaltliApp) {
                 // The system's Back key is not that way out: a pinned kiosk
                 // does not offer one.
                 onCancel = { showSettings = false },
+            )
+            activeProject == null -> ImportScreen(
+                errorMessage = importError,
+                onBundleSelected = { uri ->
+                    scope.launch {
+                        app.projectRepository.importBundle(uri)
+                            .onSuccess { importError = null }
+                            .onFailure { importError = it.message ?: "Import failed" }
+                    }
+                },
+                onConfigureBroker = { showSettings = true },
             )
             else -> {
                 val screen = activeProject.screens.find { it.id == currentScreenId } ?: activeProject.screens.first()
