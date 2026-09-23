@@ -25,6 +25,21 @@ one-time steps are needed before it builds:
 3. Let Gradle Sync finish, then Run (the green ▶ button) on an emulator or
    a physical device with USB debugging enabled.
 
+## Releases
+
+Installing on a phone: see the handbook,
+<https://matthias-hess.github.io/schaltli-designer/geraete/android.html>.
+
+A release is a signed APK on this repository's Releases page, built by
+`.github/workflows/release.yml` when a tag `v<versionName>` is pushed. The
+release key is in the repository's secrets (the workflow lists which), and
+its only other copy is its owner's backup - never this repository. A local
+release build (`gradle assembleRelease`) finds the same four values
+(`SCHALTLI_KEYSTORE`, `SCHALTLI_KEYSTORE_PASSWORD`, `SCHALTLI_KEY_ALIAS`,
+`SCHALTLI_KEY_PASSWORD`) in the environment or in
+`~/.gradle/gradle.properties`, and refuses to build without them; debug builds
+need none.
+
 ## Project layout
 
 - `data/` - `project.json` models, bundle import/parsing, the `"#jsonpath"`

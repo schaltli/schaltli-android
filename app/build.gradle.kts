@@ -5,6 +5,17 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+// The key a release APK is signed with. Android installs an update only over
+// an app signed with the same key, so it is one key for the app's whole life,
+// and it is never in this repository: .github/workflows/release.yml writes it
+// from the repository's secrets into a temporary file, and a local release
+// build finds the same four values in ~/.gradle/gradle.properties.
+// Debug builds are signed with the usual debug key and need none of this.
+fun releaseSigning(name: String): String? =
+    providers.environmentVariable(name).orNull ?: providers.gradleProperty(name).orNull
+
+val releaseKeystore = releaseSigning("SCHALTLI_KEYSTORE")
+
 android {
     namespace = "com.schaltli.android"
     compileSdk = 35
@@ -17,9 +28,21 @@ android {
         versionName = "0.1.0"
     }
 
+    signingConfigs {
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = file(releaseKeystore)
+                storePassword = releaseSigning("SCHALTLI_KEYSTORE_PASSWORD")
+                keyAlias = releaseSigning("SCHALTLI_KEY_ALIAS")
+                keyPassword = releaseSigning("SCHALTLI_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 
@@ -82,4 +105,18 @@ dependencies {
     // than every JSON call throwing "not mocked".
     testImplementation(libs.junit)
     testImplementation(libs.json)
+}
+
+// An unsigned release APK cannot be installed anywhere, and would only be
+// found out on a phone. Say so here instead, when one is asked for.
+tasks.configureEach {
+    if (name == "packageRelease" && releaseKeystore == null) {
+        doFirst {
+            throw GradleException(
+                "No release key: set SCHALTLI_KEYSTORE, SCHALTLI_KEYSTORE_PASSWORD, " +
+                    "SCHALTLI_KEY_ALIAS and SCHALTLI_KEY_PASSWORD (environment or " +
+                    "~/.gradle/gradle.properties). Debug builds need none of them.",
+            )
+        }
+    }
 }
