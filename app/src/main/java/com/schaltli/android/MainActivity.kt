@@ -97,7 +97,11 @@ class MainActivity : ComponentActivity() {
         //
         // The kiosk behaviour is a property of the deployed panel, so it
         // belongs in the build that gets deployed.
-        if (!BuildConfig.DEBUG) startLockTask()
+        //
+        // Nor on a phone where Schaltli is the home app: there the Home key
+        // already leads back here, and pinning would put Android's confirmation
+        // in front of the panel after every restart (HomeApp.kt).
+        if (!BuildConfig.DEBUG && !HomeApp.isDefault(this)) startLockTask()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -308,6 +312,8 @@ fun SchaltliRoot(app: SchaltliApp) {
                 // The system's Back key is not that way out: a pinned kiosk
                 // does not offer one.
                 onCancel = { showSettings = false },
+                onChooseHomeApp = { HomeApp.openChooser(context as Activity) },
+                isHomeApp = HomeApp.isDefault(context),
             )
             activeProject == null -> ImportScreen(
                 errorMessage = importError,

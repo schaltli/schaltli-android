@@ -1,6 +1,8 @@
 package com.schaltli.android.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -49,6 +51,10 @@ fun SettingsScreen(
     initialConfig: BrokerConfig,
     onSave: (BrokerConfig) -> Unit,
     onCancel: () -> Unit = {},
+    // Android's "Default home app" choice (HomeApp.kt): the way to make this
+    // phone start Schaltli by itself, and the way back to its usual launcher.
+    onChooseHomeApp: () -> Unit = {},
+    isHomeApp: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     var host by remember(initialConfig) { mutableStateOf(initialConfig.host) }
@@ -68,8 +74,11 @@ fun SettingsScreen(
 
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
+            // Scrolls: with the home-app choice below the form, a small phone
+            // held sideways no longer fits it all.
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -146,6 +155,18 @@ fun SettingsScreen(
 
             TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
                 Text("Cancel")
+            }
+
+            Text(
+                if (isHomeApp) {
+                    "Schaltli is this phone's home app: it starts by itself after every restart."
+                } else {
+                    "Make Schaltli the home app, and the phone starts it by itself after every restart."
+                },
+                style = MaterialTheme.typography.bodySmall,
+            )
+            OutlinedButton(onClick = onChooseHomeApp, modifier = Modifier.fillMaxWidth()) {
+                Text("Choose home app…")
             }
         }
     }

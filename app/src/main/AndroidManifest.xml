@@ -27,10 +27,22 @@
             android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.Schaltli"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden">
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!--
+                Offered as a home app, so a phone that is a panel and nothing
+                else can start Schaltli after every restart (HomeApp.kt).
+                singleTask above: the Home key then brings back the one
+                running Schaltli instead of stacking another on top of it.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
     </application>
