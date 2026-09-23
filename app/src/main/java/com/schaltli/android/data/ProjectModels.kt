@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
 // Mirrors the shape lib/android-export.ts actually writes into project.json
-// in the designer repo (v0-screenman-editor-design) - field names and
+// in the designer repo (schaltli-designer) - field names and
 // nesting were taken directly from a real exported bundle, not re-derived
 // from the TypeScript types by hand, so they should stay in lockstep as
 // long as this comment is kept true when either side changes.

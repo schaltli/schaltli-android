@@ -1,7 +1,7 @@
 # Schaltli Android
 
 Consumes the "Android Phone" bundle exported from the
-[Schaltli designer](https://github.com/) (`v0-screenman-editor-design`,
+[Schaltli designer](https://github.com/) (`schaltli-designer`,
 `lib/android-export.ts`) - a `project.json` + flattened background PNGs +
 TTF fonts - and renders it live over MQTT, mirroring the
 [schaltli-eink](../schaltli-eink) firmware's topic-subscription,
