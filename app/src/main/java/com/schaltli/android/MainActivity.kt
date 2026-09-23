@@ -69,6 +69,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         hideSystemBars()
+        HomeApp.skipSwipeLock(this)
 
         val app = application as SchaltliApp
         setContent {
@@ -102,6 +103,13 @@ class MainActivity : ComponentActivity() {
         // already leads back here, and pinning would put Android's confirmation
         // in front of the panel after every restart (HomeApp.kt).
         if (!BuildConfig.DEBUG && !HomeApp.isDefault(this)) startLockTask()
+    }
+
+    // The screen coming back on (power key, a charger plugged in) brings the
+    // lock screen back with it; put it away again.
+    override fun onResume() {
+        super.onResume()
+        HomeApp.skipSwipeLock(this)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
