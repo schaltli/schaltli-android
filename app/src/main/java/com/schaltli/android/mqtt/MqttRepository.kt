@@ -6,8 +6,12 @@ import com.hivemq.client.mqtt.datatypes.MqttQos
 import com.hivemq.client.mqtt.mqtt3.Mqtt3AsyncClient
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
@@ -81,6 +85,9 @@ class MqttRepository {
 
     fun noteAsked(topic: String, value: String) {
         if (topic.isEmpty()) return
+        // Nothing was sent without a connection (see [publish]), so there is
+        // no request for a marker to show.
+        if (client?.state?.isConnected != true) return
         _askedValues.update { it + (topic to value) }
     }
 
@@ -301,14 +308,44 @@ class MqttRepository {
         }
     }
 
-    /** Publishes [message] to [topic] verbatim - QoS 0, non-retained, same as the firmware's send-mqtt. */
-    fun publish(topic: String, message: String) {
-        client?.publishWith()
-            ?.topic(topic)
-            ?.qos(MqttQos.AT_MOST_ONCE)
-            ?.payload(message.toByteArray(StandardCharsets.UTF_8))
-            ?.send()
+    /**
+     * Publishes [message] to [topic] verbatim - QoS 0, non-retained, same as
+     * the firmware's send-mqtt - but only while connected right now. Returns
+     * whether it went out.
+     *
+     * Not connected, it is dropped and reported on [droppedCommands], the way
+     * the firmware's `MqttClient::publish` drops it. Handed to the client
+     * instead, a command made while automatic reconnect is retrying does not
+     * even return: `send()` waits inside the library until the broker is back
+     * - on the UI thread, freezing the app for the whole outage - and then
+     * sends it, a pump switched on in the morning arriving in the evening
+     * (measured 2026-09-24, see CommandDropTest).
+     * That queue was the only place a command could wait (checked
+     * 2026-09-24): the van's broker runs beside its Node-RED on the same Pi,
+     * with clean sessions and no QoS 0 queueing. A broker elsewhere, or a
+     * receiver with a persistent session, would need a look again.
+     *
+     * The one window left is a connection that drops between this check and
+     * the send, a few milliseconds wide.
+     */
+    fun publish(topic: String, message: String): Boolean {
+        val activeClient = client
+        if (activeClient == null || !activeClient.state.isConnected) {
+            _droppedCommands.tryEmit(topic)
+            return false
+        }
+        activeClient.publishWith()
+            .topic(topic)
+            .qos(MqttQos.AT_MOST_ONCE)
+            .payload(message.toByteArray(StandardCharsets.UTF_8))
+            .send()
+        return true
     }
+
+    private val _droppedCommands = MutableSharedFlow<String>(extraBufferCapacity = 8, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
+    /** The topic of each command [publish] dropped for want of a connection, for the screen to say so. */
+    val droppedCommands: SharedFlow<String> = _droppedCommands.asSharedFlow()
 
     private fun resubscribeAll() {
         val activeClient = client ?: return

@@ -3,6 +3,7 @@ package com.schaltli.android
 import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import androidx.compose.foundation.background
 import android.view.MotionEvent
@@ -311,6 +312,18 @@ fun SchaltliRoot(app: SchaltliApp) {
 
     LaunchedEffect(project) {
         mqttRepository.setTopics(project?.collectTopicNames() ?: emptySet())
+    }
+
+    // A command tapped while the broker is away is dropped, not saved for
+    // later (MqttRepository.publish), and a tap that silently does nothing
+    // reads as a broken button. One toast at a time: a second tap replaces
+    // the first rather than queueing behind it.
+    LaunchedEffect(mqttRepository) {
+        var shown: Toast? = null
+        mqttRepository.droppedCommands.collect {
+            shown?.cancel()
+            shown = Toast.makeText(context, "Not connected - nothing was sent", Toast.LENGTH_SHORT).also { it.show() }
+        }
     }
 
     val dispatcher = remember(mqttRepository) {
