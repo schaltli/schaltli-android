@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 
 /**
  * Owns the currently-imported project bundle (the .zip exported by the
@@ -24,6 +25,17 @@ class ProjectRepository(private val context: Context) {
 
     private val _project = MutableStateFlow<Project?>(null)
     val project: StateFlow<Project?> = _project.asStateFlow()
+
+    private val _darkProject = MutableStateFlow<Project?>(null)
+
+    /**
+     * The same project as it is drawn while the installation's theme is dark
+     * ([darkVariantOf]): decoded once per load, beside [project], so that a
+     * flip of `schaltli/state/theme` is a choice between two ready projects
+     * and not a re-parse. Equal to [project] where the bundle carries no dark
+     * fields.
+     */
+    val darkProject: StateFlow<Project?> = _darkProject.asStateFlow()
 
     private val _installation = MutableStateFlow(0L)
 
@@ -138,14 +150,20 @@ class ProjectRepository(private val context: Context) {
     private fun loadFromDisk(): Project? {
         val projectJsonFile = File(projectDir, "project.json")
         if (!projectJsonFile.exists()) {
+            _darkProject.value = null
             _project.value = null
             return null
         }
         return try {
-            val parsed = json.decodeFromString(Project.serializer(), projectJsonFile.readText())
+            val element = json.parseToJsonElement(projectJsonFile.readText())
+            val parsed = json.decodeFromJsonElement(Project.serializer(), element)
+            // Dark first: whoever reacts to a new [project] finds its dark
+            // twin already there.
+            _darkProject.value = json.decodeFromJsonElement(Project.serializer(), darkVariantOf(element))
             _project.value = parsed
             parsed
         } catch (e: Exception) {
+            _darkProject.value = null
             _project.value = null
             null
         }

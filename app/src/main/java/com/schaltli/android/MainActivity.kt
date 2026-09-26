@@ -34,7 +34,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.schaltli.android.data.BrokerConfigStore
+import com.schaltli.android.data.THEME_TOPIC
 import com.schaltli.android.data.collectTopicNames
+import com.schaltli.android.data.isDarkTheme
 import com.schaltli.android.mqtt.BrokerConfig
 import com.schaltli.android.mqtt.ButtonActionDispatcher
 import com.schaltli.android.ddf.DdfBuilder
@@ -171,6 +173,7 @@ fun SchaltliRoot(app: SchaltliApp) {
     val scope = rememberCoroutineScope()
 
     val project by app.projectRepository.project.collectAsStateWithLifecycle()
+    val darkProject by app.projectRepository.darkProject.collectAsStateWithLifecycle()
     val brokerConfigStore = remember { BrokerConfigStore(context) }
     val brokerConfig by brokerConfigStore.config.collectAsStateWithLifecycle(initialValue = BrokerConfig(host = ""))
     val displayOffSeconds by brokerConfigStore.displayOffSeconds.collectAsStateWithLifecycle(initialValue = ScreenSleep.DEFAULT_SECONDS)
@@ -180,6 +183,19 @@ fun SchaltliRoot(app: SchaltliApp) {
     // until the installation answers (the designer's
     // docs/2026-09-17-settable-level.md, decision 6c).
     val askedValues by mqttRepository.askedValues.collectAsStateWithLifecycle()
+
+    // Light or dark, for the whole installation (the designer's
+    // docs/2026-09-26-device-switch.md). Always subscribed, beside whatever
+    // the project reads - see wantedTopics - and read from the same values
+    // every other topic lands in.
+    val themeDark = isDarkTheme(topicValues[THEME_TOPIC])
+
+    // The topics this phone subscribes to: the project's, and always the
+    // theme. In the set rather than subscribed on its own, so that a project
+    // which reads the theme itself (a Theme switch on a screen) shares the
+    // one subscription, and a project that stops reading it cannot take the
+    // subscription away with it.
+    fun wantedTopics(): Set<String> = (project?.collectTopicNames() ?: emptySet()) + THEME_TOPIC
 
     // Which way up this is, decided by the project and not by the way the
     // phone happens to be lying. Without this the activity follows the
@@ -304,14 +320,14 @@ fun SchaltliRoot(app: SchaltliApp) {
     LaunchedEffect(brokerConfig) {
         android.util.Log.i("SchaltliRoot", "broker changed: host=${brokerConfig.host}")
         if (brokerConfig.host.isNotBlank()) {
-            mqttRepository.connect(brokerConfig, project?.collectTopicNames() ?: emptySet())
+            mqttRepository.connect(brokerConfig, wantedTopics())
         } else {
             mqttRepository.disconnect()
         }
     }
 
     LaunchedEffect(project) {
-        mqttRepository.setTopics(project?.collectTopicNames() ?: emptySet())
+        mqttRepository.setTopics(wantedTopics())
     }
 
     // A command tapped while the broker is away is dropped, not saved for
@@ -347,7 +363,11 @@ fun SchaltliRoot(app: SchaltliApp) {
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        val activeProject = project
+        // The dark project while the installation says dark. The effects above
+        // stay keyed on the light [project] on purpose: a theme flip must not
+        // send the panel back to its first screen, resubscribe or turn it.
+        // The screen shown is kept by id, which both variants share.
+        val activeProject = if (themeDark) darkProject ?: project else project
         when {
             // Settings first, and that order is the whole point: while it sat
             // below "no project yet", the broker could only be configured from

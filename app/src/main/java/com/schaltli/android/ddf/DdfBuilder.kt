@@ -114,7 +114,7 @@ object DdfBuilder {
         |$fonts
         |  ],
         |  "supportedObjectTypes": [$types],
-        |  "systemGeneration": "1.0",
+        |  "systemGeneration": "1.1",
         |  "deviceActions": ["showScreenMenu"]
         |}
         |

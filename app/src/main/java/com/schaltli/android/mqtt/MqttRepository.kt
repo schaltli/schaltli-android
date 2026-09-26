@@ -21,7 +21,9 @@ enum class ConnectionState { DISCONNECTED, CONNECTING, CONNECTED }
 private const val TOPIC_PREFIX = "schaltli"
 
 /** What this app can read of a project (the designer's lib/system-generation.ts). */
-private const val SYSTEM_GENERATION = "1.0"
+// 1.1: reads the dark variant (XDark) beside every field and follows
+// schaltli/state/theme (the designer's docs/device-contract.md §2.3, §4).
+private const val SYSTEM_GENERATION = "1.1"
 
 data class BrokerConfig(
     val host: String,
