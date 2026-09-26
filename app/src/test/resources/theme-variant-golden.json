@@ -1,0 +1,231 @@
+[
+  {
+    "name": "screen background and colours in properties",
+    "input": {
+      "id": "s1",
+      "backgroundColor": "#f4f6f8",
+      "backgroundColorDark": "#15202b",
+      "objects": [
+        {
+          "id": "label",
+          "type": "text",
+          "properties": {
+            "text": "Stube",
+            "color": "#1e2a36",
+            "colorDark": "#e6edf3",
+            "backgroundColor": "transparent"
+          }
+        }
+      ]
+    },
+    "output": {
+      "id": "s1",
+      "backgroundColor": "#15202b",
+      "objects": [
+        {
+          "id": "label",
+          "type": "text",
+          "properties": {
+            "text": "Stube",
+            "color": "#e6edf3",
+            "backgroundColor": "transparent"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "top-level paths of an icon and a button",
+    "input": {
+      "objects": [
+        {
+          "id": "icon",
+          "type": "icon",
+          "path": "assets/s1_icon.bmp",
+          "pathDark": "assets/s1_icon-dark.bmp",
+          "properties": {}
+        },
+        {
+          "id": "btn",
+          "type": "button",
+          "pathNormal": "assets/b.bmp",
+          "pathNormalDark": "assets/b-dark.bmp",
+          "pathActive": "assets/b-a.bmp",
+          "pathActiveDark": "assets/b-a-dark.bmp",
+          "properties": {}
+        }
+      ]
+    },
+    "output": {
+      "objects": [
+        {
+          "id": "icon",
+          "type": "icon",
+          "path": "assets/s1_icon-dark.bmp",
+          "properties": {}
+        },
+        {
+          "id": "btn",
+          "type": "button",
+          "pathNormal": "assets/b-dark.bmp",
+          "pathActive": "assets/b-a-dark.bmp",
+          "properties": {}
+        }
+      ]
+    }
+  },
+  {
+    "name": "switch states and live-icon pairs",
+    "input": {
+      "properties": {
+        "switchColor": "#2f6f9f",
+        "switchColorDark": "#6aa8d8",
+        "states": [
+          {
+            "id": "off",
+            "path": "assets/off.bmp"
+          },
+          {
+            "id": "on",
+            "path": "assets/on.bmp",
+            "pathDark": "assets/on-dark.bmp",
+            "pathActive": "assets/on-a.bmp",
+            "pathActiveDark": "assets/on-a-dark.bmp"
+          }
+        ],
+        "valueIconPairs": [
+          {
+            "id": "p",
+            "path": "assets/p.bmp",
+            "pathDark": "assets/p-dark.bmp"
+          }
+        ]
+      }
+    },
+    "output": {
+      "properties": {
+        "switchColor": "#6aa8d8",
+        "states": [
+          {
+            "id": "off",
+            "path": "assets/off.bmp"
+          },
+          {
+            "id": "on",
+            "path": "assets/on-dark.bmp",
+            "pathActive": "assets/on-a-dark.bmp"
+          }
+        ],
+        "valueIconPairs": [
+          {
+            "id": "p",
+            "path": "assets/p-dark.bmp"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "children of a tab-control",
+    "input": {
+      "type": "switcher",
+      "children": [
+        {
+          "type": "panel",
+          "children": [
+            {
+              "type": "box",
+              "properties": {
+                "fillColor": "#e5e5e5",
+                "fillColorDark": "#2b2b2b"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "output": {
+      "type": "switcher",
+      "children": [
+        {
+          "type": "panel",
+          "children": [
+            {
+              "type": "box",
+              "properties": {
+                "fillColor": "#2b2b2b"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "a lone XDark",
+    "input": {
+      "properties": {
+        "fillColorDark": "#2b2b2b"
+      },
+      "pathDark": "assets/only-dark.bmp"
+    },
+    "output": {
+      "properties": {
+        "fillColor": "#2b2b2b"
+      },
+      "path": "assets/only-dark.bmp"
+    }
+  },
+  {
+    "name": "an empty XDark",
+    "input": {
+      "properties": {
+        "color": "#000000",
+        "colorDark": ""
+      }
+    },
+    "output": {
+      "properties": {
+        "color": "#000000"
+      }
+    }
+  },
+  {
+    "name": "a key named Dark",
+    "input": {
+      "Dark": 1,
+      "properties": {
+        "Dark": "x"
+      }
+    },
+    "output": {
+      "Dark": 1,
+      "properties": {
+        "Dark": "x"
+      }
+    }
+  },
+  {
+    "name": "nothing dark at all",
+    "input": {
+      "backgroundColor": "#ffffff",
+      "objects": [
+        {
+          "properties": {
+            "color": "#000000"
+          }
+        }
+      ]
+    },
+    "output": {
+      "backgroundColor": "#ffffff",
+      "objects": [
+        {
+          "properties": {
+            "color": "#000000"
+          }
+        }
+      ]
+    }
+  }
+]
