@@ -166,6 +166,29 @@ class MqttRepository {
     fun setAnnouncement(value: Announcement?) {
         announcement = value
         publishAnnouncement()
+        // The id often arrives after the connection: then resubscribeAll()
+        // had no deploy topic to listen on, and nothing listened later - the
+        // phone announced itself and never heard a deploy, whether it did
+        // depended on which came first (2026-09-27, in the van: the designer
+        // sat at "Downloading" while the app logged nothing at all).
+        client?.takeIf { it.state.isConnected }?.let { subscribeToDeploy(it) }
+    }
+
+    // The deploy topic is this device's own, not one of the project's - and it
+    // is retained, so a deploy published while the phone was off arrives the
+    // moment it comes back. Subscribing again is harmless: the broker replaces
+    // the subscription and hands over the retained deploy, which DeployReceiver
+    // recognises as one it has already applied.
+    private fun subscribeToDeploy(activeClient: Mqtt3AsyncClient) {
+        val base = deviceBase() ?: return
+        activeClient.subscribeWith()
+            .topicFilter("$base/deploy")
+            .qos(MqttQos.AT_MOST_ONCE)
+            .callback { publish ->
+                val payload = String(publish.payloadAsBytes, StandardCharsets.UTF_8)
+                if (payload.isNotBlank()) onDeploy?.invoke(payload)
+            }
+            .send()
     }
 
     private fun publishAnnouncement() {
@@ -391,19 +414,7 @@ class MqttRepository {
         val activeClient = client ?: return
         _connectionState.value = ConnectionState.CONNECTED
 
-        // The deploy topic is this device's own, not one of the project's -
-        // and it is retained, so a deploy published while the phone was off
-        // arrives the moment it comes back.
-        deviceBase()?.let { base ->
-            activeClient.subscribeWith()
-                .topicFilter("$base/deploy")
-                .qos(MqttQos.AT_MOST_ONCE)
-                .callback { publish ->
-                    val payload = String(publish.payloadAsBytes, StandardCharsets.UTF_8)
-                    if (payload.isNotBlank()) onDeploy?.invoke(payload)
-                }
-                .send()
-        }
+        subscribeToDeploy(activeClient)
 
         for (topic in subscribedTopics) {
             subscribeToValue(activeClient, topic)
