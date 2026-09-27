@@ -7,7 +7,6 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Typeface
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
@@ -228,7 +227,7 @@ fun LevelIndicatorView(
     // A tap sets the value at the point it landed, on a level with a write
     // topic. Nothing is drawn from here: the marker follows from rawSetpoint,
     // which the caller feeds from the asked value.
-    onSetLevel: (markerTopic: String, writeTopic: String, value: String) -> Unit = { _, _, _ -> },
+    onSetLevel: (markerTopic: String, writeTopic: String, value: String, final: Boolean) -> Unit = { _, _, _, _ -> },
 ) {
     val props = obj.properties
     val fonts = project.fonts
@@ -315,12 +314,13 @@ fun LevelIndicatorView(
                 if (writeTopic.isEmpty()) {
                     Modifier
                 } else {
-                    // A tap sets the value at the point it landed - measured
-                    // against the TRACK, not against the object, so the finger
-                    // and the picture cannot drift apart now that a header
-                    // line and a number take room off the rectangle.
+                    // The finger sets the value where it is - on the touch,
+                    // all through a drag, and on the lift (trackLevelFinger) -
+                    // measured against the TRACK, not against the object, so
+                    // the finger and the picture cannot drift apart now that a
+                    // header line and a number take room off the rectangle.
                     Modifier.pointerInput(obj.id, writeTopic, step, calibration, fonts) {
-                        detectTapGestures { offset ->
+                        trackLevelFinger({ offset ->
                             val localX = offset.x / density.density
                             val localY = offset.y / density.density
                             val percent = levelPercentFromPoint(
@@ -330,8 +330,8 @@ fun LevelIndicatorView(
                                 fonts,
                             )
                             val value = snapToStep(valueForFillPercent(percent, calibration), step)
-                            onSetLevel(markerTopic, writeTopic, formatSetValue(value))
-                        }
+                            formatSetValue(value)
+                        }) { value, final -> onSetLevel(markerTopic, writeTopic, value, final) }
                     }
                 },
             ),

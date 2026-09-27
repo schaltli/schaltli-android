@@ -183,6 +183,8 @@ fun SchaltliRoot(app: SchaltliApp) {
     // until the installation answers (the designer's
     // docs/2026-09-17-settable-level.md, decision 6c).
     val askedValues by mqttRepository.askedValues.collectAsStateWithLifecycle()
+    // When a dragged level last went out (onSetLevel below), for the 100 ms.
+    val levelPublishedAt = remember { longArrayOf(0L) }
 
     // Light or dark, for the whole installation (the designer's
     // docs/2026-09-26-device-switch.md). Always subscribed, beside whatever
@@ -452,9 +454,16 @@ fun SchaltliRoot(app: SchaltliApp) {
                         // A set level publishes its command and remembers what
                         // was asked, so the marker shows it at once instead of
                         // waiting for the installation's answer.
-                        onSetLevel = { markerTopic, writeTopic, value ->
-                            mqttRepository.noteAsked(markerTopic, value, awaitAnswer = true)
-                            mqttRepository.publish(writeTopic, value)
+                        // While the finger moves, at most every 100 ms - as
+                        // the boards publish - and always on the lift; what it
+                        // asks is held until the answer to the lift's value.
+                        onSetLevel = { markerTopic, writeTopic, value, final ->
+                            mqttRepository.noteAsked(markerTopic, value, awaitAnswer = final, stillHolding = !final)
+                            val now = android.os.SystemClock.uptimeMillis()
+                            if (final || now - levelPublishedAt[0] >= 100) {
+                                levelPublishedAt[0] = now
+                                mqttRepository.publish(writeTopic, value)
+                            }
                         },
                         // A Switch publishes through the action dispatcher
                         // like a button does, so only the remembering is

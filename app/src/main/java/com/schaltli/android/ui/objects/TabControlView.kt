@@ -34,7 +34,7 @@ fun TabControlView(
     // Passed straight through to the children: a settable level inside a
     // panel is settable too.
     askedValues: Map<String, String> = emptyMap(),
-    onSetLevel: (markerTopic: String, writeTopic: String, value: String) -> Unit = { _, _, _ -> },
+    onSetLevel: (markerTopic: String, writeTopic: String, value: String, final: Boolean) -> Unit = { _, _, _, _ -> },
     onAsked: (readTopic: String, readValue: String) -> Unit = { _, _ -> },
 ) {
     val topicRef = obj.properties.stringOrNull("topic")

@@ -56,7 +56,7 @@ fun ScreenRenderer(
     // A finger set a level: the value goes to its write topic, and the same
     // value is remembered for the marker topic so the marker shows it until
     // the installation answers (decision 6c).
-    onSetLevel: (markerTopic: String, writeTopic: String, value: String) -> Unit = { _, _, _ -> },
+    onSetLevel: (markerTopic: String, writeTopic: String, value: String, final: Boolean) -> Unit = { _, _, _, _ -> },
     // A finger chose a Switch state: it publishes through [onAction] like a
     // button, and this remembers what was asked so the ring stays up until
     // the installation answers on the read topic.
@@ -180,7 +180,7 @@ fun DynamicObjectView(
     // level draws the request as its marker and publishes on a tap
     // (docs/2026-09-17-settable-level.md in the designer repo).
     askedValues: Map<String, String> = emptyMap(),
-    onSetLevel: (markerTopic: String, writeTopic: String, value: String) -> Unit = { _, _, _ -> },
+    onSetLevel: (markerTopic: String, writeTopic: String, value: String, final: Boolean) -> Unit = { _, _, _, _ -> },
     /** A Switch's own version of the above: it publishes through [onAction]. */
     onAsked: (readTopic: String, readValue: String) -> Unit = { _, _ -> },
 ) {

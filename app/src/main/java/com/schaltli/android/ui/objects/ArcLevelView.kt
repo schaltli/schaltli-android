@@ -3,7 +3,6 @@ package com.schaltli.android.ui.objects
 import android.graphics.Bitmap
 import android.graphics.Typeface
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
@@ -250,7 +249,7 @@ fun ArcLevelView(
     // topic - the same rule the bar has (the designer's
     // docs/2026-09-17-settable-level.md). The marker follows from rawSetpoint,
     // which the caller feeds from what was asked.
-    onSetLevel: (markerTopic: String, writeTopic: String, value: String) -> Unit = { _, _, _ -> },
+    onSetLevel: (markerTopic: String, writeTopic: String, value: String, final: Boolean) -> Unit = { _, _, _, _ -> },
 ) {
     val props = obj.properties
     // No value yet: the track alone - no fill (not even what the calibration
@@ -361,7 +360,8 @@ fun ArcLevelView(
                     // orientation the ring is drawn in; a point in the gap at
                     // the bottom of a dial gets the nearer end.
                     Modifier.pointerInput(obj.id, writeTopic, step, calibration) {
-                        detectTapGestures { offset ->
+                        // On the touch, all through a drag, and on the lift.
+                        trackLevelFinger({ offset ->
                             val side = min(obj.width, obj.height).coerceAtLeast(1.0)
                             val dx = offset.x / density.density - side / 2
                             val dy = offset.y / density.density - side / 2
@@ -386,9 +386,9 @@ fun ArcLevelView(
                                 if (counterClockwise) percent = 100.0 - percent
                                 val value =
                                     snapToStep(valueForFillPercent(percent.coerceIn(0.0, 100.0), calibration), step)
-                                onSetLevel(markerTopic, writeTopic, formatSetValue(value))
-                            }
-                        }
+                                formatSetValue(value)
+                            } else null
+                        }) { value, final -> onSetLevel(markerTopic, writeTopic, value, final) }
                     }
                 },
             ),

@@ -90,8 +90,12 @@ class MqttRepository {
     private val awaitUntil = java.util.concurrent.ConcurrentHashMap<String, Long>()
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
-    fun noteAsked(topic: String, value: String, awaitAnswer: Boolean = false) {
+    // Levels a finger is still on: no answer ends what it asks.
+    private val holding = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    fun noteAsked(topic: String, value: String, awaitAnswer: Boolean = false, stillHolding: Boolean = false) {
         if (topic.isEmpty()) return
+        if (stillHolding) holding.add(topic) else holding.remove(topic)
         // Nothing was sent without a connection (see [publish]), so there is
         // no request for a marker to show.
         if (client?.state?.isConnected != true) return
@@ -122,6 +126,7 @@ class MqttRepository {
     // Whether a message on a topic ends what was asked of it.
     private fun answers(topic: String, payload: String): Boolean {
         val asked = _askedValues.value[topic] ?: return false
+        if (topic in holding) return false
         val until = awaitUntil[topic] ?: return true
         return sameLevel(payload, asked) || System.currentTimeMillis() >= until
     }
