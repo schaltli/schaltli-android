@@ -194,6 +194,20 @@ fun DynamicObjectView(
         return setpointTopic?.let { resolveTopicValue(it, project, topicValues) } ?: ""
     }
 
+    // The value a level shows: the report - except on the handbook's dimmer
+    // (a settable level with no setpoint of its own) while a finger's request
+    // is outstanding, where it is what the finger asked, fill and handle
+    // together. The heater's pattern and a read-only gauge keep the report.
+    // The firmware's ColorScreenRenderer::shownLevelValue and the designer's
+    // say the same (2026-09-27).
+    fun shownLevelValue(o: ScreenObject, reported: String): String {
+        val setpointTopic = o.properties.stringOrNull("setpointTopic")?.takeIf { it.isNotEmpty() }
+        val writeTopic = o.properties.stringOrNull("writeTopic")?.takeIf { it.isNotEmpty() }
+        val topic = o.properties.stringOrNull("topic") ?: return reported
+        if (setpointTopic == null && writeTopic != null) askedValues[topic]?.let { return it }
+        return reported
+    }
+
     when (obj.type) {
         "text" -> {
             val text = obj.properties.stringOrNull("text") ?: ""
@@ -211,13 +225,13 @@ fun DynamicObjectView(
         // handle because the type says so (docs/2026-09-20-control-split.md
         // in the designer repo).
         "bar", "slider" -> {
-            val value = resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues)
+            val value = shownLevelValue(obj, resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues))
             LevelIndicatorView(
                 obj, project, value, markerValueFor(obj), screenBackgroundColor, assetFileOf, onSetLevel,
             )
         }
         "gauge", "dial" -> {
-            val value = resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues)
+            val value = shownLevelValue(obj, resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues))
             // Resolved here rather than inside the view for the same reason
             // every other topic is: one place knows how a topic reference
             // (including its "#jsonpath" suffix) turns into a value.

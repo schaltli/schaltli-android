@@ -76,21 +76,54 @@ class MqttRepository {
      * command has landed.
      *
      * Keyed by topic rather than by object, because two bars on one dimmer
-     * are one value and both show the request. Dropped the moment a message
-     * arrives on that topic: from then on the installation's word stands,
-     * whether it confirms the request or contradicts it. No timeout, because
-     * the bridge asks again every two seconds, so a command that never landed
-     * corrects itself.
+     * are one value and both show the request. A Switch's request is dropped
+     * the moment a message arrives on that topic: from then on the
+     * installation's word stands, whether it confirms the request or
+     * contradicts it. A level's ([awaitAnswer]) since 2026-09-27 only by the
+     * answer to the value it asked for, or [LEVEL_AWAIT_MS] without one - as
+     * on the 4.3B and the knob, where answers to the values a drag passed
+     * through arrived after the finger had lifted and moved the handle back.
      */
     private val _askedValues = MutableStateFlow<Map<String, String>>(emptyMap())
     val askedValues: StateFlow<Map<String, String>> = _askedValues.asStateFlow()
+    // Until when a level's request waits for the answer to its own value.
+    private val awaitUntil = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
-    fun noteAsked(topic: String, value: String) {
+    fun noteAsked(topic: String, value: String, awaitAnswer: Boolean = false) {
         if (topic.isEmpty()) return
         // Nothing was sent without a connection (see [publish]), so there is
         // no request for a marker to show.
         if (client?.state?.isConnected != true) return
+        if (awaitAnswer) {
+            // Already reported: a bridge publishes only changes, so no second
+            // answer comes - there is nothing to wait for.
+            if (sameLevel(_topicValues.value[topic], value)) {
+                _askedValues.update { it - topic }
+                awaitUntil.remove(topic)
+                return
+            }
+            val until = System.currentTimeMillis() + LEVEL_AWAIT_MS
+            awaitUntil[topic] = until
+            // No answer to it in time: the installation's last word is shown
+            // after all (decision 6c) - just later.
+            mainHandler.postDelayed({
+                if (awaitUntil[topic] == until) {
+                    awaitUntil.remove(topic)
+                    _askedValues.update { it - topic }
+                }
+            }, LEVEL_AWAIT_MS)
+        } else {
+            awaitUntil.remove(topic)
+        }
         _askedValues.update { it + (topic to value) }
+    }
+
+    // Whether a message on a topic ends what was asked of it.
+    private fun answers(topic: String, payload: String): Boolean {
+        val asked = _askedValues.value[topic] ?: return false
+        val until = awaitUntil[topic] ?: return true
+        return sameLevel(payload, asked) || System.currentTimeMillis() >= until
     }
 
     /**
@@ -378,11 +411,29 @@ class MqttRepository {
             .qos(MqttQos.AT_MOST_ONCE)
             .callback { publish ->
                 val payload = String(publish.payloadAsBytes, StandardCharsets.UTF_8)
+                // Whether this answers what a finger asked, decided before the
+                // value is stored.
+                val answered = answers(topic, payload)
                 _topicValues.update { it + (topic to payload) }
                 // The installation has spoken about this value: whatever a
                 // finger asked of it is answered, and its marker goes.
-                _askedValues.update { if (it.containsKey(topic)) it - topic else it }
+                if (answered) {
+                    awaitUntil.remove(topic)
+                    _askedValues.update { if (it.containsKey(topic)) it - topic else it }
+                }
             }
             .send()
     }
+}
+
+/** How long a level's request waits for the answer to its own value (the designer's lib/asked-value.ts). */
+const val LEVEL_AWAIT_MS = 2500L
+
+/** Two level payloads that mean the same number ("40" and "40.0"). */
+fun sameLevel(a: String?, b: String?): Boolean {
+    if (a == null || b == null) return false
+    val x = a.trim().toDoubleOrNull()
+    val y = b.trim().toDoubleOrNull()
+    if (x == null || y == null) return a.trim() == b.trim()
+    return kotlin.math.abs(x - y) <= 0.001
 }

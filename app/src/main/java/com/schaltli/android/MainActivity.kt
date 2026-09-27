@@ -453,7 +453,7 @@ fun SchaltliRoot(app: SchaltliApp) {
                         // was asked, so the marker shows it at once instead of
                         // waiting for the installation's answer.
                         onSetLevel = { markerTopic, writeTopic, value ->
-                            mqttRepository.noteAsked(markerTopic, value)
+                            mqttRepository.noteAsked(markerTopic, value, awaitAnswer = true)
                             mqttRepository.publish(writeTopic, value)
                         },
                         // A Switch publishes through the action dispatcher
