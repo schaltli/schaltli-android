@@ -45,6 +45,19 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+        <!--
+            Sets the broker over adb (BrokerConfigReceiver.kt). DUMP is held
+            by the shell and grantable to no app, so nothing on the phone or
+            the network can send this - only a computer on the USB cable.
+        -->
+        <receiver
+            android:name=".data.BrokerConfigReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.schaltli.android.SET_BROKER" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>
