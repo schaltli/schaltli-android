@@ -351,8 +351,10 @@ fun ArcLevelView(
         null
     }
 
+    // Black where the object names none, as every device loads it (the
+    // designer's render-arc-level.ts says the same since 2026-09-28).
     val textColor = (props.stringOrNull("textColor") ?: props.stringOrNull("color"))
-        ?.let(::parseHexColor) ?: Color.White
+        ?.let(::parseHexColor) ?: Color.Black
     val fonts = project.fonts
     val ownFont: FontEntry? = fonts.find { it.id == props.stringOrNull("fontId") }
     val fontSize = levelTextSize(obj, ownFont)

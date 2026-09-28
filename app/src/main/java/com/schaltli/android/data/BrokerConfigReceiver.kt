@@ -7,6 +7,7 @@ import android.util.Log
 import com.schaltli.android.mqtt.BrokerConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -19,6 +20,12 @@ import kotlinx.coroutines.launch
  * (`--es username` and `--es password` when the broker wants them.) The
  * designer's hil/boards-network.js uses it to move this phone to the camper's
  * broker and back along with the boards.
+ *
+ * `--ei displayOffSeconds N` sets how long the panel waits before it goes
+ * black (ScreenSleep; 0 keeps it on), with or without a host. The broadcast's
+ * result data is the value it had before, so a caller can put it back: the
+ * android HIL turns the sleep off for its run, because a fixture photographed
+ * after a minute without a touch came out all black (2026-09-28).
  *
  * Only adb can send it: the manifest guards the receiver with
  * android.permission.DUMP, which the shell holds and no installed app can be
@@ -37,21 +44,32 @@ class BrokerConfigReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != ACTION) return
         val host = intent.getStringExtra("host")
-        if (host.isNullOrBlank()) {
+        val displayOff = if (intent.hasExtra("displayOffSeconds")) intent.getIntExtra("displayOffSeconds", 0) else null
+        if (host.isNullOrBlank() && displayOff == null) {
             Log.w("BrokerConfigReceiver", "no host given - broker left as it is")
             return
         }
-        val config = BrokerConfig(
-            host = host,
-            port = intent.getIntExtra("port", 1883),
-            username = intent.getStringExtra("username") ?: "",
-            password = intent.getStringExtra("password") ?: "",
-        )
+        val config = host?.takeIf { it.isNotBlank() }?.let {
+            BrokerConfig(
+                host = it,
+                port = intent.getIntExtra("port", 1883),
+                username = intent.getStringExtra("username") ?: "",
+                password = intent.getStringExtra("password") ?: "",
+            )
+        }
         val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                BrokerConfigStore(context.applicationContext).save(config)
-                Log.i("BrokerConfigReceiver", "broker set to ${config.host}:${config.port}")
+                val store = BrokerConfigStore(context.applicationContext)
+                if (config != null) {
+                    store.save(config)
+                    Log.i("BrokerConfigReceiver", "broker set to ${config.host}:${config.port}")
+                }
+                if (displayOff != null) {
+                    pending.resultData = store.displayOffSeconds.first().toString()
+                    store.saveDisplayOffSeconds(displayOff)
+                    Log.i("BrokerConfigReceiver", "display off after ${displayOff}s")
+                }
             } finally {
                 pending.finish()
             }

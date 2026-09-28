@@ -46,6 +46,19 @@ class MqttRepository {
     private var subscribedTopics: Set<String> = emptySet()
 
     /**
+     * Every topic filter that has a callback on the current client.
+     *
+     * A subscribe registers one more callback each time it is sent, and the
+     * client restores its own subscriptions after a reconnect
+     * (resubscribeIfSessionExpired, on by default) - so subscribing again on
+     * every connection, or on every announcement, stacks callbacks and each
+     * message arrives once per stack. For a value that is only wasted work;
+     * for the retained deploy it is the phone reporting itself busy with its
+     * own install (android HIL, 2026-09-28). Emptied with each new client.
+     */
+    private val listening: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
+    /**
      * Which connection is the current one.
      *
      * A client built with `automaticReconnect()` keeps trying on its own, and
@@ -176,11 +189,11 @@ class MqttRepository {
 
     // The deploy topic is this device's own, not one of the project's - and it
     // is retained, so a deploy published while the phone was off arrives the
-    // moment it comes back. Subscribing again is harmless: the broker replaces
-    // the subscription and hands over the retained deploy, which DeployReceiver
-    // recognises as one it has already applied.
+    // moment it comes back. Once per client ([listening]): a second subscribe
+    // is not harmless, it hands every deploy over twice.
     private fun subscribeToDeploy(activeClient: Mqtt3AsyncClient) {
         val base = deviceBase() ?: return
+        if (!listening.add("$base/deploy")) return
         activeClient.subscribeWith()
             .topicFilter("$base/deploy")
             .qos(MqttQos.AT_MOST_ONCE)
@@ -265,6 +278,7 @@ class MqttRepository {
         disconnect()
         val myGeneration = ++generation
         subscribedTopics = topics
+        listening.clear()
         _topicValues.value = emptyMap()
         _askedValues.value = emptyMap()
 
@@ -364,6 +378,7 @@ class MqttRepository {
 
         val activeClient = client ?: return
         for (topic in removed) {
+            listening.remove(topic)
             activeClient.unsubscribeWith().topicFilter(topic).send()
         }
         for (topic in added) {
@@ -422,6 +437,7 @@ class MqttRepository {
     }
 
     private fun subscribeToValue(activeClient: Mqtt3AsyncClient, topic: String) {
+        if (!listening.add(topic)) return
         activeClient.subscribeWith()
             .topicFilter(topic)
             .qos(MqttQos.AT_MOST_ONCE)
