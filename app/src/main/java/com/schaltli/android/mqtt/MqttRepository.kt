@@ -348,7 +348,24 @@ class MqttRepository {
         // rather than connected will not take one, and has to be silenced
         // some other way (see [generation]).
         generation++
-        client?.disconnect()
+        val leaving = client
+        val hello = announcement
+        if (leaving != null && hello != null && leaving.state.isConnected) {
+            // A clean disconnect is not a dropped connection: the broker
+            // throws the will away and keeps the retained "online". So the app
+            // says "offline" itself before it goes - found on 2026-09-28, when
+            // the phone moved to the van's broker and the one at home still
+            // showed it online, and a test run waited for it there.
+            leaving.publishWith()
+                .topic("$TOPIC_PREFIX/${hello.deviceId}/status")
+                .qos(MqttQos.AT_MOST_ONCE)
+                .retain(true)
+                .payload("offline".toByteArray(StandardCharsets.UTF_8))
+                .send()
+                .whenComplete { _, _ -> leaving.disconnect() }
+        } else {
+            leaving?.disconnect()
+        }
         client = null
         subscribedTopics = emptySet()
         _connectionState.value = ConnectionState.DISCONNECTED
