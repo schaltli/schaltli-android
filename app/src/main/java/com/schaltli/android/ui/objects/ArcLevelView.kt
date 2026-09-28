@@ -325,9 +325,10 @@ fun ArcLevelView(
             trackColour = if (look.framed) toRgb565(fillColor) else toRgb565(look.track),
             fillColour = toRgb565(fillColor),
             handleColour = toRgb565(handleColourFor(obj, fillColor, look)),
-            // A gauge's pointer is in the text's colour, as the bar's is.
+            // A gauge's pointer is in the text's colour, as the bar's is -
+            // black where the object names none, as every device loads it.
             pointerColour = toRgb565(
-                props.stringOrNull("textColor") ?: props.stringOrNull("color") ?: "#ffffff",
+                props.stringOrNull("textColor") ?: props.stringOrNull("color") ?: "#000000",
             ),
             mixInto = toRgb565(ground),
         )
