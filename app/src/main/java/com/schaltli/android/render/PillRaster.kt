@@ -65,7 +65,46 @@ data class PillBand(
     val rHigh: Int,
     /** True when the run's long axis is vertical. */
     val vertical: Boolean = false,
+    /**
+     * Not a run at all but a triangle filling the box: its tip at the middle
+     * of the side this names ("up", "down", "left", "right"), its base along
+     * the opposite side. The radii and [vertical] mean nothing to it.
+     *
+     * The pointer a bar or a gauge shows its setpoint with. A handle means
+     * "you can move this", and neither of them can be moved - the user: "ein
+     * anfasser bedeutet verschiebbarkeit" (2026-09-28). A point says the
+     * opposite: it cuts into the finger.
+     */
+    val tip: String? = null,
 )
+
+/**
+ * Whether a sub-sample, in 1/8 pixel, lies inside a triangle band
+ * (insidePillTip in the designer's lib/pill-raster.ts).
+ *
+ * At depth d from the tip the triangle is w*d/h wide, so a point is inside
+ * when twice its distance from the centreline, times h, is no more than w*d -
+ * cross-multiplied, so there is nothing to divide and nothing to round.
+ */
+fun insidePillTip(band: PillBand, x: Int, y: Int): Boolean {
+    val s = PILL_SUBPIXEL_SCALE
+    val x0 = band.x * s
+    val y0 = band.y * s
+    val x1 = x0 + band.w * s
+    val y1 = y0 + band.h * s
+    if (x < x0 || x >= x1 || y < y0 || y >= y1) return false
+    val across = band.tip == "up" || band.tip == "down"
+    val depth = when (band.tip) {
+        "up" -> y - y0
+        "down" -> y1 - y
+        "left" -> x - x0
+        else -> x1 - x
+    }
+    val off2 = if (across) 2 * x - (x0 + x1) else 2 * y - (y0 + y1)
+    val length = if (across) y1 - y0 else x1 - x0
+    val width = if (across) x1 - x0 else y1 - y0
+    return kotlin.math.abs(off2).toLong() * length <= width.toLong() * depth
+}
 
 /**
  * Whether a sub-sample, in 1/8 pixel, lies inside the band.
@@ -85,6 +124,7 @@ data class PillBand(
  * radii arrive from JSON and can be fractional, this repo's are already Int.
  */
 fun insidePillBand(band: PillBand, x: Int, y: Int): Boolean {
+    if (band.tip != null) return insidePillTip(band, x, y)
     val s = PILL_SUBPIXEL_SCALE
     val x0 = band.x * s
     val y0 = band.y * s

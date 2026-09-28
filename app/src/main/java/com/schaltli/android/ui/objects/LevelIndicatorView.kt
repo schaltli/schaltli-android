@@ -30,7 +30,11 @@ import com.schaltli.android.render.LevelRole
 import com.schaltli.android.render.LevelSegment
 import com.schaltli.android.render.LevelTrackLook
 import com.schaltli.android.render.PaintedPill
+import com.schaltli.android.render.PILL_SUBPIXEL_SCALE
 import com.schaltli.android.render.PillBand
+import com.schaltli.android.render.insidePillTip
+import com.schaltli.android.render.levelIsSettableType
+import com.schaltli.android.render.levelPointerBand
 import com.schaltli.android.render.drawPills
 import com.schaltli.android.render.fillRoundRect
 import com.schaltli.android.render.handleColourFor
@@ -252,8 +256,13 @@ fun LevelIndicatorView(
     val noValue = rawValue.isBlank()
     val fillPercent = calculateFillPercent(rawValue.toDoubleOrNull() ?: 0.0, calibration).coerceIn(0.0, 100.0)
 
+    // A bar has no handle, only a pointer, and it points at a target the
+    // installation reports - never at a request, which is a finger's, nor at
+    // its own value (2026-09-28).
+    val settable = levelIsSettableType(obj.type)
     val rawMarker = when {
         noValue -> ""
+        !settable && props.stringOrNull("setpointTopic").isNullOrBlank() -> ""
         rawSetpoint.isNotBlank() -> rawSetpoint
         isSettableLevel(obj) -> rawValue
         else -> ""
@@ -291,7 +300,11 @@ fun LevelIndicatorView(
     val ox = obj.x.toInt()
     val oy = obj.y.toInt()
 
-    val handle = setpointPercent?.let { levelHandleRect(obj, it, fonts) }
+    // Only a slider has a handle. A bar shows the same target with a pointer
+    // beside the track instead, which leaves the track whole.
+    val handle = setpointPercent?.takeIf { settable }?.let { levelHandleRect(obj, it, fonts) }
+    val pointer = setpointPercent?.takeIf { !settable }?.let { levelPointerBand(obj, it, fonts) }
+    val pointerColor = props.stringOrNull("textColor") ?: "#000000"
     val segments = if (noValue) {
         listOf(levelEmptyTrack(obj, fonts))
     } else {
@@ -305,7 +318,7 @@ fun LevelIndicatorView(
     val pills = if (!soft) null else remember(
         obj.id, obj.width, obj.height, props, fonts, rawValue, rawSetpoint, background,
     ) {
-        pillBitmap(levelPills(obj, segments, handle, vertical, fillColor, look), background)
+        pillBitmap(levelPills(obj, segments, handle, pointer, pointerColor, vertical, fillColor, look), background)
     }
 
     Box(
@@ -384,6 +397,19 @@ fun LevelIndicatorView(
                         // gap separates.
                         paint.color = fillArgb
                         fillRoundRect(native, paint, handle.x - ox, handle.y - oy, handle.w, handle.h, handle.r, scale)
+                    }
+                    if (pointer != null) {
+                        // Whole pixels, each one whose centre the triangle
+                        // holds - the same test the soft path samples with.
+                        paint.color = textArgb
+                        val s = PILL_SUBPIXEL_SCALE
+                        for (py in pointer.y until pointer.y + pointer.h) {
+                            for (px in pointer.x until pointer.x + pointer.w) {
+                                if (insidePillTip(pointer, px * s + s / 2, py * s + s / 2)) {
+                                    fillUnits(native, paint, px - ox, py - oy, 1, 1, scale)
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -486,6 +512,8 @@ private fun levelPills(
     obj: ScreenObject,
     segments: List<LevelSegment>,
     handle: LevelRect?,
+    pointer: PillBand?,
+    pointerColor: String,
     vertical: Boolean,
     fillColor: String,
     look: LevelTrackLook,
@@ -504,6 +532,8 @@ private fun levelPills(
     )
 
     val painted = mutableListOf<PaintedPill>()
+    // In the text's colour: the fill's belongs to what a finger can move.
+    if (pointer != null) painted += PaintedPill(pointer, pointerColor)
     if (handle != null) {
         // It lies ACROSS the bar, so its own long axis is the other one. The
         // colour says whether a finger can move it ([handleColourFor]) - which

@@ -55,6 +55,7 @@ class ArcRasterGoldenTest {
             val fill = case.getJSONArray("fill")
             val track = case.getJSONArray("track")
             val handle = case.getJSONArray("handle")
+            val pointer = case.optJSONArray("pointer")
 
             for (p in 0 until pixels.length()) {
                 val pixel = pixels.getJSONArray(p)
@@ -68,6 +69,7 @@ class ArcRasterGoldenTest {
                 assertEquals("$name fill at ($px, $py)", fill.getInt(p), bands.fill)
                 assertEquals("$name track at ($px, $py)", track.getInt(p), bands.track)
                 assertEquals("$name handle at ($px, $py)", handle.getInt(p), bands.handle)
+                assertEquals("$name pointer at ($px, $py)", pointer?.getInt(p) ?: 0, bands.pointer)
                 checked++
             }
         }
@@ -81,6 +83,7 @@ class ArcRasterGoldenTest {
         val trackColour = toRgb565(colours.getString("track"))
         val fillColour = toRgb565(colours.getString("fill"))
         val handleColour = toRgb565(colours.getString("handle"))
+        val pointerColour = toRgb565(colours.optString("pointer", colours.getString("handle")))
         val background = toRgb565(colours.getString("background"))
 
         val cases = golden.getJSONArray("cases")
@@ -91,18 +94,21 @@ class ArcRasterGoldenTest {
             val fill = case.getJSONArray("fill")
             val track = case.getJSONArray("track")
             val handle = case.getJSONArray("handle")
+            val pointer = case.optJSONArray("pointer")
             val rgb = case.getJSONArray("rgb")
 
             for (p in 0 until pixels.length()) {
                 val f = fill.getInt(p)
                 val t = track.getInt(p)
                 val m = handle.getInt(p)
-                val covered = f + t + m
+                val n = pointer?.getInt(p) ?: 0
+                val covered = f + t + m + n
                 val mixed = blendBands(
                     fillColour, f,
                     trackColour, t,
                     handleColour, m,
                     background, ARC_COVERAGE_MAX - covered,
+                    pointerColour, n,
                 )
                 // The golden carries 0xRRGGBB; rgb565ToArgb adds an opaque
                 // alpha this comparison does not care about.
@@ -131,9 +137,10 @@ class ArcRasterGoldenTest {
             val fill = case.getJSONArray("fill")
             val track = case.getJSONArray("track")
             val handle = case.getJSONArray("handle")
+            val pointer = case.optJSONArray("pointer")
             var partial = 0
             for (p in 0 until fill.length()) {
-                val covered = fill.getInt(p) + track.getInt(p) + handle.getInt(p)
+                val covered = fill.getInt(p) + track.getInt(p) + handle.getInt(p) + (pointer?.getInt(p) ?: 0)
                 if (covered in 1 until ARC_COVERAGE_MAX) partial++
             }
             assertTrue(
@@ -170,6 +177,11 @@ class ArcRasterGoldenTest {
             endCapFilled = case.optBoolean("endCapFilled", false),
             handle = if (case.has("handleAt64")) {
                 arcHandleBand(size, thickness, inset, case.getInt("handleAt64"), trackSweep64)
+            } else {
+                null
+            },
+            pointer = if (case.has("pointerAt64")) {
+                arcPointerBand(size, thickness, inset, case.getInt("pointerAt64"))
             } else {
                 null
             },

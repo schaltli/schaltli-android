@@ -418,6 +418,51 @@ fun levelHandleRect(obj: ScreenObject, percent: Double, fonts: List<FontEntry>?)
     return LevelRect(x, slot.y, thickness, slot.h, r)
 }
 
+/** The types a finger can set, and so the only ones with a handle. */
+fun levelIsSettableType(type: String): Boolean = type == "slider" || type == "dial"
+
+/** Between the track and a pointer's tip. */
+const val LEVEL_POINTER_GAP = 2
+
+/** A pointer's measurements: tip to base, and half the base. */
+data class LevelPointerSize(val length: Int, val half: Int)
+
+/**
+ * A pointer's size, from the track's thickness: two thirds of it from tip to
+ * base, and a base as wide as that is long - the proportions the user passed
+ * on the sketch (2026-09-28). [room] is how much the object has beside the
+ * track; a pointer that would not fit shrinks, one with no room is not drawn.
+ */
+fun levelPointerSize(thickness: Int, room: Int): LevelPointerSize? {
+    val length = minOf((2 * thickness + 1) / 3, room - LEVEL_POINTER_GAP)
+    if (length < 1) return null
+    return LevelPointerSize(length, (length + 1) / 2)
+}
+
+/**
+ * The pointer a bar shows its setpoint with: a triangle beside the track,
+ * pointing at the value - below a horizontal track, right of a vertical one.
+ * A bar cannot be moved, so it has no handle. It sits in the room a handle
+ * would take, and the track is not cut for it. Clamped into the slot along
+ * the bar, like the handle. levelPointerBand in the designer.
+ */
+fun levelPointerBand(obj: ScreenObject, percent: Double, fonts: List<FontEntry>?): PillBand? {
+    val vertical = levelIsVertical(obj)
+    val layout = levelLayout(obj, fonts)
+    val slot = layout.slot
+    val track = layout.track
+    val room = if (vertical) slot.x + slot.w - (track.x + track.w) else slot.y + slot.h - (track.y + track.h)
+    val size = levelPointerSize(levelThickness(obj), room) ?: return null
+    val edge = levelEdgeFor(track, vertical, levelFillsFromEnd(obj), percent)
+    val base = 2 * size.half
+    if (vertical) {
+        val y = clamp(edge - size.half, slot.y, slot.y + slot.h - base)
+        return PillBand(track.x + track.w + LEVEL_POINTER_GAP, y, size.length, base, 0, 0, tip = "left")
+    }
+    val x = clamp(edge - size.half, slot.x, slot.x + slot.w - base)
+    return PillBand(x, track.y + track.h + LEVEL_POINTER_GAP, base, size.length, 0, 0, tip = "up")
+}
+
 /**
  * The track, cut into the runs that actually get painted: filled up to the
  * value, tinted beyond it, and nothing at all where the handle and its gap sit.

@@ -129,12 +129,32 @@ class LevelShapeGoldenTest {
             // designer's own hook computes it the same way round - the
             // commanded value where there is one, the measured value
             // otherwise.
-            val handle = if (levelHasHandle(obj)) {
+            //
+            // A slider has a handle; a bar has a pointer beside its track
+            // instead, which splits nothing (2026-09-28).
+            val settable = levelIsSettableType(obj.type)
+            val handle = if (levelHasHandle(obj) && settable) {
                 levelHandleRect(obj, if (setpoint >= 0) setpoint else percent, fonts)
             } else {
                 null
             }
             assertRect("$name: handle", want["handle"], handle)
+            val pointer = if (levelHasHandle(obj) && !settable && setpoint >= 0) {
+                levelPointerBand(obj, setpoint, fonts)
+            } else {
+                null
+            }
+            val wantPointer = want["pointer"]?.takeIf { it !is kotlinx.serialization.json.JsonNull }?.jsonObject
+            if (wantPointer == null) {
+                assertEquals("$name: pointer", null, pointer)
+            } else {
+                assertEquals(
+                    "$name: pointer",
+                    listOf(wantPointer.int("x"), wantPointer.int("y"), wantPointer.int("w"), wantPointer.int("h")),
+                    pointer?.let { listOf(it.x, it.y, it.w, it.h) },
+                )
+                assertEquals("$name: pointer tip", wantPointer.str("tip"), pointer?.tip)
+            }
 
             val segments = levelSegments(obj, percent, handle, fonts)
             val wantSegments = want["segments"]!!.jsonArray

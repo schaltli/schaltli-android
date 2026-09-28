@@ -191,6 +191,58 @@ data class ArcHandle(
     val gap: Int,
 )
 
+/**
+ * A gauge's setpoint pointer: a triangle outside the ring, its tip towards the
+ * centre. A gauge cannot be moved, so it has no handle (2026-09-28). The bar's
+ * pointer bent onto a ring, as the handle is the bar's handle bent onto one.
+ * Tested in the ray's own frame, both products still scaled by ARC_SIN_SCALE
+ * and never divided - in Long, since they outgrow Int on a large ring.
+ * ArcPointer and inArcPointer in the designer's lib/arc-raster.ts.
+ */
+data class ArcPointer(
+    /** Outwards from the centre at the setpoint's angle. */
+    val rx: Int,
+    val ry: Int,
+    /** Along the band. */
+    val tx: Int,
+    val ty: Int,
+    /** From the centre to the tip, in 1/8 pixel. */
+    val tip: Int,
+    /** From the tip to the base, in 1/8 pixel. */
+    val length: Int,
+    /** Half the base, in 1/8 pixel. */
+    val half: Int,
+)
+
+/** Whether a point, relative to the centre in 1/8 pixel, lies inside the pointer. */
+fun inArcPointer(p: ArcPointer, x: Int, y: Int): Boolean {
+    val depth = x.toLong() * p.rx + y.toLong() * p.ry - p.tip.toLong() * ARC_SIN_SCALE
+    if (depth < 0 || depth > p.length.toLong() * ARC_SIN_SCALE) return false
+    val along = x.toLong() * p.tx + y.toLong() * p.ty
+    return kotlin.math.abs(along) * p.length <= depth * p.half
+}
+
+/**
+ * A gauge's pointer at [angle64]: outside the ring, its tip LEVEL_POINTER_GAP
+ * off the band's outer edge, in the room the inset keeps - sized by the bar's
+ * own rule ([levelPointerSize]). Null where the ring has no room outside it.
+ */
+fun arcPointerBand(size: Int, thickness: Int, inset: Int, angle64: Int): ArcPointer? {
+    val pointer = levelPointerSize(thickness, inset) ?: return null
+    val s = ARC_SUBPIXEL_SCALE
+    val radial = arcDirection(angle64)
+    val tangent = arcDirection(angle64 + 90 * ARC_ANGLE_SCALE)
+    return ArcPointer(
+        rx = unpackX(radial),
+        ry = unpackY(radial),
+        tx = unpackX(tangent),
+        ty = unpackY(tangent),
+        tip = (size * s) / 2 - inset * s + LEVEL_POINTER_GAP * s,
+        length = pointer.length * s,
+        half = pointer.half * s,
+    )
+}
+
 data class ArcRingGeometry(
     /** Side of the (square) object in pixels. */
     val size: Int,
@@ -219,6 +271,8 @@ data class ArcRingGeometry(
     val startCapFilled: Boolean = false,
     val endCapFilled: Boolean = false,
     val handle: ArcHandle? = null,
+    /** A gauge's setpoint pointer; null on a ring with nothing to point at. */
+    val pointer: ArcPointer? = null,
     /**
      * The track is drawn as its own outline, one pixel wide, instead of as a
      * body - for a panel that cannot show the mixed colour the track would
@@ -252,10 +306,13 @@ value class ArcPixelBands(private val packed: Int) {
      */
     val handle: Int get() = (packed shr 16) and 0xFF
 
+    /** A gauge's setpoint pointer, which has no handle ([ArcPointer]). */
+    val pointer: Int get() = (packed shr 24) and 0xFF
+
     companion object {
         val EMPTY = ArcPixelBands(0)
-        fun of(fill: Int, track: Int, handle: Int) =
-            ArcPixelBands(fill or (track shl 8) or (handle shl 16))
+        fun of(fill: Int, track: Int, handle: Int, pointer: Int = 0) =
+            ArcPixelBands(fill or (track shl 8) or (handle shl 16) or (pointer shl 24))
     }
 }
 
@@ -305,6 +362,7 @@ fun arcPixelBands(geom: ArcRingGeometry, px: Int, py: Int): ArcPixelBands {
     var fill = 0
     var track = 0
     var handle = 0
+    var pointer = 0
 
     // Two exact short cuts before sampling - not approximations, so they can
     // live in the shared algorithm without either side having to reproduce a
@@ -327,7 +385,9 @@ fun arcPixelBands(geom: ArcRingGeometry, px: Int, py: Int): ArcPixelBands {
     // inside the band.
     val h = geom.handle
     val reach = h?.halfLength ?: 0
-    val rReachOuter = rOuter + reach
+    // The pointer stands outside the ring, out to its base.
+    val p = geom.pointer
+    val rReachOuter = maxOf(rOuter + reach, if (p != null) p.tip + p.length + 1 else 0)
     val rReachInner = if (rInner - reach > 0) rInner - reach else 0
     if (minAbsX * minAbsX + minAbsY * minAbsY >= rReachOuter * rReachOuter) return ArcPixelBands.EMPTY
     if (maxAbsX * maxAbsX + maxAbsY * maxAbsY < rReachInner * rReachInner) return ArcPixelBands.EMPTY
@@ -341,6 +401,13 @@ fun arcPixelBands(geom: ArcRingGeometry, px: Int, py: Int): ArcPixelBands {
         for (i in 0 until ARC_SUBSAMPLES) {
             val x = px * s + 2 * i + 1 - centre
             val d2 = x * x + y * y
+
+            // Outside the ring, so it never competes with the band for a
+            // sample; first only so that it is decided once.
+            if (p != null && inArcPointer(p, x, y)) {
+                pointer++
+                continue
+            }
 
             // The handle first, and before the ring's own radii: it lies ACROSS
             // the band and stands out of it on both sides, which is what says
@@ -413,7 +480,7 @@ fun arcPixelBands(geom: ArcRingGeometry, px: Int, py: Int): ArcPixelBands {
         }
     }
 
-    return ArcPixelBands.of(fill, track, handle)
+    return ArcPixelBands.of(fill, track, handle, pointer)
 }
 
 // --- the band's own geometry ------------------------------------------------
@@ -599,13 +666,16 @@ fun blendBands(
     handleCount: Int,
     background: Rgb565,
     backgroundCount: Int,
+    /** A gauge's pointer, since 2026-09-28 the fourth band. */
+    pointerColour: Rgb565 = handleColour,
+    pointerCount: Int = 0,
 ): Rgb565 {
-    val r = background.r * backgroundCount +
-        fillColour.r * fillCount + trackColour.r * trackCount + handleColour.r * handleCount
-    val g = background.g * backgroundCount +
-        fillColour.g * fillCount + trackColour.g * trackCount + handleColour.g * handleCount
-    val b = background.b * backgroundCount +
-        fillColour.b * fillCount + trackColour.b * trackCount + handleColour.b * handleCount
+    val r = background.r * backgroundCount + fillColour.r * fillCount + trackColour.r * trackCount +
+        handleColour.r * handleCount + pointerColour.r * pointerCount
+    val g = background.g * backgroundCount + fillColour.g * fillCount + trackColour.g * trackCount +
+        handleColour.g * handleCount + pointerColour.g * pointerCount
+    val b = background.b * backgroundCount + fillColour.b * fillCount + trackColour.b * trackCount +
+        handleColour.b * handleCount + pointerColour.b * pointerCount
     val half = ARC_COVERAGE_MAX / 2
     // All operands are non-negative, so integer division floors - the same
     // thing Math.floor does on the designer's side.

@@ -23,6 +23,9 @@ import com.schaltli.android.data.ScreenObject
 import com.schaltli.android.render.ARC_ANGLE_SCALE
 import com.schaltli.android.render.ARC_COVERAGE_MAX
 import com.schaltli.android.render.ArcHandle
+import com.schaltli.android.render.ArcPointer
+import com.schaltli.android.render.arcPointerBand
+import com.schaltli.android.render.levelIsSettableType
 import com.schaltli.android.render.ArcRingGeometry
 import com.schaltli.android.render.Rgb565
 import com.schaltli.android.render.arcCaps
@@ -179,11 +182,15 @@ private fun buildGeometry(
     val fillStart64 = if (sweep.fillFromEnd) sweep.start64 + sweep.sweep64 - filled else sweep.start64
     val caps = arcCaps(size, thickness, inset, sweep.start64, sweep.sweep64)
 
+    // A dial has a handle; a gauge, which cannot be moved, a pointer outside
+    // the ring instead (2026-09-28).
     var handle: ArcHandle? = null
+    var pointer: ArcPointer? = null
     if (setpointPercent != null) {
         val at = sweepForPercent(sweep.sweep64, setpointPercent)
         val angle64 = if (sweep.fillFromEnd) sweep.start64 + sweep.sweep64 - at else sweep.start64 + at
-        handle = arcHandleBand(size, thickness, inset, angle64, sweep.sweep64)
+        if (levelIsSettableType(obj.type)) handle = arcHandleBand(size, thickness, inset, angle64, sweep.sweep64)
+        else pointer = arcPointerBand(size, thickness, inset, angle64)
     }
 
     return ArcRingGeometry(
@@ -198,6 +205,7 @@ private fun buildGeometry(
         startCapFilled = filled > 0 && fillStart64 == sweep.start64,
         endCapFilled = filled > 0 && fillStart64 + filled >= sweep.start64 + sweep.sweep64,
         handle = handle,
+        pointer = pointer,
         framed = framed,
     )
 }
@@ -207,6 +215,7 @@ private fun rasterizeRing(
     trackColour: Rgb565,
     fillColour: Rgb565,
     handleColour: Rgb565,
+    pointerColour: Rgb565,
     mixInto: Rgb565,
 ): Bitmap {
     val size = geom.size
@@ -215,7 +224,7 @@ private fun rasterizeRing(
     for (py in 0 until size) {
         for (px in 0 until size) {
             val bands = arcPixelBands(geom, px, py)
-            val covered = bands.fill + bands.track + bands.handle
+            val covered = bands.fill + bands.track + bands.handle + bands.pointer
             val at = py * size + px
 
             // Nothing but the ring is painted: the object has no background of
@@ -229,6 +238,7 @@ private fun rasterizeRing(
                     trackColour, bands.track,
                     handleColour, bands.handle,
                     mixInto, ARC_COVERAGE_MAX - covered,
+                    pointerColour, bands.pointer,
                 ),
             )
         }
@@ -274,7 +284,10 @@ fun ArcLevelView(
     // handle standing outside a ring that reserved no room - which the
     // can-have-handle test above already rules out: only a ring with a write or
     // setpoint topic gets here, and such a ring reserves the room.
-    val rawMarker = rawSetpoint?.takeIf { !noValue && it.isNotBlank() && arcCanHaveHandle(obj) }
+    //
+    // A gauge points only at a target the installation reports, as a bar does.
+    val pointsOnly = !levelIsSettableType(obj.type) && props.stringOrNull("setpointTopic").isNullOrBlank()
+    val rawMarker = if (pointsOnly) "" else rawSetpoint?.takeIf { !noValue && it.isNotBlank() && arcCanHaveHandle(obj) }
         ?: rawValue.takeIf { !noValue && isSettableLevel(obj) && arcCanHaveHandle(obj) }
         ?: ""
     val setpointPercent = rawMarker.takeIf { it.isNotBlank() }
@@ -312,6 +325,10 @@ fun ArcLevelView(
             trackColour = if (look.framed) toRgb565(fillColor) else toRgb565(look.track),
             fillColour = toRgb565(fillColor),
             handleColour = toRgb565(handleColourFor(obj, fillColor, look)),
+            // A gauge's pointer is in the text's colour, as the bar's is.
+            pointerColour = toRgb565(
+                props.stringOrNull("textColor") ?: props.stringOrNull("color") ?: "#ffffff",
+            ),
             mixInto = toRgb565(ground),
         )
     }

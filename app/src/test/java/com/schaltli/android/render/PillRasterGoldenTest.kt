@@ -62,6 +62,8 @@ class PillRasterGoldenTest {
                 // Absent rather than false wherever the run is horizontal:
                 // the recorder writes the case as it declares it.
                 vertical = band.optBoolean("vertical", false),
+                // A triangle's tip, since 2026-09-28; absent on every run.
+                tip = if (band.has("tip")) band.getString("tip") else null,
             )
         }
     }
