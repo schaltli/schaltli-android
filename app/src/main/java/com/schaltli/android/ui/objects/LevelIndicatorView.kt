@@ -30,6 +30,15 @@ import com.schaltli.android.render.LevelRole
 import com.schaltli.android.render.LevelSegment
 import com.schaltli.android.render.LevelTrackLook
 import com.schaltli.android.render.PaintedPill
+import com.schaltli.android.render.PillGlow
+import com.schaltli.android.render.Rgb565
+import com.schaltli.android.render.glowLevelFromDistance2
+import com.schaltli.android.render.gradient565
+import com.schaltli.android.render.levelEdgeFor
+import com.schaltli.android.render.levelFillsFromEnd
+import com.schaltli.android.render.levelGlowPx
+import com.schaltli.android.render.segmentDistance2
+import com.schaltli.android.render.toRgb565
 import com.schaltli.android.render.PILL_SUBPIXEL_SCALE
 import com.schaltli.android.render.PillBand
 import com.schaltli.android.render.insidePillTip
@@ -318,7 +327,12 @@ fun LevelIndicatorView(
     val pills = if (!soft) null else remember(
         obj.id, obj.width, obj.height, props, fonts, rawValue, rawSetpoint, background,
     ) {
-        pillBitmap(levelPills(obj, segments, handle, pointer, pointerColor, vertical, fillColor, look), background)
+        val shading = levelShading(obj, layout.track, vertical, fillColor, look, if (noValue) null else fillPercent)
+        pillBitmap(
+            levelPills(obj, segments, handle, pointer, pointerColor, vertical, fillColor, look, shading?.colourAt),
+            background,
+            shading?.glow,
+        )
     }
 
     Box(
@@ -517,6 +531,8 @@ private fun levelPills(
     vertical: Boolean,
     fillColor: String,
     look: LevelTrackLook,
+    /** The fill's gradient, where the theme gives it one ([levelShading]). */
+    colourAt: ((Int, Int) -> Rgb565)? = null,
 ): List<PaintedPill> {
     // A run's two ends: rounded where the track itself ends, square where
     // something cut it - the fill's edge, or the handle's gap. That is
@@ -539,14 +555,22 @@ private fun levelPills(
         // colour says whether a finger can move it ([handleColourFor]) - which
         // the whole-pixel path above does not yet ask, having been written
         // before that rule existed.
+        // Where the fill runs from one colour to another, a handle a finger
+        // moves takes the colour of the fill where it stands.
+        val handleAt = colourAt?.takeIf { levelIsSettableType(obj.type) }?.let { at ->
+            val colour = at(handle.x + handle.w / 2, handle.y + handle.h / 2)
+            val fixed: (Int, Int) -> Rgb565 = { _, _ -> colour }
+            fixed
+        }
         painted += PaintedPill(
             PillBand(handle.x, handle.y, handle.w, handle.h, handle.r, handle.r, !vertical),
             handleColourFor(obj, fillColor, look),
+            handleAt,
         )
     }
     for (seg in segments) {
         if (seg.role == LevelRole.FILL) {
-            painted += PaintedPill(bandOf(seg), fillColor)
+            painted += PaintedPill(bandOf(seg), fillColor, colourAt)
             continue
         }
         // The unfilled track: a body in its mixed colour, or - where that
@@ -564,6 +588,72 @@ private fun levelPills(
     }
 
     return painted
+}
+
+/** A bar's gradient and the glow around its filled part. */
+private class LevelShading(val colourAt: (Int, Int) -> Rgb565, val glow: PillGlow?)
+
+/**
+ * The theme's look where the fill is its accent (the designer's
+ * lib/themes.ts): the fill runs from fillColor to fillEndColor along the
+ * track, one step per pixel of the track, and a weak glow lies around the
+ * filled part. Null for a flat fill - and where the two ends are one colour,
+ * which is a flat fill drawn in the colour exactly rather than through 5/6/5.
+ * [fillPercent] is null while no value has arrived: no glow then.
+ */
+private fun levelShading(
+    obj: ScreenObject,
+    track: LevelRect,
+    vertical: Boolean,
+    fillColor: String,
+    look: LevelTrackLook,
+    fillPercent: Double?,
+): LevelShading? {
+    val endHex = obj.properties.stringOrNull("fillEndColor")?.takeIf { it.isNotBlank() } ?: return null
+    if (look.framed || endHex.equals(fillColor, ignoreCase = true)) return null
+    val from = toRgb565(fillColor)
+    val to = toRgb565(endHex)
+    val fromEnd = levelFillsFromEnd(obj)
+    val trackStart = if (vertical) track.y else track.x
+    val trackLength = maxOf(1, if (vertical) track.h else track.w)
+    fun stepAlong(along: Int): Int {
+        val j = (along - trackStart).coerceIn(0, trackLength - 1)
+        return if (fromEnd) trackLength - 1 - j else j
+    }
+    val colourAt: (Int, Int) -> Rgb565 = { px, py ->
+        gradient565(from, to, stepAlong(if (vertical) py else px), trackLength)
+    }
+    val glowPx = levelGlowPx(obj)
+    if (glowPx <= 0 || fillPercent == null || fillPercent <= 0.0) return LevelShading(colourAt, null)
+    // Around the filled part: a capsule on the track's centre line from the
+    // track's own end to the fill's edge, half the thickness wide.
+    val edge = levelEdgeFor(track, vertical, fromEnd, fillPercent)
+    val s = 8
+    val half = (if (vertical) track.w else track.h) * s / 2
+    val cross = if (vertical) track.x * s + track.w * s / 2 else track.y * s + track.h * s / 2
+    val lo = (if (fromEnd) edge else trackStart) * s
+    val hi = (if (fromEnd) trackStart + trackLength else edge) * s
+    val a = minOf(lo + half, hi - half)
+    val b = maxOf(lo + half, hi - half)
+    val glow = PillGlow(
+        levelAt = { px, py ->
+            val x = px * s + s / 2
+            val y = py * s + s / 2
+            val d2 = if (vertical) segmentDistance2(x, y, cross, a, cross, b) else segmentDistance2(x, y, a, cross, b, cross)
+            val level = glowLevelFromDistance2(d2, half)
+            if (level > glowPx) 0 else level
+        },
+        colourAt = { px, py ->
+            val along = if (vertical) py else px
+            val clamped = if (fromEnd) maxOf(edge, along) else minOf(edge - 1, along)
+            gradient565(from, to, stepAlong(clamped), trackLength)
+        },
+        boxX = obj.x.toInt(),
+        boxY = obj.y.toInt(),
+        boxW = obj.width.toInt(),
+        boxH = obj.height.toInt(),
+    )
+    return LevelShading(colourAt, glow)
 }
 
 /** One axis-aligned run of whole project units, drawn at [scale] device pixels per unit. */

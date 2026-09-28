@@ -158,6 +158,60 @@ class ArcRasterGoldenTest {
      * comparison exists to catch, and a second implementation of it in a test
      * could only ever agree with itself.
      */
+    @Test
+    fun `every recorded pixel takes the same gradient step and glow level`() {
+        // The ring's gradient and glow (LevelGlow.kt), 2026-09-28: the two
+        // numbers every port has to arrive at before it mixes a colour.
+        val cases = loadGolden().optJSONArray("glowCases")
+            ?: error("the golden file has no glowCases - regenerate it with build-arc-golden.js")
+        var glowing = 0
+        for (i in 0 until cases.length()) {
+            val c = cases.getJSONObject(i)
+            val name = c.getString("name")
+            val size = c.getInt("size")
+            val sweep64 = c.getInt("sweep64")
+            val start64 = c.getInt("start64")
+            val filled64 = c.getInt("filled64")
+            val fromEnd = c.getBoolean("fromEnd")
+            val levels = c.getInt("levels")
+            val gradient = makeArcGradient(start64, sweep64)
+            val lastStep = arcStepOfOffset(maxOf(0, filled64 - 1), sweep64)
+            val fillStart64 = if (fromEnd) start64 + sweep64 - filled64 else start64
+            val glow = arcGlowFor(size, c.getInt("thickness"), c.getInt("inset"), fillStart64, filled64, lastStep)
+            val centre = size * 8 / 2
+            val pixels = c.getJSONArray("pixels")
+            val steps = c.getJSONArray("step")
+            val levelsWanted = c.getJSONArray("level")
+            for (p in 0 until pixels.length()) {
+                val px = pixels.getJSONArray(p).getInt(0)
+                val py = pixels.getJSONArray(p).getInt(1)
+                val cx = px * 8 + 4 - centre
+                val cy = py * 8 + 4 - centre
+                val raw = arcGradientStep(gradient, cx, cy)
+                val step = if (fromEnd) GRADIENT_STEPS - 1 - raw else raw
+                val level = if (filled64 > 0) arcGlowLevel(glow, cx, cy, levels) else 0
+                assertEquals("$name step at ($px, $py)", steps.getInt(p), step)
+                assertEquals("$name glow at ($px, $py)", levelsWanted.getInt(p), level)
+                if (level > 0) glowing++
+            }
+        }
+        assertTrue("no recorded pixel lies in a glow", glowing > 0)
+    }
+
+    @Test
+    fun `the gradient and the glow mix colours as the designer does`() {
+        val samples = loadGolden().optJSONArray("glowColours")
+            ?: error("the golden file has no glowColours - regenerate it with build-arc-golden.js")
+        for (i in 0 until samples.length()) {
+            val q = samples.getJSONObject(i)
+            fun rgb(key: String) = q.getJSONArray(key).let { Rgb565.of(it.getInt(0), it.getInt(1), it.getInt(2)) }
+            val g = gradient565(rgb("from"), rgb("to"), q.getInt("step"), q.getInt("steps"))
+            val m = blend565(rgb("under"), g, q.getInt("alpha"))
+            assertEquals("sample $i gradient", rgb("gradient"), g)
+            assertEquals("sample $i blended", rgb("blended"), m)
+        }
+    }
+
     private fun geometryOf(case: JSONObject): ArcRingGeometry {
         val size = case.getInt("size")
         val thickness = case.getInt("thickness")

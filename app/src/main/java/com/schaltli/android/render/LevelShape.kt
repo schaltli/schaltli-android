@@ -121,7 +121,7 @@ private fun JsonObject.text(key: String): String? = (this[key] as? JsonPrimitive
  * A property read as a number, the way the designer's `Number(...)` reads it:
  * a JSON number or a string holding one, and nothing else.
  */
-private fun JsonObject.number(key: String): Double? = text(key)?.trim()?.toDoubleOrNull()
+internal fun JsonObject.number(key: String): Double? = text(key)?.trim()?.toDoubleOrNull()
 
 private fun JsonObject.nonBlank(key: String): String? = text(key)?.takeIf { it.trim().isNotEmpty() }
 
@@ -316,7 +316,12 @@ fun levelLayout(obj: ScreenObject, fonts: List<FontEntry>?): LevelLayout {
     val bar = LevelRect(barX, barY, maxOf(0, barW), maxOf(0, barH), 0)
     val thickness = levelThickness(obj)
     val across = if (vertical) bar.w else bar.h
-    val wanted = if (levelHasHandle(obj)) levelHandleLength(thickness) else thickness
+    // Room for a glow on both sides of the track as well (LevelGlow.kt),
+    // which a handle's own room already gives where there is a handle.
+    val wanted = maxOf(
+        if (levelHasHandle(obj)) levelHandleLength(thickness) else thickness,
+        thickness + 2 * levelGlowPx(obj),
+    )
     val size = maxOf(0, minOf(wanted, across))
     val offset = if (!vertical && header != null) 0 else (across - size) / 2
     val slot = if (vertical) {

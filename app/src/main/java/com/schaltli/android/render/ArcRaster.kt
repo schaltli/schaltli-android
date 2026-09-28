@@ -507,6 +507,12 @@ private fun arcPointAt(size: Int, thickness: Int, inset: Int, angle64: Int): Lon
     )
 }
 
+/** [arcMidRadius] and [arcPointAt] for the glow (LevelGlow.kt), which needs both. */
+internal fun arcCentrelineRadius(size: Int, thickness: Int, inset: Int): Int = arcMidRadius(size, thickness, inset)
+
+internal fun arcCentrelinePoint(size: Int, thickness: Int, inset: Int, angle64: Int): Long =
+    arcPointAt(size, thickness, inset, angle64)
+
 /** The two rounded ends of a scale - both null where it goes all the way round. */
 data class ArcCaps(val startCap: ArcCap?, val endCap: ArcCap?)
 

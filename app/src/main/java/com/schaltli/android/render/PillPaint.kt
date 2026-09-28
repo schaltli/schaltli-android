@@ -43,7 +43,31 @@ import kotlin.math.roundToInt
  * shows through - but paints nothing, which is how an outline is described
  * (the outer pill in the outline's colour, the inside knocked out of it).
  */
-data class PaintedPill(val band: PillBand, val colour: String?)
+data class PaintedPill(
+    val band: PillBand,
+    val colour: String?,
+    /**
+     * A colour per pixel instead of [colour] - a fill that runs from one
+     * colour to another along its bar (LevelGlow.kt). Always through 5/6/5,
+     * even where the run owns a pixel outright, since every step of the
+     * gradient is a 5/6/5 colour on the device too.
+     */
+    val colourAt: ((Int, Int) -> Rgb565)? = null,
+)
+
+/**
+ * A glow around part of the control (LevelGlow.kt): how near a pixel is
+ * (1 .. 8, 0 beyond), in which colour, and the box it may reach - the
+ * object's own, never beyond. The designer's `PillGlow`.
+ */
+class PillGlow(
+    val levelAt: (Int, Int) -> Int,
+    val colourAt: (Int, Int) -> Rgb565,
+    val boxX: Int,
+    val boxY: Int,
+    val boxW: Int,
+    val boxH: Int,
+)
 
 /** A finished block of pixels and where on the screen it belongs, in project units. */
 class PillPixels(val x: Int, val y: Int, val w: Int, val h: Int, val argb: IntArray)
@@ -55,11 +79,21 @@ class PillPixels(val x: Int, val y: Int, val w: Int, val h: Int, val argb: IntAr
  * transparent, so whatever is behind the control - a screen colour, a
  * background image - still shows through.
  */
-fun pillPixels(painted: List<PaintedPill>, background: String): PillPixels? {
+fun pillPixels(painted: List<PaintedPill>, background: String, glow: PillGlow? = null): PillPixels? {
     val runs = painted.filter { it.band.w > 0 && it.band.h > 0 && it.colour != "transparent" }
     if (runs.isEmpty()) return null
 
-    val bounds = pillBandsBounds(runs.map { it.band })
+    var bounds = pillBandsBounds(runs.map { it.band })
+    if (glow != null) {
+        // Out to where the glow may reach, and no further than the object.
+        val x0 = maxOf(glow.boxX, bounds.x - 8)
+        val y0 = maxOf(glow.boxY, bounds.y - 8)
+        val x1 = minOf(glow.boxX + glow.boxW, bounds.x + bounds.w + 8)
+        val y1 = minOf(glow.boxY + glow.boxH, bounds.y + bounds.h + 8)
+        val nx = minOf(x0, bounds.x)
+        val ny = minOf(y0, bounds.y)
+        bounds = bounds.copy(x = nx, y = ny, w = maxOf(x1, nx) - nx, h = maxOf(y1, ny) - ny)
+    }
     if (bounds.w <= 0 || bounds.h <= 0) return null
 
     val bands = runs.map { it.band }
@@ -85,22 +119,46 @@ fun pillPixels(painted: List<PaintedPill>, background: String): PillPixels? {
             var g = 0
             var b = 0
             var covered = 0
+            var claimed = 0
             var inked = 0
             var only = -1
+            var onlyColour = Rgb565(0)
             for (i in bands.indices) {
                 val count = counts[i]
+                claimed += count
                 if (count == 0) continue
-                val colour = colours[i] ?: continue
+                val flat = colours[i] ?: continue
+                val colour = runs[i].colourAt?.invoke(bounds.x + px, bounds.y + py) ?: flat
                 r += colour.r * count
                 g += colour.g * count
                 b += colour.b * count
                 covered += count
                 inked++
                 only = i
+                onlyColour = colour
+            }
+            val at = py * bounds.w + px
+
+            // The glow. What lies under it is not this bitmap's to read, so a
+            // pixel of glow alone is left translucent for the blit to lay over
+            // it, and an edge pixel mixes into the glow over the screen's
+            // colour - the designer's own treatment on its zoomed canvas.
+            var mixHere = mixInto
+            val level = if (glow != null && claimed < PILL_COVERAGE_MAX) glow.levelAt(bounds.x + px, bounds.y + py) else 0
+            if (level > 0) {
+                val colour = glow!!.colourAt(bounds.x + px, bounds.y + py)
+                if (claimed == 0) {
+                    argb[at] = glowArgb(colour, level)
+                    continue
+                }
+                mixHere = blend565(mixInto, colour, GLOW_ALPHA[level])
+                if (covered == 0) {
+                    argb[at] = rgb565ToArgb(mixHere)
+                    continue
+                }
             }
             if (covered == 0) continue
 
-            val at = py * bounds.w + px
             // A pixel that one run owns outright keeps that run's colour
             // exactly - no trip through 5/6/5 and back. Every other object
             // here paints the author's colour as it is, and a bar whose body
@@ -108,14 +166,14 @@ fun pillPixels(painted: List<PaintedPill>, background: String): PillPixels? {
             // mixing above is only for the pixels an edge passes through,
             // where a step is what nobody can see anyway.
             if (inked == 1 && covered == PILL_COVERAGE_MAX) {
-                argb[at] = exact[only]!!
+                argb[at] = if (runs[only].colourAt != null) rgb565ToArgb(onlyColour) else exact[only]!!
                 continue
             }
 
             val rest = PILL_COVERAGE_MAX - covered
-            r += mixInto.r * rest
-            g += mixInto.g * rest
-            b += mixInto.b * rest
+            r += mixHere.r * rest
+            g += mixHere.g * rest
+            b += mixHere.b * rest
             val half = PILL_COVERAGE_MAX / 2
             // All operands are non-negative, so integer division floors - the
             // same thing Math.floor does on the designer's side.
@@ -151,8 +209,8 @@ class PillBitmap(val x: Int, val y: Int, val bitmap: Bitmap)
  * phone; doing that inside the draw pass would spend them again on every
  * recomposition, and a slider is dragged.
  */
-fun pillBitmap(painted: List<PaintedPill>, background: String): PillBitmap? {
-    val pixels = pillPixels(painted, background) ?: return null
+fun pillBitmap(painted: List<PaintedPill>, background: String, glow: PillGlow? = null): PillBitmap? {
+    val pixels = pillPixels(painted, background, glow) ?: return null
     return PillBitmap(
         pixels.x,
         pixels.y,

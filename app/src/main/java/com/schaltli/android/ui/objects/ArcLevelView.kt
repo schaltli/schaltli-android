@@ -22,6 +22,7 @@ import com.schaltli.android.data.Project
 import com.schaltli.android.data.ScreenObject
 import com.schaltli.android.render.ARC_ANGLE_SCALE
 import com.schaltli.android.render.ARC_COVERAGE_MAX
+import com.schaltli.android.render.ARC_SUBPIXEL_SCALE
 import com.schaltli.android.render.ArcHandle
 import com.schaltli.android.render.ArcPointer
 import com.schaltli.android.render.arcPointerBand
@@ -31,6 +32,18 @@ import com.schaltli.android.render.Rgb565
 import com.schaltli.android.render.arcCaps
 import com.schaltli.android.render.arcHandleBand
 import com.schaltli.android.render.arcPixelBands
+import com.schaltli.android.render.ArcGlow
+import com.schaltli.android.render.GLOW_ALPHA
+import com.schaltli.android.render.GRADIENT_STEPS
+import com.schaltli.android.render.arcGlowFor
+import com.schaltli.android.render.arcGlowLevel
+import com.schaltli.android.render.arcGradientStep
+import com.schaltli.android.render.arcStepOfOffset
+import com.schaltli.android.render.blend565
+import com.schaltli.android.render.glowArgb
+import com.schaltli.android.render.gradient565
+import com.schaltli.android.render.levelGlowPx
+import com.schaltli.android.render.makeArcGradient
 import com.schaltli.android.render.blendBands
 import com.schaltli.android.render.handleColourFor
 import com.schaltli.android.render.levelHasHandle
@@ -147,7 +160,9 @@ private fun arcThickness(obj: ScreenObject): Double =
 private fun arcCanHaveHandle(obj: ScreenObject): Boolean = levelHasHandle(obj)
 
 /**
- * How far the ring sits inside the object's edge: room for the handle.
+ * How far the ring sits inside the object's edge: room for the handle, and
+ * for the glow a theme lays around the fill (LevelGlow.kt), which has to stay
+ * inside the object's own box like everything else it draws.
  *
  * Half of what the handle is longer than the band it lies across, reserved
  * whenever the object can have one at all rather than while one is being
@@ -158,11 +173,12 @@ private fun arcCanHaveHandle(obj: ScreenObject): Boolean = levelHasHandle(obj)
  * way before the band does.
  */
 private fun arcInset(obj: ScreenObject, size: Int, thickness: Int): Int {
-    if (!arcCanHaveHandle(obj)) return 0
     // (11/4 t - t) / 2, rounded up: half the handle's overhang. Written as
     // (7t + 7) / 8 because Kotlin's integer divide floors here and the
     // designer's Math.ceil does not.
-    val wanted = (thickness * 7 + 7) / 8
+    val handleRoom = if (arcCanHaveHandle(obj)) (thickness * 7 + 7) / 8 else 0
+    val wanted = maxOf(handleRoom, levelGlowPx(obj))
+    if (wanted == 0) return 0
     val room = size / 2 - thickness - 1
     return maxOf(0, minOf(wanted, room))
 }
@@ -210,6 +226,22 @@ private fun buildGeometry(
     )
 }
 
+/**
+ * The theme's look for a fill that is its accent (the designer's
+ * lib/themes.ts): the fill runs from its colour to [endColour] along the
+ * scale, and a weak glow lies around it. Steps are counted from the scale's
+ * zero, whichever way it fills.
+ */
+private class RingShading(
+    val endColour: Rgb565,
+    val start64: Int,
+    val sweep64: Int,
+    val fromEnd: Boolean,
+    val lastStep: Int,
+    val glow: ArcGlow?,
+    val glowLevels: Int,
+)
+
 private fun rasterizeRing(
     geom: ArcRingGeometry,
     trackColour: Rgb565,
@@ -217,27 +249,58 @@ private fun rasterizeRing(
     handleColour: Rgb565,
     pointerColour: Rgb565,
     mixInto: Rgb565,
+    shading: RingShading? = null,
 ): Bitmap {
     val size = geom.size
     val pixels = IntArray(size * size)
+    val gradient = shading?.let { makeArcGradient(it.start64, it.sweep64) }
+    val centre = size * ARC_SUBPIXEL_SCALE / 2
+    fun stepAt(x: Int, y: Int): Int {
+        val step = arcGradientStep(gradient!!, x, y)
+        return if (shading!!.fromEnd) GRADIENT_STEPS - 1 - step else step
+    }
+    fun colourOfStep(step: Int) = gradient565(fillColour, shading!!.endColour, step, GRADIENT_STEPS)
 
     for (py in 0 until size) {
         for (px in 0 until size) {
             val bands = arcPixelBands(geom, px, py)
             val covered = bands.fill + bands.track + bands.handle + bands.pointer
             val at = py * size + px
+            // The pixel's centre, in 1/8 pixel from the ring's centre.
+            val cx = px * ARC_SUBPIXEL_SCALE + ARC_SUBPIXEL_SCALE / 2 - centre
+            val cy = py * ARC_SUBPIXEL_SCALE + ARC_SUBPIXEL_SCALE / 2 - centre
+            val glow = shading?.glow
+            val glowLevel =
+                if (glow != null && covered < ARC_COVERAGE_MAX) arcGlowLevel(glow, cx, cy, shading.glowLevels) else 0
+
+            var base = mixInto
+            if (glowLevel > 0) {
+                val glowColour = colourOfStep(stepAt(cx, cy).coerceIn(glow!!.stepFrom, glow.stepTo))
+                // Nothing of the ring here: the glow alone, left translucent
+                // for the blit to lay over whatever is underneath.
+                if (covered == 0) {
+                    pixels[at] = glowArgb(glowColour, glowLevel)
+                    continue
+                }
+                // An edge pixel mixes into the glow over the screen's colour,
+                // or a dark rim would part the band from its glow.
+                base = blend565(mixInto, glowColour, GLOW_ALPHA[glowLevel])
+            }
 
             // Nothing but the ring is painted: the object has no background of
             // its own any more, so whatever is behind it - a screen colour, a
             // background image - shows through everywhere the band is not.
             if (covered == 0) continue
 
+            val fillHere =
+                if (shading != null && bands.fill > 0) colourOfStep(minOf(shading.lastStep, stepAt(cx, cy)))
+                else fillColour
             pixels[at] = rgb565ToArgb(
                 blendBands(
-                    fillColour, bands.fill,
+                    fillHere, bands.fill,
                     trackColour, bands.track,
                     handleColour, bands.handle,
-                    mixInto, ARC_COVERAGE_MAX - covered,
+                    base, ARC_COVERAGE_MAX - covered,
                     pointerColour, bands.pointer,
                 ),
             )
@@ -317,6 +380,36 @@ fun ArcLevelView(
         obj.id, obj.width, obj.height, props, fillPercent, setpointPercent, screenBackgroundColor,
     ) {
         val geom = buildGeometry(obj, fillPercent, setpointPercent, look.framed)
+        val sweep = resolveArcSweep(obj)
+        val endHex = props.stringOrNull("fillEndColor")?.takeIf { it.isNotBlank() }
+        val filled = sweepForPercent(sweep.sweep64, fillPercent)
+        val lastStep = arcStepOfOffset(maxOf(0, filled - 1), sweep.sweep64)
+        val glowLevels = levelGlowPx(obj)
+        val fillStart64 = if (sweep.fillFromEnd) sweep.start64 + sweep.sweep64 - filled else sweep.start64
+        val shading = if (endHex != null && !look.framed) {
+            RingShading(
+                endColour = toRgb565(endHex),
+                start64 = sweep.start64,
+                sweep64 = sweep.sweep64,
+                fromEnd = sweep.fillFromEnd,
+                lastStep = lastStep,
+                glow = if (glowLevels > 0 && filled > 0 && !noValue) {
+                    arcGlowFor(geom.size, geom.thickness, geom.inset, fillStart64, filled, lastStep)
+                } else null,
+                glowLevels = glowLevels,
+            )
+        } else null
+        // A handle a finger moves takes the colour of the fill where it stands.
+        val handleColour =
+            if (shading != null && geom.handle != null && setpointPercent != null && levelIsSettableType(obj.type)) {
+                gradient565(
+                    toRgb565(fillColor), shading.endColour,
+                    arcStepOfOffset(sweepForPercent(sweep.sweep64, setpointPercent), sweep.sweep64),
+                    GRADIENT_STEPS,
+                )
+            } else {
+                toRgb565(handleColourFor(obj, fillColor, look))
+            }
         rasterizeRing(
             geom = geom,
             // Where the mixed track cannot be told from the background, the
@@ -324,13 +417,14 @@ fun ArcLevelView(
             // a body in a colour nobody would see.
             trackColour = if (look.framed) toRgb565(fillColor) else toRgb565(look.track),
             fillColour = toRgb565(fillColor),
-            handleColour = toRgb565(handleColourFor(obj, fillColor, look)),
+            handleColour = handleColour,
             // A gauge's pointer is in the text's colour, as the bar's is -
             // black where the object names none, as every device loads it.
             pointerColour = toRgb565(
                 props.stringOrNull("textColor") ?: props.stringOrNull("color") ?: "#000000",
             ),
             mixInto = toRgb565(ground),
+            shading = shading,
         )
     }
 
