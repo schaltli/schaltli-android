@@ -148,8 +148,10 @@ fun parseCalibrationPoints(props: JsonObject): List<Pair<Double, Double>> {
  * nothing outstanding, what was last commanded IS what is reported, and a
  * handle sitting on the fill's edge is what says "you can move this".
  */
-private fun isSettableLevel(obj: ScreenObject): Boolean =
-    (obj.type == "bar" || obj.type == "slider" || obj.type == "gauge" || obj.type == "dial") &&
+internal fun isSettableLevel(obj: ScreenObject): Boolean =
+    // Only a slider or a dial - a bar or a gauge never rests a handle on its
+    // value, whatever topics it still carries.
+    (obj.type == "slider" || obj.type == "dial") &&
         !obj.properties.stringOrNull("writeTopic").isNullOrBlank()
 
 /**

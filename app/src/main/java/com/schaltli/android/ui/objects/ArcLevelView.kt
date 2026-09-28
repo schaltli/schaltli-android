@@ -266,10 +266,17 @@ fun ArcLevelView(
     // the caller resolves them in. Nothing asked and nothing reported, no
     // handle: a water level has nothing to aim at.
     //
-    // Only a ring that can HAVE a handle ever shows one, and deliberately
-    // without the bar's fallback to the value itself: a ring that reserved no
-    // room would otherwise draw a handle standing outside its own rectangle.
-    val rawMarker = rawSetpoint?.takeIf { !noValue && it.isNotBlank() && arcCanHaveHandle(obj) } ?: ""
+    // Only a ring that can HAVE a handle ever shows one.
+    //
+    // A dial that can be set rests its handle on the reported value when
+    // nothing is asked, as a slider does: the handle is what says it can be
+    // moved. Until 2026-09-28 a ring left that fallback out, for fear of a
+    // handle standing outside a ring that reserved no room - which the
+    // can-have-handle test above already rules out: only a ring with a write or
+    // setpoint topic gets here, and such a ring reserves the room.
+    val rawMarker = rawSetpoint?.takeIf { !noValue && it.isNotBlank() && arcCanHaveHandle(obj) }
+        ?: rawValue.takeIf { !noValue && isSettableLevel(obj) && arcCanHaveHandle(obj) }
+        ?: ""
     val setpointPercent = rawMarker.takeIf { it.isNotBlank() }
         ?.let { calculateFillPercent(it.toDoubleOrNull() ?: 0.0, calibration) }
 
