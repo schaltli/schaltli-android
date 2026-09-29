@@ -59,32 +59,34 @@ data class LevelSegment(
     val roundEnd: Boolean,
 )
 
-/** The vertical measure of the object's font: everything the header line is built from. */
+/** The vertical measure of the object's font: everything the number's room is built from. */
 data class LevelFontMetrics(
     /** Baseline to the top of the line. */
     val ascent: Int,
     /** Baseline to the bottom of the line - where descenders and brackets end. */
     val descent: Int,
-    /** How tall a capital stands on the baseline. The icon is this tall. */
+    /** How tall a capital stands on the baseline. */
     val capHeight: Int,
 )
 
-/** Everything the object's rectangle is divided into. */
+/**
+ * Everything the object's rectangle is divided into: the bar, and the number's
+ * column at its far end.
+ *
+ * There used to be a header line above the bar carrying a name and an icon. A
+ * Bar and a Slider have neither since 2026-09-29 (designer 84f3fb7): a label
+ * beside one is a Text object and an icon an Icon object, and the export never
+ * sends a bar's `label` or `iconAssetId` any more.
+ */
 data class LevelLayout(
-    /** The whole header line, or null when there is none. */
-    val header: LevelRect?,
     /**
-     * The row every piece of text stands on - name and numbers alike, whatever
-     * size they are in - and the icon's foot.
+     * The row the number stands on, in the middle of its column (or where it
+     * would stand, for a bar that shows none).
      */
     val baseline: Int,
-    /** Square, a capital's height, standing on the baseline. */
-    val icon: LevelRect?,
-    /** The header's text run: from after the icon to the object's right edge. */
-    val text: LevelRect?,
-    /** The number's own column beside a bar that has no header. */
+    /** The number's own column beside the bar, or null when it shows none. */
     val value: LevelRect?,
-    /** What is left over for the bar once the header or the number has its room. */
+    /** What is left over for the bar once the number has its room. */
     val bar: LevelRect,
     /** The band of [bar] the bar actually takes, across it. */
     val slot: LevelRect,
@@ -106,14 +108,8 @@ const val LEVEL_DEFAULT_THICKNESS = 16
  */
 const val LEVEL_PADDING_ALONG = 4
 
-/** The slot between the header's parts, and between the bar and its number. */
+/** The slot between the bar and its number. */
 const val LEVEL_GAP = 6
-
-/**
- * The empty row between the header line and the bar. Without it a letter with
- * a descender stood on the handle.
- */
-const val LEVEL_HEADER_GAP = 1
 
 private fun JsonObject.text(key: String): String? = (this[key] as? JsonPrimitive)?.contentOrNull
 
@@ -167,21 +163,9 @@ fun levelFontSize(obj: ScreenObject): Int {
     return if (size > 0) size else 14
 }
 
-/** The name shown on the header line, or "" when the object has none. */
-fun levelName(obj: ScreenObject): String = obj.properties.text("label")?.trim() ?: ""
-
-/** Whether an icon sits at the head of the line. */
-fun levelHasIcon(obj: ScreenObject): Boolean = obj.properties.nonBlank("iconAssetId") != null
-
 /** Whether a number is shown at all. */
 fun levelShowsNumber(obj: ScreenObject): Boolean =
     (obj.properties.text("displayValue")?.takeIf { it.isNotEmpty() } ?: "value") != "none"
-
-/**
- * Whether the object can ever show a *second*, measured number beside the
- * commanded one - which is to say, whether it has a commanded value at all.
- */
-fun levelShowsSub(obj: ScreenObject): Boolean = levelShowsNumber(obj) && levelHasHandle(obj)
 
 fun levelFontMetrics(obj: ScreenObject, fonts: List<FontEntry>?): LevelFontMetrics {
     val font = fonts?.firstOrNull { it.id == obj.properties.text("fontId") }
@@ -200,7 +184,7 @@ fun levelFontMetrics(obj: ScreenObject, fonts: List<FontEntry>?): LevelFontMetri
  * places a TTF's baseline from what the browser measured when the font was
  * added (`baselineOffset`), and falls back to four fifths of the size when
  * nothing measured it. Reading the DDF's number here instead would put the
- * header's text one or two rows off what the reference image shows.
+ * number one or two rows off what the reference image shows.
  */
 fun fontMetricsOf(font: FontEntry?, fallbackSize: Int): LevelFontMetrics {
     if (font == null) {
@@ -232,28 +216,15 @@ fun levelLineHeight(metrics: LevelFontMetrics): Int = metrics.ascent + metrics.d
  * One digit, as all four renderers agree to guess it: 0.62 of the line height.
  *
  * A guess rather than a measurement, and only where it decides where the bar
- * ends - the number column beside a bar with no header, which
- * [levelPercentFromPoint] has to know about to turn a finger into a value. On
- * the header line nothing is guessed: the numbers are measured there.
+ * ends - the number column beside the bar, which [levelPercentFromPoint] has
+ * to know about to turn a finger into a value.
  */
 fun levelDigitWidth(lineHeight: Int): Int {
     val w = lineHeight * 62 / 100
     return if (w < 1) 1 else w
 }
 
-/**
- * How tall the header line is - 0 when there is neither a name nor an icon.
- *
- * Exactly one line of the font, so a letter is never cut off at either end. The
- * object does not grow by itself: the rectangle is what the author drags.
- */
-fun levelHeaderHeight(obj: ScreenObject, fonts: List<FontEntry>?): Int {
-    if (levelName(obj).isEmpty() && !levelHasIcon(obj)) return 0
-    val wanted = levelLineHeight(levelFontMetrics(obj, fonts))
-    return maxOf(0, minOf(wanted, obj.height.toInt()))
-}
-
-/** The number column beside a bar with no header. Five digits, capped at 40 %. */
+/** The number column beside the bar. Five digits, capped at 40 %. */
 fun levelValueWidth(obj: ScreenObject, fonts: List<FontEntry>?): Int {
     if (!levelShowsNumber(obj)) return 0
     val wanted = levelDigitWidth(levelLineHeight(levelFontMetrics(obj, fonts))) * 5
@@ -269,35 +240,16 @@ fun levelLayout(obj: ScreenObject, fonts: List<FontEntry>?): LevelLayout {
     val vertical = levelIsVertical(obj)
     val metrics = levelFontMetrics(obj, fonts)
     val lineH = levelLineHeight(metrics)
-    val headerH = levelHeaderHeight(obj, fonts)
 
-    var header: LevelRect? = null
     var baseline = y + metrics.ascent
-    var icon: LevelRect? = null
-    var text: LevelRect? = null
     var value: LevelRect? = null
-    val barX = x
-    var barY = y
     var barW = w
     var barH = h
 
-    if (headerH > 0) {
-        header = LevelRect(x, y, w, headerH, 0)
-        var left = x
-        if (levelHasIcon(obj)) {
-            // As tall as a capital and standing on the same baseline, so it
-            // reads as a letter of the name rather than a picture beside it.
-            val size = maxOf(1, minOf(metrics.capHeight, w / 4))
-            icon = LevelRect(left, baseline - size, size, size, 0)
-            left = icon.x + size + LEVEL_GAP
-        }
-        if (x + w - left > 0) text = LevelRect(left, y, x + w - left, headerH, 0)
-        barY = y + headerH + LEVEL_HEADER_GAP
-        barH = h - headerH - LEVEL_HEADER_GAP
-    } else if (levelShowsNumber(obj)) {
-        // No header: the number goes at the far end of the bar's own axis.
-        // Right for a horizontal bar whichever way it fills, so that a column
-        // of bars lines up regardless of their directions.
+    if (levelShowsNumber(obj)) {
+        // The number goes at the far end of the bar's own axis. Right for a
+        // horizontal bar whichever way it fills, so that a column of bars lines
+        // up regardless of their directions.
         val column: LevelRect
         if (vertical) {
             val rowH = minOf(lineH, h * 2 / 5)
@@ -313,7 +265,7 @@ fun levelLayout(obj: ScreenObject, fonts: List<FontEntry>?): LevelLayout {
         baseline = column.y + (column.h - lineH) / 2 + metrics.ascent
     }
 
-    val bar = LevelRect(barX, barY, maxOf(0, barW), maxOf(0, barH), 0)
+    val bar = LevelRect(x, y, maxOf(0, barW), maxOf(0, barH), 0)
     val thickness = levelThickness(obj)
     val across = if (vertical) bar.w else bar.h
     // Room for a glow on both sides of the track as well (LevelGlow.kt),
@@ -323,13 +275,13 @@ fun levelLayout(obj: ScreenObject, fonts: List<FontEntry>?): LevelLayout {
         thickness + 2 * levelGlowPx(obj),
     )
     val size = maxOf(0, minOf(wanted, across))
-    val offset = if (!vertical && header != null) 0 else (across - size) / 2
+    val offset = (across - size) / 2
     val slot = if (vertical) {
         LevelRect(bar.x + offset, bar.y, size, bar.h, 0)
     } else {
         LevelRect(bar.x, bar.y + offset, bar.w, size, 0)
     }
-    return LevelLayout(header, baseline, icon, text, value, bar, slot, trackInside(slot, vertical, thickness))
+    return LevelLayout(baseline, value, bar, slot, trackInside(slot, vertical, thickness))
 }
 
 /** The track's own box: inset by 4 along the bar, and centred in the slot across it. */
@@ -360,12 +312,12 @@ private fun trackInside(slot: LevelRect, vertical: Boolean, thickness: Int): Lev
  * it cannot stand out of a bar that is not there ([levelLayout]'s slot) - but
  * its width runs along the bar, where nothing is short of room.
  *
- * Deriving those from the clamped slot instead made a bar squeezed by its own
- * header draw a 3-wide handle where a bar with room drew 4, with the gap
+ * Deriving those from the clamped slot instead made a squeezed bar draw a
+ * 3-wide handle where a bar with room drew 4, with the gap
  * around it 2 instead of 6 - which moved both runs of track as well. The same
  * fault cost 170 of 384000 pixels on the 4.3B's panel (the designer's
  * `levelHandleSpan`, 2026-09-22); this copy carried it until the recording
- * grew a case with no room to spare, `slider-squeezed-by-its-header`.
+ * grew a case with no room to spare (now `slider-squeezed-flat`).
  */
 fun levelHandleSpan(obj: ScreenObject): Int = levelHandleLength(levelThickness(obj))
 
@@ -557,8 +509,8 @@ fun levelEmptyTrack(obj: ScreenObject, fonts: List<FontEntry>?): LevelSegment {
  * Where a finger is, as a percentage of the bar.
  *
  * Measured against the TRACK, not the object, so the picture and the touch
- * cannot drift: the bar no longer fills the rectangle it is given - a header
- * line takes room off the top and the number takes room off the end.
+ * cannot drift: the bar no longer fills the rectangle it is given - the number
+ * takes room off the end, and a handle or glow keeps the track off the edges.
  * Coordinates are the object's own, absolute ones.
  */
 fun levelPercentFromPoint(obj: ScreenObject, x: Double, y: Double, fonts: List<FontEntry>?): Double {

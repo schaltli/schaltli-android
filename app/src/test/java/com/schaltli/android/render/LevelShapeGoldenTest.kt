@@ -101,7 +101,6 @@ class LevelShapeGoldenTest {
             assertEquals("$name: thickness", want.int("thickness"), levelThickness(obj))
             assertEquals("$name: hasHandle", want.bool("hasHandle"), levelHasHandle(obj))
             assertEquals("$name: showsNumber", want.bool("showsNumber"), levelShowsNumber(obj))
-            assertEquals("$name: headerHeight", want.int("headerHeight"), levelHeaderHeight(obj, fonts))
             assertEquals("$name: valueWidth", want.int("valueWidth"), levelValueWidth(obj, fonts))
 
             val metrics = levelFontMetrics(obj, fonts)
@@ -112,10 +111,7 @@ class LevelShapeGoldenTest {
 
             val layout = levelLayout(obj, fonts)
             val wantLayout = want["layout"]!!.jsonObject
-            assertRect("$name: layout.header", wantLayout["header"], layout.header)
             assertEquals("$name: layout.baseline", wantLayout.int("baseline"), layout.baseline)
-            assertRect("$name: layout.icon", wantLayout["icon"], layout.icon)
-            assertRect("$name: layout.text", wantLayout["text"], layout.text)
             assertRect("$name: layout.value", wantLayout["value"], layout.value)
             assertRect("$name: layout.bar", wantLayout["bar"], layout.bar)
             assertRect("$name: layout.slot", wantLayout["slot"], layout.slot)

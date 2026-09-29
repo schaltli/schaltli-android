@@ -428,11 +428,11 @@ fun ArcLevelView(
         )
     }
 
-    // The numbers, the way the bar says them: the big one is the COMMANDED
-    // value - where the handle points, and what a finger just changed - and
-    // the measured one only appears when it says something the big one does
-    // not. A ring puts them one above the other rather than side by side: it
-    // has the room, and it has no header line to lay them out on.
+    // The numbers: the big one is the COMMANDED value - where the handle
+    // points, and what a finger just changed - and the measured one only
+    // appears when it says something the big one does not. A ring puts them
+    // one above the other; a bar shows the commanded one alone since it lost
+    // its header line (2026-09-29).
     val displayValue = props.string("displayValue", "value")
     fun asText(raw: String, percent: Double): String =
         if (displayValue == "percentage") "${percent.roundToInt()}%" else raw

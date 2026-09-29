@@ -68,7 +68,7 @@ data class FontEntry(
     val descent: Int? = null,
     // Where a TTF's capitals reach above the baseline, as the browser
     // measured them when the font was added (the designer's
-    // add-ttf-font-dialog.tsx). A level indicator's header line is built from
+    // add-ttf-font-dialog.tsx). A level indicator's number is placed from
     // this and nothing else, so without it the text would sit a row or two off
     // what the designer draws - see fontMetricsOf in LevelShape.kt. Absent for
     // a DDF-declared font, which nothing ever measured; four fifths of the

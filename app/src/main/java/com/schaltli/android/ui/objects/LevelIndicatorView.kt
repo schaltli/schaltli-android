@@ -1,10 +1,7 @@
 package com.schaltli.android.ui.objects
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Canvas as NativeCanvas
 import android.graphics.Paint
-import android.graphics.Rect
 import android.graphics.Typeface
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
@@ -24,7 +21,6 @@ import androidx.compose.ui.unit.dp
 import com.schaltli.android.data.FontEntry
 import com.schaltli.android.data.Project
 import com.schaltli.android.data.ScreenObject
-import com.schaltli.android.render.LEVEL_GAP
 import com.schaltli.android.render.LevelRect
 import com.schaltli.android.render.LevelRole
 import com.schaltli.android.render.LevelSegment
@@ -49,18 +45,13 @@ import com.schaltli.android.render.fillRoundRect
 import com.schaltli.android.render.handleColourFor
 import com.schaltli.android.render.pillBitmap
 import com.schaltli.android.render.levelEmptyTrack
-import com.schaltli.android.render.levelFontMetrics
 import com.schaltli.android.render.levelFontSize
 import com.schaltli.android.render.levelFrameInner
 import com.schaltli.android.render.levelHandleRect
 import com.schaltli.android.render.levelIsVertical
 import com.schaltli.android.render.levelLayout
-import com.schaltli.android.render.levelLineHeight
-import com.schaltli.android.render.levelName
 import com.schaltli.android.render.levelPercentFromPoint
 import com.schaltli.android.render.levelSegments
-import com.schaltli.android.render.levelShowsNumber
-import com.schaltli.android.render.levelShowsSub
 import com.schaltli.android.render.levelTrackLook
 import com.schaltli.android.ui.LocalBundleInstallation
 import kotlinx.serialization.json.JsonArray
@@ -167,43 +158,9 @@ internal fun isSettableLevel(obj: ScreenObject): Boolean =
     (obj.type == "slider" || obj.type == "dial") &&
         !obj.properties.stringOrNull("writeTopic").isNullOrBlank()
 
-/**
- * The smaller font the measured value is written in, out of the project's own
- * list - the designer's `levelSubFont`.
- *
- * A BDF font is a grid of bitmaps and cannot be scaled, so "smaller" has to
- * mean *another font*, which is why this is a choice rather than a number.
- * The same family first (`font-roboto-16` and `font-roboto-12` share
- * `font-roboto-`), because mixing another face into the line looks like a
- * mistake; then any font small enough; and if the project has nothing
- * smaller, the object's own, which merely looks unremarkable.
- */
-internal fun levelSubFont(fonts: List<FontEntry>, obj: ScreenObject): FontEntry? {
-    if (fonts.isEmpty()) return null
-    val own = fonts.firstOrNull { it.id == obj.properties.stringOrNull("fontId") }
-    // Two thirds of the object's own line - not of `fontSize`, which the font
-    // picker never updates.
-    val wanted = levelLineHeight(levelFontMetrics(obj, fonts)) * 2 / 3
-    fun family(id: String) = id.replace(Regex("[0-9]+$"), "")
-    val ownFamily = own?.let { family(it.id) } ?: ""
-    val smaller = fonts.filter { it.size <= wanted }
-    fun best(list: List<FontEntry>) = list.maxByOrNull { it.size }
-    return best(smaller.filter { family(it.id) == ownFamily }) ?: best(smaller) ?: own
-}
-
 /** The size the text is drawn at: a TTF's own, else the object's `fontSize`. */
 internal fun levelTextSize(obj: ScreenObject, font: FontEntry?): Int =
     if (font?.path != null && font.size > 0) font.size else levelFontSize(obj)
-
-/**
- * The size the bracketed number is drawn at. A different font carries its own
- * size; the object's own font, when nothing smaller was found, is drawn at two
- * thirds.
- */
-internal fun levelSubTextSize(obj: ScreenObject, sub: FontEntry?, own: FontEntry?): Int {
-    if (sub != null && sub !== own) return levelTextSize(obj, sub)
-    return maxOf(6, levelTextSize(obj, own) * 2 / 3)
-}
 
 /**
  * A level indicator: a tank gauge, and - with somewhere to write to - the
@@ -218,12 +175,9 @@ internal fun levelSubTextSize(obj: ScreenObject, sub: FontEntry?, own: FontEntry
  * look the designer retired on 2026-09-19 (docs/2026-09-19-slider-look.md),
  * and there was nowhere to put the difference except a HIL percentage.
  *
- * The icon a header line can carry arrives baked, like a Switch's: the
- * designer draws it as tall as a capital of the object's own font and trims
- * it to its own ink, so that it stands on the baseline as a letter of the
- * name rather than floating above it as a picture beside it. Rasterising the
- * SVG here instead would be a second set of pixels that disagrees rather than
- * a missing one.
+ * There is no header line: a Bar and a Slider lost their name and icon on
+ * 2026-09-29 (designer 84f3fb7), and with them the bracketed measured value
+ * that stood beside the commanded one. A label beside a bar is a Text object.
  */
 @Composable
 fun LevelIndicatorView(
@@ -287,21 +241,11 @@ fun LevelIndicatorView(
     val displayValue = props.string("displayValue", "value")
     fun asText(raw: String, percent: Double): String =
         if (displayValue == "percentage") "${percent.roundToInt()}%" else raw
-    val measured = asText(rawValue, fillPercent)
-    val commanded = if (setpointPercent != null) asText(rawMarker, setpointPercent) else measured
+    val commanded = if (setpointPercent != null) asText(rawMarker, setpointPercent) else asText(rawValue, fillPercent)
 
     val ownFont: FontEntry? = fonts.firstOrNull { it.id == props.stringOrNull("fontId") }
-    val subFont = levelSubFont(fonts, obj)
     val installation = LocalBundleInstallation.current
     val ownTypeface = remember(ownFont?.path, installation) { typefaceOf(ownFont, assetFileOf) }
-    // The header's icon, baked by the export at the size the header draws it.
-    // Keyed by the installation as well as the path: two bundles have the
-    // same file names, so the path alone would hand back the previous
-    // project's picture.
-    val headerIcon: Bitmap? = remember(obj.path, installation) {
-        obj.path?.let { assetFileOf(it) }?.takeIf { it.exists() }?.let { BitmapFactory.decodeFile(it.path) }
-    }
-    val subTypeface = remember(subFont?.path, installation) { typefaceOf(subFont, assetFileOf) }
 
     val density = LocalDensity.current
     val layout = levelLayout(obj, fonts)
@@ -346,8 +290,8 @@ fun LevelIndicatorView(
                     // The finger sets the value where it is - on the touch,
                     // all through a drag, and on the lift (trackLevelFinger) -
                     // measured against the TRACK, not against the object, so
-                    // the finger and the picture cannot drift apart now that a
-                    // header line and a number take room off the rectangle.
+                    // the finger and the picture cannot drift apart now that the
+                    // number takes room off the rectangle.
                     Modifier.pointerInput(obj.id, writeTopic, step, calibration, fonts) {
                         trackLevelFinger({ offset ->
                             val localX = offset.x / density.density
@@ -427,87 +371,27 @@ fun LevelIndicatorView(
                     }
                 }
 
-                // Before anything that depends on a value: a bar that has
-                // heard nothing still says what it is.
-                val iconRect = layout.icon
-                if (headerIcon != null && iconRect != null) {
-                    native.drawBitmap(
-                        headerIcon,
-                        null,
-                        Rect(
-                            ((iconRect.x - ox) * scale).toInt(),
-                            ((iconRect.y - oy) * scale).toInt(),
-                            ((iconRect.x - ox + iconRect.w) * scale).toInt(),
-                            ((iconRect.y - oy + iconRect.h) * scale).toInt(),
-                        ),
-                        Paint().apply { isAntiAlias = false; isFilterBitmap = false },
-                    )
-                }
+                // A bar that has heard nothing shows no number: the track
+                // alone says what it is.
+                if (noValue) return@drawIntoCanvas
 
+                // The number - never over the bar any more, and only one: the
+                // commanded value, where the handle points. With Material's 16
+                // unit track no number fits inside it, so the old two-pass trick
+                // that straddled the fill's edge has nothing left to do.
+                val column = layout.value ?: return@drawIntoCanvas
+                if (column.w <= 0 || column.h <= 0) return@drawIntoCanvas
                 val pen = UnitTextPen(ownTypeface, levelTextSize(obj, ownFont), scale, textArgb)
-                fun drawAt(p: UnitTextPen, clip: LevelRect, text: String, x: Int, baseline: Int) {
-                    if (text.isEmpty() || clip.w <= 0 || clip.h <= 0) return
-                    native.save()
-                    native.clipRect(
-                        (clip.x - ox) * scale,
-                        (clip.y - oy) * scale,
-                        (clip.x - ox + clip.w) * scale,
-                        (clip.y - oy + clip.h) * scale,
-                    )
-                    native.drawText(text, (x - ox) * scale, (baseline - oy) * scale, p.draw)
-                    native.restore()
-                }
-
-                /** Text whose right end is at [right]. Returns where its left end landed. */
-                fun drawRightAligned(p: UnitTextPen, clip: LevelRect, text: String, right: Int): Int {
-                    val left = right - p.widthOf(text)
-                    drawAt(p, clip, text, left, layout.baseline)
-                    return left
-                }
-
-                /** The name, from the start of the header's text run up to [right]. */
-                fun drawHeaderName(right: Int) {
-                    val name = levelName(obj)
-                    val runRect = layout.text ?: return
-                    if (name.isEmpty() || right <= runRect.x) return
-                    drawAt(pen, runRect.copy(w = right - runRect.x), name, runRect.x, layout.baseline)
-                }
-
-                if (noValue) {
-                    // The name, and neither fill nor number: a bar that has
-                    // heard nothing still says what it is.
-                    layout.text?.let { drawHeaderName(it.x + it.w) }
-                    return@drawIntoCanvas
-                }
-
-                // The numbers - never over the bar any more. With Material's
-                // 16 unit track no number fits inside it, so the old two-pass
-                // trick that straddled the fill's edge has nothing left to do.
-                // The big one is the commanded value, where the handle points;
-                // the measured one only appears when it says something the big
-                // one does not.
-                val textRun = layout.text
-                if (textRun != null) {
-                    var right = textRun.x + textRun.w
-                    if (levelShowsNumber(obj)) {
-                        right = drawRightAligned(pen, textRun, commanded, right) - LEVEL_GAP
-                        if (levelShowsSub(obj) && measured != commanded) {
-                            // In brackets rather than behind a word: a bracket
-                            // needs no language. Smaller too, and on the same
-                            // baseline as the big one.
-                            val subPen = UnitTextPen(
-                                subTypeface,
-                                levelSubTextSize(obj, subFont, ownFont),
-                                scale,
-                                textArgb,
-                            )
-                            right = drawRightAligned(subPen, textRun, "($measured)", right) - LEVEL_GAP
-                        }
-                    }
-                    drawHeaderName(right)
-                } else {
-                    layout.value?.let { drawRightAligned(pen, it, commanded, it.x + it.w) }
-                }
+                native.save()
+                native.clipRect(
+                    (column.x - ox) * scale,
+                    (column.y - oy) * scale,
+                    (column.x - ox + column.w) * scale,
+                    (column.y - oy + column.h) * scale,
+                )
+                val left = column.x + column.w - pen.widthOf(commanded)
+                native.drawText(commanded, (left - ox) * scale, (layout.baseline - oy) * scale, pen.draw)
+                native.restore()
             }
         }
     }
