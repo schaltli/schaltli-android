@@ -48,16 +48,29 @@ object DdfBuilder {
      * The font sizes the designer may offer. Roboto is what Compose draws
      * with, so what the designer previews and what the phone shows are the
      * same typeface; the ascent/descent pairs are what the designer lays
-     * text out with.
+     * text out with - Roboto's own 1900 and 500 units in 2048, rounded.
+     *
+     * The TTF scales to any size, so the list only has to cover what the
+     * designer's text styles ask for: Caption to Display run from about 13 to
+     * 44 dp of line height (docs/2026-09-30-size-scale.md in the designer).
+     * 28 to 48 were added for Title and Display on 2026-09-30.
      */
     private data class FontSpec(val size: Int, val ascent: Int, val descent: Int)
 
-    private val FONTS = listOf(
-        FontSpec(12, 11, 3),
-        FontSpec(16, 15, 4),
-        FontSpec(20, 19, 5),
-        FontSpec(24, 22, 6),
-    )
+    private val FONTS = listOf(12, 14, 16, 20, 24, 28, 32, 40, 48).map { size ->
+        FontSpec(size, Math.round(size * 1900 / 2048f), Math.round(size * 500 / 2048f))
+    }
+
+    /** The one family this phone draws text in; there is no bold face in the zip. */
+    private const val FAMILY = "Roboto"
+
+    /**
+     * A dp is 1/160 inch on every Android screen - that is what the unit
+     * means - so the screen's size in millimetres follows from its size in dp
+     * alone, and the designer's millimetre scale lands on the phone as it
+     * does on a board.
+     */
+    private fun dpToMm(dp: Int): String = String.format(java.util.Locale.ROOT, "%.2f", dp / 160.0 * 25.4)
 
     /** Margins of the drawn phone body around its screen, in project units. */
     private const val SIDE_MARGIN = 16
@@ -88,7 +101,9 @@ object DdfBuilder {
             |      "size": ${f.size},
             |      "ascent": ${f.ascent},
             |      "descent": ${f.descent},
-            |      "format": "ttf"
+            |      "format": "ttf",
+            |      "family": "$FAMILY",
+            |      "weight": "regular"
             |    }
             """.trimMargin()
         }
@@ -105,13 +120,18 @@ object DdfBuilder {
         |    "width": $width,
         |    "height": $height,
         |    "colorDepth": "24bit",
-        |    "allowedRotations": [90, 180, 270]
+        |    "allowedRotations": [90, 180, 270],
+        |    "widthMm": ${dpToMm(width)},
+        |    "heightMm": ${dpToMm(height)}
         |  },
         |  "adornment": {
         |    "svgPath": "adornment.svg"
         |  },
         |  "fonts": [
         |$fonts
+        |  ],
+        |  "typography": [
+        |    { "name": "Standard", "styles": { "caption": "$FAMILY", "label": "$FAMILY", "title": "$FAMILY", "display": "$FAMILY" } }
         |  ],
         |  "supportedObjectTypes": [$types],
         |  "systemGeneration": "1.1",

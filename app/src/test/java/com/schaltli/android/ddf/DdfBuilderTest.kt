@@ -62,6 +62,38 @@ class DdfBuilderTest {
     }
 
     @Test
+    fun `says its screen in millimetres from its dp`() {
+        // 160 dp to the inch: 412 dp is 65.41 mm, 915 dp is 145.26 mm. The
+        // designer turns its text styles' and size steps' millimetres into
+        // this phone's units with them (docs/2026-09-30-size-scale.md there).
+        val screen = JSONObject(String(entries(build().bytes)["device.json"]!!)).getJSONObject("screen")
+        assertEquals(65.41, screen.getDouble("widthMm"), 0.005)
+        assertEquals(145.26, screen.getDouble("heightMm"), 0.005)
+    }
+
+    @Test
+    fun `offers Roboto as the Standard typography, in sizes up to Display`() {
+        val manifest = JSONObject(String(entries(build().bytes)["device.json"]!!))
+        val fonts = manifest.getJSONArray("fonts")
+        val list = (0 until fonts.length()).map { fonts.getJSONObject(it) }
+        assertTrue(list.all { it.getString("family") == "Roboto" && it.getString("weight") == "regular" })
+        // The ids the designer already knows stay: projects bind to them.
+        assertTrue(list.any { it.getString("id") == "font-roboto-16" })
+        // Display is about 44 dp of line height; the largest face reaches it.
+        val largest = list.maxOf { it.getInt("ascent") + it.getInt("descent") }
+        assertTrue("largest line height $largest", largest >= 44)
+
+        val typography = manifest.getJSONArray("typography")
+        assertEquals(1, typography.length())
+        val standard = typography.getJSONObject(0)
+        assertEquals("Standard", standard.getString("name"))
+        val styles = standard.getJSONObject("styles")
+        for (style in listOf("caption", "label", "title", "display")) {
+            assertEquals("Roboto", styles.getString(style))
+        }
+    }
+
+    @Test
     fun `carries whatever name the phone is known by`() {
         // DeviceIdentity picks that name - the vendor's marketing string
         // where there is one, the owner's own name for the device, or maker
