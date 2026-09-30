@@ -47,7 +47,7 @@ import com.schaltli.android.render.makeArcGradient
 import com.schaltli.android.render.blendBands
 import com.schaltli.android.render.handleColourFor
 import com.schaltli.android.render.levelHasHandle
-import com.schaltli.android.render.levelTrackLook
+import com.schaltli.android.render.levelTrackPaint
 import com.schaltli.android.render.makeArcSector
 import com.schaltli.android.render.rgb565ToArgb
 import com.schaltli.android.render.toRgb565
@@ -188,6 +188,8 @@ private fun buildGeometry(
     fillPercent: Double,
     setpointPercent: Double?,
     framed: Boolean,
+    frameWidth: Int = 1,
+    framedBody: Boolean = false,
 ): ArcRingGeometry {
     val size = min(obj.width, obj.height).roundToInt().coerceAtLeast(1)
     val thickness = min(arcThickness(obj).roundToInt().coerceAtLeast(1), size / 2)
@@ -223,6 +225,8 @@ private fun buildGeometry(
         handle = handle,
         pointer = pointer,
         framed = framed,
+        frameWidth = frameWidth,
+        framedBody = framedBody,
     )
 }
 
@@ -245,6 +249,7 @@ private class RingShading(
 private fun rasterizeRing(
     geom: ArcRingGeometry,
     trackColour: Rgb565,
+    bodyColour: Rgb565,
     fillColour: Rgb565,
     handleColour: Rgb565,
     pointerColour: Rgb565,
@@ -264,7 +269,7 @@ private fun rasterizeRing(
     for (py in 0 until size) {
         for (px in 0 until size) {
             val bands = arcPixelBands(geom, px, py)
-            val covered = bands.fill + bands.track + bands.handle + bands.pointer
+            val covered = bands.fill + bands.track + bands.body + bands.handle + bands.pointer
             val at = py * size + px
             // The pixel's centre, in 1/8 pixel from the ring's centre.
             val cx = px * ARC_SUBPIXEL_SCALE + ARC_SUBPIXEL_SCALE / 2 - centre
@@ -302,6 +307,7 @@ private fun rasterizeRing(
                     handleColour, bands.handle,
                     base, ARC_COVERAGE_MAX - covered,
                     pointerColour, bands.pointer,
+                    bodyColour, bands.body,
                 ),
             )
         }
@@ -374,12 +380,12 @@ fun ArcLevelView(
     // approximation - but it is the same approximation everywhere, so only the
     // eye can tell.
     val ground = screenBackgroundColor ?: "#ffffff"
-    val look = levelTrackLook(fillColor, ground)
+    val look = levelTrackPaint(props.stringOrNull("trackColor"), props.stringOrNull("trackEdgeColor"), fillColor, ground)
 
     val bitmap = remember(
         obj.id, obj.width, obj.height, props, fillPercent, setpointPercent, screenBackgroundColor,
     ) {
-        val geom = buildGeometry(obj, fillPercent, setpointPercent, look.framed)
+        val geom = buildGeometry(obj, fillPercent, setpointPercent, look.framed, look.edgeWidth, look.body)
         val sweep = resolveArcSweep(obj)
         val endHex = props.stringOrNull("fillEndColor")?.takeIf { it.isNotBlank() }
         val filled = sweepForPercent(sweep.sweep64, fillPercent)
@@ -415,7 +421,9 @@ fun ArcLevelView(
             // Where the mixed track cannot be told from the background, the
             // band is drawn as an outline in the bar's own colour instead of
             // a body in a colour nobody would see.
-            trackColour = if (look.framed) toRgb565(fillColor) else toRgb565(look.track),
+            trackColour = if (look.framed) toRgb565(look.edge ?: fillColor) else toRgb565(look.track),
+            // Inside a theme's edge the track keeps its colour (levelTrackPaint).
+            bodyColour = toRgb565(look.track),
             fillColour = toRgb565(fillColor),
             handleColour = handleColour,
             // A gauge's pointer is in the text's colour, as the bar's is -

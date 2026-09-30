@@ -280,6 +280,10 @@ data class ArcRingGeometry(
      * ([levelTrackLook]'s `framed`, [levelFrameInner]).
      */
     val framed: Boolean = false,
+    /** The frame's width in pixels ([levelTrackPaint]'s edgeWidth). */
+    val frameWidth: Int = 1,
+    /** Whether a framed track's inside is painted, in its own colour (body). */
+    val framedBody: Boolean = false,
 )
 
 /**
@@ -295,8 +299,13 @@ data class ArcRingGeometry(
  */
 @JvmInline
 value class ArcPixelBands(private val packed: Int) {
-    val fill: Int get() = packed and 0xFF
-    val track: Int get() = (packed shr 8) and 0xFF
+    // Six bits a band since the body joined them (2026-09-30): a count is at
+    // most 16, and five bands of six bits still fit one Int.
+    val fill: Int get() = packed and 0x3F
+    val track: Int get() = (packed shr 6) and 0x3F
+
+    /** The inside of a framed track under a theme's edge (framedBody). */
+    val body: Int get() = (packed shr 24) and 0x3F
 
     /**
      * The setpoint handle. Called `marker` until 2026-09-22, when it stopped
@@ -304,15 +313,15 @@ value class ArcPixelBands(private val packed: Int) {
      * lying across the band, standing out of it on both sides, with a gap cut
      * either side of it.
      */
-    val handle: Int get() = (packed shr 16) and 0xFF
+    val handle: Int get() = (packed shr 12) and 0x3F
 
     /** A gauge's setpoint pointer, which has no handle ([ArcPointer]). */
-    val pointer: Int get() = (packed shr 24) and 0xFF
+    val pointer: Int get() = (packed shr 18) and 0x3F
 
     companion object {
         val EMPTY = ArcPixelBands(0)
-        fun of(fill: Int, track: Int, handle: Int, pointer: Int = 0) =
-            ArcPixelBands(fill or (track shl 8) or (handle shl 16) or (pointer shl 24))
+        fun of(fill: Int, track: Int, handle: Int, pointer: Int = 0, body: Int = 0) =
+            ArcPixelBands(fill or (track shl 6) or (handle shl 12) or (pointer shl 18) or (body shl 24))
     }
 }
 
@@ -326,11 +335,11 @@ private fun inArcCap(cap: ArcCap, x: Int, y: Int): Boolean {
     return dx * dx + dy * dy <= cap.r * cap.r
 }
 
-/** Whether a point inside a cap is within the frame's own pixel of its edge. */
-private fun capEdge(cap: ArcCap, x: Int, y: Int): Boolean {
+/** Whether a point inside a cap is within the frame of its edge, `frame` in 1/8 units. */
+private fun capEdge(cap: ArcCap, x: Int, y: Int, frame: Int): Boolean {
     val dx = x - cap.cx
     val dy = y - cap.cy
-    val inner = cap.r - ARC_FRAME
+    val inner = cap.r - frame
     return dx * dx + dy * dy >= inner * inner
 }
 
@@ -356,13 +365,15 @@ fun arcPixelBands(geom: ArcRingGeometry, px: Int, py: Int): ArcPixelBands {
     val rOuter2 = rOuter * rOuter
     val rInner2 = if (rInner > 0) rInner * rInner else 0
     // Where the frame's own pixel ends, when the track is an outline.
-    val rOuterInner2 = (rOuter - ARC_FRAME) * (rOuter - ARC_FRAME)
-    val rInnerOuter2 = (rInner + ARC_FRAME) * (rInner + ARC_FRAME)
+    val frame = ARC_FRAME * geom.frameWidth
+    val rOuterInner2 = (rOuter - frame) * (rOuter - frame)
+    val rInnerOuter2 = (rInner + frame) * (rInner + frame)
 
     var fill = 0
     var track = 0
     var handle = 0
     var pointer = 0
+    var body = 0
 
     // Two exact short cuts before sampling - not approximations, so they can
     // live in the shared algorithm without either side having to reproduce a
@@ -475,12 +486,13 @@ fun arcPixelBands(geom: ArcRingGeometry, px: Int, py: Int): ArcPixelBands {
             // left open, same as the bar's levelFrameInner.
             val onRadius = inside && (d2 >= rOuterInner2 || d2 <= rInnerOuter2)
             val onCapRim = !inside &&
-                ((inStartCap && capEdge(startCap!!, x, y)) || (inEndCap && capEdge(endCap!!, x, y)))
+                ((inStartCap && capEdge(startCap!!, x, y, frame)) || (inEndCap && capEdge(endCap!!, x, y, frame)))
             if (onRadius || onCapRim) track++
+            else if (geom.framedBody) body++
         }
     }
 
-    return ArcPixelBands.of(fill, track, handle, pointer)
+    return ArcPixelBands.of(fill, track, handle, pointer, body)
 }
 
 // --- the band's own geometry ------------------------------------------------
@@ -675,13 +687,16 @@ fun blendBands(
     /** A gauge's pointer, since 2026-09-28 the fourth band. */
     pointerColour: Rgb565 = handleColour,
     pointerCount: Int = 0,
+    /** A framed track's body under a theme's edge, since 2026-09-30. */
+    bodyColour: Rgb565 = trackColour,
+    bodyCount: Int = 0,
 ): Rgb565 {
     val r = background.r * backgroundCount + fillColour.r * fillCount + trackColour.r * trackCount +
-        handleColour.r * handleCount + pointerColour.r * pointerCount
+        handleColour.r * handleCount + pointerColour.r * pointerCount + bodyColour.r * bodyCount
     val g = background.g * backgroundCount + fillColour.g * fillCount + trackColour.g * trackCount +
-        handleColour.g * handleCount + pointerColour.g * pointerCount
+        handleColour.g * handleCount + pointerColour.g * pointerCount + bodyColour.g * bodyCount
     val b = background.b * backgroundCount + fillColour.b * fillCount + trackColour.b * trackCount +
-        handleColour.b * handleCount + pointerColour.b * pointerCount
+        handleColour.b * handleCount + pointerColour.b * pointerCount + bodyColour.b * bodyCount
     val half = ARC_COVERAGE_MAX / 2
     // All operands are non-negative, so integer division floors - the same
     // thing Math.floor does on the designer's side.

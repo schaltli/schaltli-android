@@ -94,8 +94,48 @@ data class LevelLayout(
     val track: LevelRect,
 )
 
-/** What the unfilled part of the track looks like; see [levelTrackLook]. */
-data class LevelTrackLook(val track: String, val framed: Boolean)
+/**
+ * What the unfilled part of the track looks like; see [levelTrackLook] and
+ * [levelTrackPaint]. `edge` is what a framed track is outlined in, `edgeWidth`
+ * how wide, and `body` whether its inside is painted in `track`.
+ */
+data class LevelTrackLook(
+    val track: String,
+    val framed: Boolean,
+    val edge: String? = null,
+    val edgeWidth: Int = 1,
+    val body: Boolean = false,
+)
+
+/** The width of a track's edge where the theme gives it one: 2 px everywhere (2026-09-30). */
+const val LEVEL_EDGE_WIDTH = 2
+
+/**
+ * What a level's empty track is painted with - the designer's
+ * levelTrackPaint (lib/level-shape.ts, 2026-09-30). Its colour and an edge
+ * round it are the theme's, carried in trackColor and trackEdgeColor. An edge
+ * frames the track, [LEVEL_EDGE_WIDTH] px, the body in the track's colour.
+ * Without one, a track that cannot be told from the background is framed in
+ * the fill's colour, 1 px, with no body, as before. Without a trackColor the
+ * track is derived ([levelTrackLook]).
+ */
+fun levelTrackPaint(
+    trackColor: String?,
+    trackEdgeColor: String?,
+    fillColor: String,
+    backgroundColor: String,
+): LevelTrackLook {
+    fun hex(s: String?) = s != null && Regex("^#[0-9a-fA-F]{6}$").matches(s)
+    val derived = levelTrackLook(fillColor, backgroundColor)
+    val track = if (hex(trackColor)) trackColor!! else derived.track
+    if (hex(trackEdgeColor)) {
+        return LevelTrackLook(track, framed = true, edge = trackEdgeColor, edgeWidth = LEVEL_EDGE_WIDTH, body = true)
+    }
+    val t = colorChannels(track)
+    val b = colorChannels(backgroundColor)
+    val unseen = t == null || b == null || (t[0] == b[0] && t[1] == b[1] && t[2] == b[2])
+    return LevelTrackLook(track, framed = unseen, edge = fillColor, edgeWidth = 1, body = false)
+}
 
 /** Material's 16, when the author has set no thickness. */
 const val LEVEL_DEFAULT_THICKNESS = 16
@@ -488,13 +528,14 @@ fun levelSegments(
  *
  * Null when the run is too short or too thin to have an inside.
  */
-fun levelFrameInner(seg: LevelSegment, vertical: Boolean): LevelSegment? {
-    val a0 = if (seg.roundStart) 1 else 0
-    val a1 = if (seg.roundEnd) 1 else 0
+fun levelFrameInner(seg: LevelSegment, vertical: Boolean, width: Int = 1): LevelSegment? {
+    val a0 = if (seg.roundStart) width else 0
+    val a1 = if (seg.roundEnd) width else 0
+    val r = maxOf(0, seg.r - width)
     val inner = if (vertical) {
-        seg.copy(x = seg.x + 1, y = seg.y + a0, w = seg.w - 2, h = seg.h - a0 - a1, r = maxOf(0, seg.r - 1))
+        seg.copy(x = seg.x + width, y = seg.y + a0, w = seg.w - 2 * width, h = seg.h - a0 - a1, r = r)
     } else {
-        seg.copy(x = seg.x + a0, y = seg.y + 1, w = seg.w - a0 - a1, h = seg.h - 2, r = maxOf(0, seg.r - 1))
+        seg.copy(x = seg.x + a0, y = seg.y + width, w = seg.w - a0 - a1, h = seg.h - 2 * width, r = r)
     }
     return if (inner.w > 0 && inner.h > 0) inner else null
 }

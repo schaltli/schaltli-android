@@ -52,7 +52,7 @@ import com.schaltli.android.render.levelIsVertical
 import com.schaltli.android.render.levelLayout
 import com.schaltli.android.render.levelPercentFromPoint
 import com.schaltli.android.render.levelSegments
-import com.schaltli.android.render.levelTrackLook
+import com.schaltli.android.render.levelTrackPaint
 import com.schaltli.android.ui.LocalBundleInstallation
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -205,11 +205,12 @@ fun LevelIndicatorView(
     // What the control stands on: half of what the track's colour is mixed
     // from, and what the soft edges of every run are mixed into.
     val background = screenBackgroundColor ?: "#ffffff"
-    val look = levelTrackLook(fillColor, background)
+    val look = levelTrackPaint(props.stringOrNull("trackColor"), props.stringOrNull("trackEdgeColor"), fillColor, background)
     // Anti-aliased on 24 bit and nowhere else - see Project.colorDepth. Below
     // it the whole-pixel path below runs exactly as it always has.
     val soft = project.colorDepth == "24bit"
     val trackArgb = (parseHexColor(look.track) ?: Color.Transparent).toArgb()
+    val edgeArgb = (parseHexColor(look.edge ?: fillColor) ?: Color(0xFF4CAF50)).toArgb()
     val textArgb = (props.stringOrNull("textColor")?.let(::parseHexColor) ?: Color.Black).toArgb()
 
     val calibration = parseCalibrationPoints(props)
@@ -339,8 +340,8 @@ fun LevelIndicatorView(
                 // the background painted back over the inside.
                 fun trackRun(seg: LevelSegment) {
                     if (!look.framed) return run(seg, trackArgb)
-                    run(seg, fillArgb)
-                    levelFrameInner(seg, vertical)?.let { run(it, trackArgb) }
+                    run(seg, edgeArgb)
+                    levelFrameInner(seg, vertical, look.edgeWidth)?.let { run(it, trackArgb) }
                 }
 
                 if (soft) {
@@ -467,8 +468,8 @@ private fun levelPills(
             painted += PaintedPill(bandOf(seg), look.track)
             continue
         }
-        levelFrameInner(seg, vertical)?.let { painted += PaintedPill(bandOf(it), look.track) }
-        painted += PaintedPill(bandOf(seg), fillColor)
+        levelFrameInner(seg, vertical, look.edgeWidth)?.let { painted += PaintedPill(bandOf(it), look.track) }
+        painted += PaintedPill(bandOf(seg), look.edge ?: fillColor)
     }
 
     return painted
