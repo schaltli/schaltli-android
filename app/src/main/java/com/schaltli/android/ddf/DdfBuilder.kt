@@ -1,5 +1,6 @@
 package com.schaltli.android.ddf
 
+import com.schaltli.android.SYSTEM_GENERATION
 import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
 import java.util.zip.CRC32
@@ -134,7 +135,7 @@ object DdfBuilder {
         |    { "name": "Standard", "styles": { "caption": "$FAMILY", "label": "$FAMILY", "title": "$FAMILY", "display": "$FAMILY" } }
         |  ],
         |  "supportedObjectTypes": [$types],
-        |  "systemGeneration": "1.1",
+        |  "systemGeneration": "$SYSTEM_GENERATION",
         |  "deviceActions": ["showScreenMenu"]
         |}
         |

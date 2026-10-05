@@ -42,6 +42,14 @@ data class Project(
      * docs/2026-09-22-pill-raster.md, "Wo nicht geglättet wird").
      */
     val colorDepth: String = "24bit",
+    /**
+     * How a placeholder's F and N formats write a number (the designer's
+     * docs/device-contract.md §2.4): one character each, the thousands one
+     * may be empty. A bundle exported before 2026-10-05 has neither and gets
+     * Switzerland's, the designer's default.
+     */
+    val decimalSeparator: String = ".",
+    val thousandsSeparator: String = "'",
     val fonts: List<FontEntry> = emptyList(),
     val topics: List<Topic> = emptyList(),
     val screens: List<Screen> = emptyList(),

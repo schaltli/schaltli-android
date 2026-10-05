@@ -1,0 +1,14 @@
+package com.schaltli.android
+
+/**
+ * What this app can read of a project (the designer's lib/system-generation.ts),
+ * announced in its hello and declared in its DDF - one constant for both, so
+ * the two cannot disagree.
+ *
+ * 1.1: reads the dark variant (XDark) beside every field and follows
+ * schaltli/state/theme (the designer's docs/device-contract.md §2.3, §4).
+ * 1.2: resolves the placeholders in a text - topics, device model and id, the
+ * project's separators (§2.4). The designer warns before deploying a project
+ * with placeholders to a device below it.
+ */
+const val SYSTEM_GENERATION = "1.2"

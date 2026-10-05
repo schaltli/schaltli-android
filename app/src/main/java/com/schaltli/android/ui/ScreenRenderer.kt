@@ -14,12 +14,15 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.schaltli.android.data.Project
 import com.schaltli.android.data.Screen
 import com.schaltli.android.data.ScreenObject
 import com.schaltli.android.data.ButtonAction
+import com.schaltli.android.data.resolvePlaceholders
 import com.schaltli.android.data.resolveTopicValue
+import com.schaltli.android.ddf.DeviceIdentity
 import com.schaltli.android.ui.objects.ArcLevelView
 import com.schaltli.android.ui.objects.LevelIndicatorView
 import com.schaltli.android.ui.objects.MqttDataLineView
@@ -210,7 +213,13 @@ fun DynamicObjectView(
 
     when (obj.type) {
         "text" -> {
-            val text = obj.properties.stringOrNull("text") ?: ""
+            // Recomposed whenever topicValues changes, so a text follows the
+            // topics its placeholders name as a bound object follows its own.
+            val context = LocalContext.current
+            val identity = remember { DeviceIdentity.deviceName(context) to DeviceIdentity.deviceId(context) }
+            val text = resolvePlaceholders(
+                obj.properties.stringOrNull("text") ?: "", project, topicValues, identity.first, identity.second,
+            )
             TextBoxView(obj, project, text, assetFileOf)
         }
         "live-text" -> {

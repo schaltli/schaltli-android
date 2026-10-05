@@ -4,6 +4,7 @@ import android.util.Log
 import com.hivemq.client.mqtt.MqttClient
 import com.hivemq.client.mqtt.datatypes.MqttQos
 import com.hivemq.client.mqtt.mqtt3.Mqtt3AsyncClient
+import com.schaltli.android.SYSTEM_GENERATION
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.channels.BufferOverflow
@@ -19,11 +20,6 @@ enum class ConnectionState { DISCONNECTED, CONNECTING, CONNECTED }
 
 /** The prefix every Schaltli topic sits under (the designer's lib/topic-prefix.ts). */
 private const val TOPIC_PREFIX = "schaltli"
-
-/** What this app can read of a project (the designer's lib/system-generation.ts). */
-// 1.1: reads the dark variant (XDark) beside every field and follows
-// schaltli/state/theme (the designer's docs/device-contract.md §2.3, §4).
-private const val SYSTEM_GENERATION = "1.1"
 
 data class BrokerConfig(
     val host: String,

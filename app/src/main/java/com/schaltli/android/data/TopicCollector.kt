@@ -29,6 +29,13 @@ private fun collectTopicsFromObjects(objects: List<ScreenObject>, into: MutableS
                 into.add(splitTopicPath(topicRef).topic)
             }
         }
+        // And every topic a text's placeholder names: a text has no binding,
+        // so without this its topics were never subscribed and it showed `??`
+        // for good (the designer's docs/2026-10-05-placeholder-devices.md).
+        if (obj.type == "text") {
+            val text = (obj.properties["text"] as? JsonPrimitive)?.contentOrNull.orEmpty()
+            for (reference in Placeholders.referencedTopics(text)) into.add(splitTopicPath(reference).topic)
+        }
         if (obj.children.isNotEmpty()) {
             collectTopicsFromObjects(obj.children, into)
         }
