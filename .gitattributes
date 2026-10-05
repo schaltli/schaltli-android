@@ -5,3 +5,8 @@
 # stale on a clean tree, and the designer would ship a zip that no longer
 # matches what this app declares.
 ddf-source/** -text
+
+# A byte-for-byte copy of schaltli-designer's lib/placeholders/vectors.json,
+# compared byte for byte by PlaceholdersTest - both are kept LF, or
+# core.autocrlf would make the copy differ on one checkout and not the other.
+app/src/test/resources/placeholder-vectors.json text eol=lf
