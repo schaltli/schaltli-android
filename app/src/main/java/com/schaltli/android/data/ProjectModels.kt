@@ -53,6 +53,14 @@ data class Project(
     val fonts: List<FontEntry> = emptyList(),
     val topics: List<Topic> = emptyList(),
     val screens: List<Screen> = emptyList(),
+    /**
+     * Screens opened over the current one by an "open-popup" action, apart
+     * from [screens] so that nothing paging through those ever meets one (the
+     * designer's docs/device-contract.md §2.5). Absent before 2026-10-06.
+     */
+    val popups: List<Screen> = emptyList(),
+    /** Where every popup's window is; null when the project has no popups. */
+    val popupFence: PopupFence? = null,
     val exportedAt: String? = null,
     val version: String? = null,
 )
@@ -113,11 +121,43 @@ data class Screen(
     val backgroundImage: String? = null,
     val buttonActions: Map<String, ButtonAction> = emptyMap(),
     val objects: List<ScreenObject> = emptyList(),
+    // A popup's frame colours (§2.5): the theme's outline for its edge, the
+    // scrim's colour. Absent on a screen.
+    val borderColor: String? = null,
+    val scrimColor: String? = null,
 )
+
+/**
+ * A popup's window (the designer's docs/device-contract.md §2.5): centred,
+ * 80 % of the display's area, a circle on a round display given by its
+ * bounding square. Project units.
+ */
+@Serializable
+data class PopupFence(
+    val shape: String = "rect",
+    val x: Int,
+    val y: Int,
+    val width: Int,
+    val height: Int,
+) {
+    val isCircle: Boolean get() = shape == "circle"
+
+    /** The same test as the designer's insideFence (lib/popup.ts) and the boards' PopupFence::contains. */
+    fun contains(px: Double, py: Double): Boolean {
+        if (isCircle) {
+            val r = width / 2.0
+            val dx = px - x - r
+            val dy = py - y - r
+            return dx * dx + dy * dy <= r * r
+        }
+        return px >= x && px < x + width && py >= y && py < y + height
+    }
+}
 
 @Serializable
 data class ButtonAction(
     // "next-screen" | "previous-screen" | "goto-screen" | "send-mqtt" | "device-action"
+    // | "open-popup" (targetScreenId: a popup's id) | "close-popup"
     val type: String,
     val targetScreenId: String? = null,
     val mqttTopic: String? = null,

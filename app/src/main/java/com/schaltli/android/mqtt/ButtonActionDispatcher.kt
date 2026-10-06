@@ -30,6 +30,11 @@ class ButtonActionDispatcher(
     // than anything in the project. This platform declares exactly one,
     // "showScreenMenu", matching the Waveshare's own DDF.
     private val onDeviceAction: (deviceActionId: String) -> Unit = {},
+    // A popup over the current screen, and closing it (the designer's
+    // docs/device-contract.md §2.5). Whether one is open is the app's own
+    // state, kept by whoever shows it.
+    private val onOpenPopup: (popupId: String) -> Unit = {},
+    private val onClosePopup: () -> Unit = {},
 ) {
     fun dispatch(action: ButtonAction, project: Project, currentScreenId: String) {
         when (action.type) {
@@ -45,6 +50,14 @@ class ButtonActionDispatcher(
                 val id = action.deviceActionId ?: return
                 onDeviceAction(id)
             }
+            "open-popup" -> {
+                // Only a popup the project has: anything else does nothing,
+                // as for a device that does not know the id.
+                val popup = project.popups.find { it.id == action.targetScreenId } ?: return
+                if (project.popupFence == null) return
+                onOpenPopup(popup.id)
+            }
+            "close-popup" -> onClosePopup()
         }
     }
 

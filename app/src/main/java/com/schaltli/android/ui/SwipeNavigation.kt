@@ -189,13 +189,22 @@ fun FollowingScreens(
                         // horizontal move to somewhere. From then on it owns
                         // the gesture, and release is decided on distance.
                         var followedId: String? = null
+                        // A control took the touch: a settable level consumes
+                        // it from touch-down (LevelDrag.kt). The gesture is
+                        // then its own, on a screen as on a popup - neither
+                        // followed nor named as a swipe (the designer's
+                        // docs/device-contract.md §2.5). Until 2026-10-06 this
+                        // never looked, and a long sideways drag on a slider
+                        // could page the screen as well.
+                        var taken = down.isConsumed
 
                         while (true) {
                             val event = awaitPointerEvent()
                             val change = event.changes.firstOrNull { it.id == down.id } ?: break
                             last = change.position
+                            if (change.isConsumed && followedId == null) taken = true
 
-                            if (!settling) {
+                            if (!settling && !taken) {
                                 val dx = (last.x - start.x) / density
                                 val dy = (last.y - start.y) / density
                                 if (followedId == null && isHorizontalSwipe(dx, dy)) {
@@ -224,6 +233,8 @@ fun FollowingScreens(
 
                             if (!change.pressed) break
                         }
+
+                        if (taken) return@awaitEachGesture
 
                         val elapsed = System.currentTimeMillis() - startMs
                         val dx = (last.x - start.x) / density

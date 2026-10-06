@@ -10,5 +10,8 @@ package com.schaltli.android
  * 1.2: resolves the placeholders in a text - topics, device model and id, the
  * project's separators (§2.4). The designer warns before deploying a project
  * with placeholders to a device below it.
+ * 1.3: opens and closes popups - popups[], popupFence, open-popup, close-popup
+ * (§2.5). The designer warns before deploying a project whose buttons open a
+ * popup to a device below it.
  */
-const val SYSTEM_GENERATION = "1.2"
+const val SYSTEM_GENERATION = "1.3"

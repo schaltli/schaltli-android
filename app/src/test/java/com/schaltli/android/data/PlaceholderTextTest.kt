@@ -5,6 +5,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -64,8 +65,11 @@ class PlaceholderTextTest {
         assertEquals("Grüße", resolved("Grüße"))
     }
 
+    // At least 1.2, the generation that resolves placeholders; 1.3 added
+    // popups on top (2026-10-06).
     @Test
-    fun `the app announces generation 1_2`() {
-        assertEquals("1.2", SYSTEM_GENERATION)
+    fun `the app announces generation 1_2 or newer`() {
+        val (major, minor) = SYSTEM_GENERATION.split(".").map { it.toInt() }
+        assertTrue(major > 1 || (major == 1 && minor >= 2))
     }
 }

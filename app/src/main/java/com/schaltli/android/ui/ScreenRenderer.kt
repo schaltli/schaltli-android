@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
@@ -64,6 +66,10 @@ fun ScreenRenderer(
     // button, and this remembers what was asked so the ring stays up until
     // the installation answers on the read topic.
     onAsked: (readTopic: String, readValue: String) -> Unit = { _, _ -> },
+    // A popup's ground - colour and picture - shows only inside its fence;
+    // its objects are drawn where they are, inside or not (the designer's
+    // docs/device-contract.md §2.5). Null for a screen, which fills it all.
+    backgroundClip: Shape? = null,
     modifier: Modifier = Modifier,
 ) {
     val backgroundColor = screen.backgroundColor?.let(::parseHexColor) ?: Color.White
@@ -71,8 +77,13 @@ fun ScreenRenderer(
     Box(
         modifier = modifier
             .size(width = project.screenWidth.dp, height = project.screenHeight.dp)
-            .background(backgroundColor),
+            .then(if (backgroundClip == null) Modifier.background(backgroundColor) else Modifier),
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(if (backgroundClip != null) Modifier.clip(backgroundClip).background(backgroundColor) else Modifier),
+        ) {
         screen.backgroundImage?.let { path ->
             // The background is a pixel-exact rendering of box/line/icon
             // objects at the project's own 360x800 reference resolution -
@@ -117,6 +128,7 @@ fun ScreenRenderer(
                     }
                 }
             }
+        }
         }
 
         for (obj in screen.objects.sortedByZIndex()) {

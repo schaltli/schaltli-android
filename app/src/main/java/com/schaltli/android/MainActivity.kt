@@ -53,6 +53,11 @@ import com.schaltli.android.ui.ScreenMenuOverlay
 import com.schaltli.android.ui.ScreenRenderer
 import com.schaltli.android.ui.SettingsScreen
 import com.schaltli.android.ui.FollowingScreens
+import com.schaltli.android.ui.PopupOverlay
+import com.schaltli.android.data.Screen
+import com.schaltli.android.data.ScreenObject
+import com.schaltli.android.mqtt.actionOf
+import androidx.compose.ui.geometry.Rect
 import com.schaltli.android.ui.theme.SchaltliTheme
 import kotlinx.coroutines.launch
 
@@ -229,6 +234,9 @@ fun SchaltliRoot(app: SchaltliApp) {
     var currentScreenId by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var showScreenMenu by remember { mutableStateOf(false) }
+    // The popup open over the current screen (the designer's
+    // docs/device-contract.md §2.5), by id; the app's own state, never on MQTT.
+    var openPopupId by remember { mutableStateOf<String?>(null) }
     var importError by remember { mutableStateOf<String?>(null) }
 
     // A freshly-loaded (or just-installed) project always starts on its first
@@ -244,6 +252,7 @@ fun SchaltliRoot(app: SchaltliApp) {
     // known screen and was measured against the wrong one for its trouble.
     LaunchedEffect(project, LocalBundleInstallation.current) {
         currentScreenId = project?.screens?.firstOrNull()?.id
+        openPopupId = null
     }
 
     // This phone's own Device Description File: built from the screen it
@@ -344,11 +353,30 @@ fun SchaltliRoot(app: SchaltliApp) {
         }
     }
 
+    // A set level publishes its command and remembers what was asked, so the
+    // marker shows it at once instead of waiting for the installation's
+    // answer. While the finger moves, at most every 100 ms - as the boards
+    // publish - and always on the lift; what it asks is held until the answer
+    // to the lift's value. The same for a screen and a popup.
+    val setLevel: (String, String, String, Boolean) -> Unit = { markerTopic, writeTopic, value, final ->
+        mqttRepository.noteAsked(markerTopic, value, awaitAnswer = final, stillHolding = !final)
+        val now = android.os.SystemClock.uptimeMillis()
+        if (final || now - levelPublishedAt[0] >= 100) {
+            levelPublishedAt[0] = now
+            mqttRepository.publish(writeTopic, value)
+        }
+    }
+    // A Switch publishes through the action dispatcher like a button does, so
+    // only the remembering is left for it here.
+    val asked: (String, String) -> Unit = { readTopic, readValue -> mqttRepository.noteAsked(readTopic, readValue) }
+
     val dispatcher = remember(mqttRepository) {
         ButtonActionDispatcher(
             mqttRepository = mqttRepository,
             onNavigate = { screenId ->
                 currentScreenId = screenId
+                // Another screen closes an open popup, wherever the change came from.
+                openPopupId = null
                 // A screen switch closes the menu that asked for it. Leaving
                 // it up over the new screen would hide the very thing the
                 // choice was about.
@@ -361,6 +389,8 @@ fun SchaltliRoot(app: SchaltliApp) {
                 // against a device that offers more of them.
                 if (deviceActionId == "showScreenMenu") showScreenMenu = true
             },
+            onOpenPopup = { popupId -> openPopupId = popupId },
+            onClosePopup = { openPopupId = null },
         )
     }
 
@@ -451,34 +481,41 @@ fun SchaltliRoot(app: SchaltliApp) {
                         askedValues = askedValues,
                         assetFileOf = { path -> app.projectRepository.assetFile(path) },
                         onAction = { action -> dispatcher.dispatch(action, activeProject, drawn.id) },
-                        // A set level publishes its command and remembers what
-                        // was asked, so the marker shows it at once instead of
-                        // waiting for the installation's answer.
-                        // While the finger moves, at most every 100 ms - as
-                        // the boards publish - and always on the lift; what it
-                        // asks is held until the answer to the lift's value.
-                        onSetLevel = { markerTopic, writeTopic, value, final ->
-                            mqttRepository.noteAsked(markerTopic, value, awaitAnswer = final, stillHolding = !final)
-                            val now = android.os.SystemClock.uptimeMillis()
-                            if (final || now - levelPublishedAt[0] >= 100) {
-                                levelPublishedAt[0] = now
-                                mqttRepository.publish(writeTopic, value)
-                            }
-                        },
-                        // A Switch publishes through the action dispatcher
-                        // like a button does, so only the remembering is
-                        // left for it here.
-                        onAsked = { readTopic, readValue ->
-                            mqttRepository.noteAsked(readTopic, readValue)
-                        },
+                        onSetLevel = setLevel,
+                        onAsked = asked,
                     )
                 }
+                }
+                // A popup over the screen. Taking every touch while it is
+                // open, it also keeps the swipes above from paging.
+                val popup = openPopupId?.let { id -> activeProject.popups.find { it.id == id } }
+                val fence = activeProject.popupFence
+                if (popup != null && fence != null) {
+                    PopupOverlay(
+                        popup = popup,
+                        project = activeProject,
+                        fence = fence,
+                        origin = popupOriginOn(screen, popup.id),
+                        onClose = { openPopupId = null },
+                    ) { clip ->
+                        ScreenRenderer(
+                            screen = popup,
+                            project = activeProject,
+                            topicValues = topicValues,
+                            askedValues = askedValues,
+                            assetFileOf = { path -> app.projectRepository.assetFile(path) },
+                            onAction = { action -> dispatcher.dispatch(action, activeProject, popup.id) },
+                            onSetLevel = setLevel,
+                            onAsked = asked,
+                            backgroundClip = clip,
+                        )
+                    }
                 }
                 if (showScreenMenu) {
                     ScreenMenuOverlay(
                         screens = activeProject.screens,
                         currentScreenId = screen.id,
-                        onSelect = { screenId -> currentScreenId = screenId; showScreenMenu = false },
+                        onSelect = { screenId -> currentScreenId = screenId; openPopupId = null; showScreenMenu = false },
                         onDismiss = { showScreenMenu = false },
                     )
                 }
@@ -486,4 +523,23 @@ fun SchaltliRoot(app: SchaltliApp) {
         }
 
     }
+}
+
+/**
+ * Where the button opening [popupId] is on [screen], in project units - the
+ * popup zooms out of it. The first such button, at any depth; null when none
+ * is there (a swipe, or a button inside a panel not showing).
+ */
+private fun popupOriginOn(screen: Screen, popupId: String): Rect? {
+    fun walk(objects: List<ScreenObject>, dx: Double, dy: Double): Rect? {
+        for (obj in objects) {
+            val action = obj.actionOf()
+            if (obj.type == "button" && action?.type == "open-popup" && action.targetScreenId == popupId) {
+                return Rect((dx + obj.x).toFloat(), (dy + obj.y).toFloat(), (dx + obj.x + obj.width).toFloat(), (dy + obj.y + obj.height).toFloat())
+            }
+            if (obj.children.isNotEmpty()) walk(obj.children, dx + obj.x, dy + obj.y)?.let { return it }
+        }
+        return null
+    }
+    return walk(screen.objects, 0.0, 0.0)
 }

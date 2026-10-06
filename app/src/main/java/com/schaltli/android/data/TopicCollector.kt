@@ -18,6 +18,11 @@ fun Project.collectTopicNames(): Set<String> {
     for (screen in screens) {
         collectTopicsFromObjects(screen.objects, topics)
     }
+    // A popup's objects read their topics as a screen's do; walked from
+    // 2026-10-06, when popups came - the knob had the same gap.
+    for (popup in popups) {
+        collectTopicsFromObjects(popup.objects, topics)
+    }
     return topics
 }
 
