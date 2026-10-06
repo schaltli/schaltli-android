@@ -28,7 +28,7 @@ one-time steps are needed before it builds:
 ## Releases
 
 Installing on a phone: see the handbook,
-<https://matthias-hess.github.io/schaltli-designer/geraete/android.html>.
+<https://schaltli.github.io/schaltli-designer/geraete/android.html>.
 
 A release is a signed APK on this repository's Releases page, built by
 `.github/workflows/release.yml` when a tag `v<versionName>` is pushed. The

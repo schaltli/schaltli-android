@@ -79,4 +79,4 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" "$RUNNER_TEMP/schaltli-$GITHUB_REF_NAME.apk" \
             --title "Schaltli $GITHUB_REF_NAME" \
-            --notes "Die Schaltli-App für Android 8.0 oder neuer. Installieren und einrichten: https://matthias-hess.github.io/schaltli-designer/geraete/android.html"
+            --notes "Die Schaltli-App für Android 8.0 oder neuer. Installieren und einrichten: https://schaltli.github.io/schaltli-designer/geraete/android.html"
