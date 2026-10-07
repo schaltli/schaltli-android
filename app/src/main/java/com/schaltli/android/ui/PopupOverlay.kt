@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -33,6 +34,7 @@ import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.schaltli.android.data.POPUP_CLOSE_RADIUS
 import com.schaltli.android.data.PopupFence
 import com.schaltli.android.data.Project
 import com.schaltli.android.data.Screen
@@ -50,9 +52,11 @@ import kotlin.math.abs
  * boards cannot; they grow a rectangle instead. The scrim reaches up to the
  * window at every size on the way, as the user asked of the boards.
  *
- * Closing (§2.5): a tap beside the fence, or any swipe a control did not take
- * - a level owns its drag by consuming it, a button its tap - and «Close this
- * popup», which arrives through the action dispatcher.
+ * Closing (§2.5): a tap on the round close button on the fence's top right
+ * corner, which takes the touch before the popup's controls; a tap beside the
+ * fence, or any swipe a control did not take - a level owns its drag by
+ * consuming it, a button its tap - and «Close this popup», which arrives
+ * through the action dispatcher.
  *
  * [content] draws the popup itself, given the shape its ground is clipped to.
  */
@@ -72,6 +76,11 @@ fun PopupOverlay(
 
     val scrim = popup.scrimColor?.let(::parseHexColor) ?: Color.Black
     val edge = popup.borderColor?.let(::parseHexColor)
+    val badge = fence.closeBadge(POPUP_CLOSE_RADIUS)
+    // Dark whatever the theme, as on the boards (designer lib/popup.ts
+    // POPUP_CLOSE_DISC): in the theme's outline it was pale.
+    val badgeDisc = Color(0xFF303030)
+    val badgeCross = Color.White
     // Where the popup's own box sits in this one, for turning a touch into
     // project units.
     var boxOffset by remember { mutableStateOf(Offset.Zero) }
@@ -135,6 +144,25 @@ fun PopupOverlay(
                     scaleY = startScaleY + (1f - startScaleY) * p
                     translationX = (from.center.x - fenceCentre.x) * (1f - p) * density
                     translationY = (from.center.y - fenceCentre.y) * (1f - p) * density
+                }
+                // The close button first, before the popup's controls see the
+                // touch: a tap on it closes the popup whatever lies under it.
+                .pointerInput(popup.id, fence) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                        val unit = size.width.toFloat() / project.screenWidth
+                        if (!badge.contains((down.position.x / unit).toDouble(), (down.position.y / unit).toDouble())) {
+                            return@awaitEachGesture
+                        }
+                        down.consume()
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: return@awaitEachGesture
+                            change.consume()
+                            if (!change.pressed) break
+                        }
+                        onClose()
+                    }
                 },
         ) {
             content(FenceShape(fence, project))
@@ -150,6 +178,17 @@ fun PopupOverlay(
                         drawRect(edge, topLeft = topLeft, size = area, style = Stroke(stroke))
                     }
                 }
+            }
+            // The close button over everything else: a dark disc, a white X.
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val unit = size.width / project.screenWidth
+                val centre = Offset(badge.cx * unit, badge.cy * unit)
+                val r = badge.radius * unit
+                val arm = r * 0.4f
+                drawCircle(badgeDisc, radius = r, center = centre)
+                val pen = maxOf(1f, r / 5f)
+                drawLine(badgeCross, centre + Offset(-arm, -arm), centre + Offset(arm, arm), strokeWidth = pen, cap = StrokeCap.Round)
+                drawLine(badgeCross, centre + Offset(-arm, arm), centre + Offset(arm, -arm), strokeWidth = pen, cap = StrokeCap.Round)
             }
         }
     }

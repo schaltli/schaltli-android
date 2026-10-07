@@ -152,7 +152,39 @@ data class PopupFence(
         }
         return px >= x && px < x + width && py >= y && py < y + height
     }
+
+    /**
+     * The round close button on the fence's edge (contract §2.5): its centre
+     * on the top right corner, on a circle where the diagonal to the top
+     * right meets the rim. The same numbers as the designer's popupCloseBadge
+     * (lib/popup.ts) and the boards' popupCloseBadgeFor.
+     */
+    fun closeBadge(radius: Int): PopupCloseBadge {
+        val hitRadius = radius * 8 / 5
+        if (isCircle) {
+            val r = width / 2.0
+            val off = r * 0.70710678
+            return PopupCloseBadge(Math.round(x + r + off).toInt(), Math.round(y + r - off).toInt(), radius, hitRadius)
+        }
+        return PopupCloseBadge(x + width, y, radius, hitRadius)
+    }
 }
+
+/** The close button the app draws on an open popup, in project units. */
+data class PopupCloseBadge(val cx: Int, val cy: Int, val radius: Int, val hitRadius: Int) {
+    fun contains(px: Double, py: Double): Boolean {
+        val dx = px - cx
+        val dy = py - cy
+        return dx * dx + dy * dy <= hitRadius.toDouble() * hitRadius
+    }
+}
+
+/**
+ * The close button's radius in dp: 36 dp across, about 5.7 mm. The DDF says
+ * it too (screen.popupCloseRadius), so the designer shows it where the app
+ * draws it.
+ */
+const val POPUP_CLOSE_RADIUS = 18
 
 @Serializable
 data class ButtonAction(

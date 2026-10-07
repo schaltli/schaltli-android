@@ -1,6 +1,7 @@
 package com.schaltli.android.ddf
 
 import com.schaltli.android.SYSTEM_GENERATION
+import com.schaltli.android.data.POPUP_CLOSE_RADIUS
 import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
 import java.util.zip.CRC32
@@ -123,7 +124,8 @@ object DdfBuilder {
         |    "colorDepth": "24bit",
         |    "allowedRotations": [90, 180, 270],
         |    "widthMm": ${dpToMm(width)},
-        |    "heightMm": ${dpToMm(height)}
+        |    "heightMm": ${dpToMm(height)},
+        |    "popupCloseRadius": $POPUP_CLOSE_RADIUS
         |  },
         |  "adornment": {
         |    "svgPath": "adornment.svg"

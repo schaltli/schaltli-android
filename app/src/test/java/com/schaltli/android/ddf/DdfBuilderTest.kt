@@ -72,6 +72,12 @@ class DdfBuilderTest {
     }
 
     @Test
+    fun `says it draws a close button on an open popup, and how big`() {
+        val screen = JSONObject(String(entries(build().bytes)["device.json"]!!)).getJSONObject("screen")
+        assertEquals(18, screen.getInt("popupCloseRadius"))
+    }
+
+    @Test
     fun `offers Roboto as the Standard typography, in sizes up to Display`() {
         val manifest = JSONObject(String(entries(build().bytes)["device.json"]!!))
         val fonts = manifest.getJSONArray("fonts")
