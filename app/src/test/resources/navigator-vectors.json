@@ -1,0 +1,55 @@
+{
+  "about": "The navigator's geometry (lib/navigator.ts, docs/2026-10-08-navigator.md). Designer, firmware and Android app run these cases; the copies there are byte-for-byte this file. Expected values worked out by hand, not taken from the code.",
+  "screens": [
+    {
+      "name": "main screens that are not hidden, in list order",
+      "screens": [
+        { "id": "m", "isMaster": true },
+        { "id": "a" },
+        { "id": "p", "screenType": "popup" },
+        { "id": "b", "hidden": true },
+        { "id": "c" }
+      ],
+      "expected": ["a", "c"]
+    },
+    { "name": "no screens", "screens": [], "expected": [] }
+  ],
+  "layout": [
+    { "name": "4.3B left icons, 5 fit: they share 480", "layout": { "edge": "left", "shows": "icons", "screenWidth": 800, "screenHeight": 480, "count": 5 }, "expected": { "strip": { "x": 0, "y": 0, "width": 64, "height": 480 }, "entryLength": 96, "maxScroll": 0 } },
+    { "name": "4.3B left icons and text, 5 fit", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 5 }, "expected": { "strip": { "x": 0, "y": 0, "width": 80, "height": 480 }, "entryLength": 96, "maxScroll": 0 } },
+    { "name": "4.3B left icons and text, 12 scroll", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 12 }, "expected": { "strip": { "x": 0, "y": 0, "width": 80, "height": 480 }, "entryLength": 88, "maxScroll": 576 } },
+    { "name": "4.3B bottom icons, 3: a third each, 2 px left over", "layout": { "edge": "bottom", "shows": "icons", "screenWidth": 800, "screenHeight": 480, "count": 3 }, "expected": { "strip": { "x": 0, "y": 416, "width": 800, "height": 64 }, "entryLength": 266, "maxScroll": 0 } },
+    { "name": "4.3B right icons, 8 do not fit at 64", "layout": { "edge": "right", "shows": "icons", "screenWidth": 800, "screenHeight": 480, "count": 8 }, "expected": { "strip": { "x": 736, "y": 0, "width": 64, "height": 480 }, "entryLength": 64, "maxScroll": 32 } },
+    { "name": "top, no screens", "layout": { "edge": "top", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 0 }, "expected": { "strip": { "x": 0, "y": 0, "width": 800, "height": 80 }, "entryLength": 88, "maxScroll": 0 } },
+    { "name": "PaperS3 bottom icons and text, 12 scroll", "layout": { "edge": "bottom", "shows": "iconsAndText", "screenWidth": 960, "screenHeight": 540, "count": 12 }, "expected": { "strip": { "x": 0, "y": 460, "width": 960, "height": 80 }, "entryLength": 88, "maxScroll": 96 } }
+  ],
+  "entryRect": [
+    { "name": "left, third entry, not scrolled", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 12 }, "index": 2, "scroll": 0, "expected": { "x": 0, "y": 176, "width": 80, "height": 88 } },
+    { "name": "left, seventh entry, scrolled 100: cut off at the bottom", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 12 }, "index": 6, "scroll": 100, "expected": { "x": 0, "y": 428, "width": 80, "height": 88 } },
+    { "name": "bottom, third entry", "layout": { "edge": "bottom", "shows": "icons", "screenWidth": 800, "screenHeight": 480, "count": 3 }, "index": 2, "scroll": 0, "expected": { "x": 532, "y": 416, "width": 266, "height": 64 } },
+    { "name": "right, first entry scrolled away", "layout": { "edge": "right", "shows": "icons", "screenWidth": 800, "screenHeight": 480, "count": 8 }, "index": 0, "scroll": 32, "expected": { "x": 736, "y": -32, "width": 64, "height": 64 } }
+  ],
+  "scrollToShow": [
+    { "name": "the last entry: scroll to the end", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 12 }, "index": 11, "scroll": 0, "expected": 576 },
+    { "name": "the first entry from the end: back to 0", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 12 }, "index": 0, "scroll": 576, "expected": 0 },
+    { "name": "an entry cut off at the bottom: just far enough", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 12 }, "index": 5, "scroll": 0, "expected": 48 },
+    { "name": "an entry already visible: stays", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 12 }, "index": 3, "scroll": 100, "expected": 100 },
+    { "name": "right, the eighth of eight", "layout": { "edge": "right", "shows": "icons", "screenWidth": 800, "screenHeight": 480, "count": 8 }, "index": 7, "scroll": 0, "expected": 32 },
+    { "name": "everything fits: always 0", "layout": { "edge": "bottom", "shows": "icons", "screenWidth": 800, "screenHeight": 480, "count": 3 }, "index": 2, "scroll": 0, "expected": 0 }
+  ],
+  "entryAt": [
+    { "name": "left, in the third entry", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 12 }, "x": 40, "y": 200, "scroll": 0, "expected": 2 },
+    { "name": "left, the same point scrolled 100", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 12 }, "x": 40, "y": 200, "scroll": 100, "expected": 3 },
+    { "name": "beside the strip", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 12 }, "x": 80, "y": 200, "scroll": 0, "expected": -1 },
+    { "name": "the last pixel row of the last entry", "layout": { "edge": "left", "shows": "icons", "screenWidth": 800, "screenHeight": 480, "count": 5 }, "x": 10, "y": 479, "scroll": 0, "expected": 4 },
+    { "name": "the pixels left over after the last entry", "layout": { "edge": "bottom", "shows": "icons", "screenWidth": 800, "screenHeight": 480, "count": 3 }, "x": 799, "y": 420, "scroll": 0, "expected": -1 },
+    { "name": "bottom, above the strip", "layout": { "edge": "bottom", "shows": "icons", "screenWidth": 800, "screenHeight": 480, "count": 3 }, "x": 100, "y": 415, "scroll": 0, "expected": -1 }
+  ],
+  "pageScroll": [
+    { "name": "a page is five whole entries", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 12 }, "scroll": 0, "direction": 1, "expected": 440 },
+    { "name": "the next page stops at the end", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 12 }, "scroll": 440, "direction": 1, "expected": 576 },
+    { "name": "back a page from the end", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 12 }, "scroll": 576, "direction": -1, "expected": 136 },
+    { "name": "back from the start: stays", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 12 }, "scroll": 0, "direction": -1, "expected": 0 },
+    { "name": "PaperS3: ten entries a page, only 96 to go", "layout": { "edge": "bottom", "shows": "iconsAndText", "screenWidth": 960, "screenHeight": 540, "count": 12 }, "scroll": 0, "direction": 1, "expected": 96 }
+  ]
+}

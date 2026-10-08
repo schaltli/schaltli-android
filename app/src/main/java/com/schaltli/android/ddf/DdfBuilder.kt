@@ -44,6 +44,8 @@ object DdfBuilder {
         "bar", "slider", "gauge", "dial",
         "switch", "button-group", "button",
         "line", "live-line", "box", "switcher", "panel",
+        // A bar of every screen along an edge (§2.7), since 1.5.
+        "navigator",
     )
 
     /**

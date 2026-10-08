@@ -1,5 +1,8 @@
 package com.schaltli.android
 
+import com.schaltli.android.data.NavigatorLayout
+import com.schaltli.android.ui.NavigatorStripView
+import com.schaltli.android.ui.navigatorOf
 import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.view.WindowManager
@@ -237,6 +240,8 @@ fun SchaltliRoot(app: SchaltliApp) {
     // The popup open over the current screen (the designer's
     // docs/device-contract.md §2.5), by id; the app's own state, never on MQTT.
     var openPopupId by remember { mutableStateOf<String?>(null) }
+    // How far the navigator is scrolled; -1: as far as shows the open entry.
+    var navigatorScroll by remember { mutableStateOf(-1) }
     var importError by remember { mutableStateOf<String?>(null) }
 
     // A freshly-loaded (or just-installed) project always starts on its first
@@ -251,8 +256,12 @@ fun SchaltliRoot(app: SchaltliApp) {
     // HIL suite on 2026-09-21, which installs the fixture to get back to a
     // known screen and was measured against the wrong one for its trouble.
     LaunchedEffect(project, LocalBundleInstallation.current) {
-        currentScreenId = project?.screens?.firstOrNull()?.id
+        // The first screen that is not hidden (§2.7).
+        currentScreenId = project?.screens?.let { screens ->
+            screens.getOrNull(NavigatorLayout.firstShown(screens.map { it.hidden }))?.id
+        }
         openPopupId = null
+        navigatorScroll = -1
     }
 
     // This phone's own Device Description File: built from the screen it
@@ -436,6 +445,16 @@ fun SchaltliRoot(app: SchaltliApp) {
             )
             else -> {
                 val screen = activeProject.screens.find { it.id == currentScreenId } ?: activeProject.screens.first()
+                // After a screen change the navigator scrolls as far as shows
+                // the new entry - once a finger has scrolled it (§2.7).
+                LaunchedEffect(screen.id) {
+                    if (navigatorScroll >= 0) {
+                        navigatorOf(activeProject, screen)?.let { (nav, layout) ->
+                            val active = nav.entries.indexOfFirst { it.screenId == screen.id }
+                            if (active >= 0) navigatorScroll = NavigatorLayout.scrollToShow(layout, active, navigatorScroll)
+                        }
+                    }
+                }
                 // The window under everything takes the screen's own colour.
                 //
                 // A phone is taller than the area it gives an app: the
@@ -473,6 +492,17 @@ fun SchaltliRoot(app: SchaltliApp) {
                             ?.let { dispatcher.dispatch(it, activeProject, screen.id) }
                     },
                     modifier = Modifier.fillMaxSize(),
+                    overlay = {
+                        NavigatorStripView(
+                            project = activeProject,
+                            screen = screen,
+                            scroll = navigatorScroll,
+                            topicValues = topicValues,
+                            assetFileOf = { path -> app.projectRepository.assetFile(path) },
+                            onScroll = { navigatorScroll = it },
+                            onNavigate = { id -> currentScreenId = id; openPopupId = null },
+                        )
+                    },
                 ) { drawn ->
                     ScreenRenderer(
                         screen = drawn,

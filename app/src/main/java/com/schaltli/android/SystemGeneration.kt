@@ -16,5 +16,7 @@ package com.schaltli.android
  * 1.4: draws live values and combined topics - liveText, liveValues,
  * liveIconId, combinedTopics[] (§2.6). The designer warns before deploying a
  * project with live values to a device below it.
+ * 1.5: draws the navigator and pages past hidden screens - navigators[],
+ * navigatorId, hidden (§2.7).
  */
-const val SYSTEM_GENERATION = "1.4"
+const val SYSTEM_GENERATION = "1.5"

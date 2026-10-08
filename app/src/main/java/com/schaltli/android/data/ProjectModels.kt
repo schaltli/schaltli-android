@@ -70,6 +70,12 @@ data class Project(
      * Read raw and parsed once into [combinedOrder]. Absent before 1.4.
      */
     val combinedTopics: JsonArray = JsonArray(emptyList()),
+    /**
+     * The navigators (the designer's docs/device-contract.md §2.7): a strip
+     * along an edge with an entry per listed screen; a screen names the one
+     * it shows ([Screen.navigatorId]). Absent before 1.5.
+     */
+    val navigators: List<Navigator> = emptyList(),
 ) {
     /** [combinedTopics] parsed, ordered again so a hand-edited file computes right; none where one is circular. */
     val combinedOrder: List<CombinedTopics.CombinedTopic> by lazy {
@@ -137,6 +143,28 @@ data class Screen(
     // scrim's colour. Absent on a screen.
     val borderColor: String? = null,
     val scrimColor: String? = null,
+    // The navigator this screen shows (§2.7); null: none.
+    val navigatorId: String? = null,
+    // Out of next/previous paging, still a goto target, never the start (§2.7).
+    val hidden: Boolean = false,
+)
+
+/** A navigator as exported (§2.7): entries of ordinary objects, relative to the entry. */
+@Serializable
+data class Navigator(
+    val id: String,
+    val edge: String = "left",
+    val thickness: Int = 0,
+    val entryLength: Int = 0,
+    val backgroundColor: String? = null,
+    val entries: List<NavigatorEntry> = emptyList(),
+)
+
+@Serializable
+data class NavigatorEntry(
+    val screenId: String,
+    val normal: List<ScreenObject> = emptyList(),
+    val active: List<ScreenObject> = emptyList(),
 )
 
 /**

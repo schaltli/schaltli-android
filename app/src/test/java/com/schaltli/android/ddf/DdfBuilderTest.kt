@@ -147,7 +147,7 @@ class DdfBuilderTest {
 
         // Every target declares which system generation it speaks, and the
         // deploy dialog compares majors before uploading anything.
-        assertEquals("1.4", manifest.getString("systemGeneration"))
+        assertEquals("1.5", manifest.getString("systemGeneration"))
     }
 
     @Test

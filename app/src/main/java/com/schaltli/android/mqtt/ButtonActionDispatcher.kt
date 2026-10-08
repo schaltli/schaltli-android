@@ -1,5 +1,6 @@
 package com.schaltli.android.mqtt
 
+import com.schaltli.android.data.NavigatorLayout
 import com.schaltli.android.data.ButtonAction
 import com.schaltli.android.data.Project
 import com.schaltli.android.data.ScreenObject
@@ -83,7 +84,8 @@ class ButtonActionDispatcher(
                         val currentIndex = screens.indexOfFirst { it.id == currentScreenId }
                         val delta = if (action.type == "next-screen") 1 else -1
                         val base = if (currentIndex == -1) 0 else currentIndex
-                        screens[((base + delta) % screens.size + screens.size) % screens.size].id
+                        // Past hidden screens (§2.7).
+                        screens[NavigatorLayout.pagedIndex(screens.map { it.hidden }, base, delta)].id
                     }
                 }
                 "goto-screen" -> project.screens.find { it.id == action.targetScreenId }?.id

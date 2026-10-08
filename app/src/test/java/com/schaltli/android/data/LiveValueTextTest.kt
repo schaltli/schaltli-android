@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -102,7 +103,7 @@ class LiveValueTextTest {
     }
 
     @Test
-    fun `generation 1_4 is announced`() {
-        assertEquals("1.4", SYSTEM_GENERATION)
+    fun `generation 1_4 or later is announced`() {
+        assertTrue(SYSTEM_GENERATION.split(".").let { (major, minor) -> major.toInt() > 1 || minor.toInt() >= 4 })
     }
 }

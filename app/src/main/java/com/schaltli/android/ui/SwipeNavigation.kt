@@ -121,6 +121,9 @@ fun FollowingScreens(
     followTargetFor: (buttonId: String) -> Screen?,
     onSwipe: (buttonId: String) -> Unit,
     modifier: Modifier = Modifier,
+    // Drawn over both screens and not moved with them - the navigator
+    // (docs/2026-10-08-navigator.md), which stands still while they slide.
+    overlay: @Composable () -> Unit = {},
     render: @Composable (Screen) -> Unit,
 ) {
     val density = LocalDensity.current.density
@@ -297,6 +300,10 @@ fun FollowingScreens(
             ) {
                 render(next)
             }
+        }
+
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            overlay()
         }
     }
 }
