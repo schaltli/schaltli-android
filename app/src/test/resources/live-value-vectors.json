@@ -1,0 +1,2044 @@
+{
+  "about": "Shared test cases for live values (docs/2026-10-07-live-values.md). The designer (lib/live-value.ts), and later the firmware and the Android app, must agree on every case. `evaluate`: a live value's rules and a `value` that arrived (absent: nothing arrived; \"\" is an empty message that did); `applies` is the index of the rule that applies, or \"otherwise\", or \"noValueYet\". Rules are read top to bottom, the first that matches wins. `text`: what a live value reads as text - `liveValue` (its `format`, rules with text results, `otherwise`, `noValueYet`; a text result is a list of strings and {\"value\": true} for the value in its format) and a `value` as above; `decimal`/`thousands` default to . and '. `resolve`: a whole text with `{live:<id>}` references, the object's `liveValues`, and `values` keyed by `namespace:path`. `combined`: combined topics (`combinedTopics`, each a name, `mode` all or any, and conditions shaped like rules, their source a topic or another combined topic), the topic `values` that arrived, and what each combined topic reads: \"true\", \"false\", or null for no value yet; or `circular`, the chain a circular reference makes.",
+  "evaluate": [
+    {
+      "name": "< on a number",
+      "rules": [
+        {
+          "op": "<",
+          "operand": "3"
+        }
+      ],
+      "value": "2.5",
+      "applies": 0
+    },
+    {
+      "name": "< on an equal number does not match",
+      "rules": [
+        {
+          "op": "<",
+          "operand": "3"
+        }
+      ],
+      "value": "3",
+      "applies": "otherwise"
+    },
+    {
+      "name": "<= on an equal number",
+      "rules": [
+        {
+          "op": "<=",
+          "operand": "3"
+        }
+      ],
+      "value": "3.0",
+      "applies": 0
+    },
+    {
+      "name": "> on a negative number",
+      "rules": [
+        {
+          "op": ">",
+          "operand": "-5"
+        }
+      ],
+      "value": "-4.5",
+      "applies": 0
+    },
+    {
+      "name": ">= below does not match",
+      "rules": [
+        {
+          "op": ">=",
+          "operand": "10"
+        }
+      ],
+      "value": "9.99",
+      "applies": "otherwise"
+    },
+    {
+      "name": "a number with spaces around it is a number",
+      "rules": [
+        {
+          "op": "<",
+          "operand": "0"
+        }
+      ],
+      "value": "  -1 ",
+      "applies": 0
+    },
+    {
+      "name": "a non-number matches no order operator: <",
+      "rules": [
+        {
+          "op": "<",
+          "operand": "3"
+        }
+      ],
+      "value": "fan_only",
+      "applies": "otherwise"
+    },
+    {
+      "name": "a non-number matches no order operator: >=",
+      "rules": [
+        {
+          "op": ">=",
+          "operand": "0"
+        }
+      ],
+      "value": "on",
+      "applies": "otherwise"
+    },
+    {
+      "name": "an empty message matches no order operator",
+      "rules": [
+        {
+          "op": "<",
+          "operand": "1"
+        }
+      ],
+      "value": "",
+      "applies": "otherwise"
+    },
+    {
+      "name": "a non-number operand matches nothing",
+      "rules": [
+        {
+          "op": ">",
+          "operand": "warm"
+        }
+      ],
+      "value": "20",
+      "applies": "otherwise"
+    },
+    {
+      "name": "== compares trimmed text",
+      "rules": [
+        {
+          "op": "==",
+          "operand": "auto"
+        }
+      ],
+      "value": " auto ",
+      "applies": 0
+    },
+    {
+      "name": "== is case-sensitive",
+      "rules": [
+        {
+          "op": "==",
+          "operand": "auto"
+        }
+      ],
+      "value": "Auto",
+      "applies": "otherwise"
+    },
+    {
+      "name": "== compares text, not numbers",
+      "rules": [
+        {
+          "op": "==",
+          "operand": "1"
+        }
+      ],
+      "value": "1.0",
+      "applies": "otherwise"
+    },
+    {
+      "name": "!= on different text",
+      "rules": [
+        {
+          "op": "!=",
+          "operand": "off"
+        }
+      ],
+      "value": "heat",
+      "applies": 0
+    },
+    {
+      "name": "!= on the same text",
+      "rules": [
+        {
+          "op": "!=",
+          "operand": "off"
+        }
+      ],
+      "value": "off",
+      "applies": "otherwise"
+    },
+    {
+      "name": "is yes: true",
+      "rules": [
+        {
+          "op": "yes"
+        }
+      ],
+      "value": "true",
+      "applies": 0
+    },
+    {
+      "name": "is yes: TRUE, any case",
+      "rules": [
+        {
+          "op": "yes"
+        }
+      ],
+      "value": "TRUE",
+      "applies": 0
+    },
+    {
+      "name": "is yes: on",
+      "rules": [
+        {
+          "op": "yes"
+        }
+      ],
+      "value": "on",
+      "applies": 0
+    },
+    {
+      "name": "is yes: Yes",
+      "rules": [
+        {
+          "op": "yes"
+        }
+      ],
+      "value": "Yes",
+      "applies": 0
+    },
+    {
+      "name": "is yes: 1",
+      "rules": [
+        {
+          "op": "yes"
+        }
+      ],
+      "value": "1",
+      "applies": 0
+    },
+    {
+      "name": "is yes: a number other than 0",
+      "rules": [
+        {
+          "op": "yes"
+        }
+      ],
+      "value": "1200",
+      "applies": 0
+    },
+    {
+      "name": "is yes: a negative number",
+      "rules": [
+        {
+          "op": "yes"
+        }
+      ],
+      "value": "-0.5",
+      "applies": 0
+    },
+    {
+      "name": "is yes: trimmed",
+      "rules": [
+        {
+          "op": "yes"
+        }
+      ],
+      "value": " on\n",
+      "applies": 0
+    },
+    {
+      "name": "is yes: fan_only is neither",
+      "rules": [
+        {
+          "op": "yes"
+        }
+      ],
+      "value": "fan_only",
+      "applies": "otherwise"
+    },
+    {
+      "name": "is no: false",
+      "rules": [
+        {
+          "op": "no"
+        }
+      ],
+      "value": "false",
+      "applies": 0
+    },
+    {
+      "name": "is no: Off",
+      "rules": [
+        {
+          "op": "no"
+        }
+      ],
+      "value": "Off",
+      "applies": 0
+    },
+    {
+      "name": "is no: no",
+      "rules": [
+        {
+          "op": "no"
+        }
+      ],
+      "value": "NO",
+      "applies": 0
+    },
+    {
+      "name": "is no: 0",
+      "rules": [
+        {
+          "op": "no"
+        }
+      ],
+      "value": "0",
+      "applies": 0
+    },
+    {
+      "name": "is no: 0.0 is a number equal to 0",
+      "rules": [
+        {
+          "op": "no"
+        }
+      ],
+      "value": "0.0",
+      "applies": 0
+    },
+    {
+      "name": "is no: an empty message",
+      "rules": [
+        {
+          "op": "no"
+        }
+      ],
+      "value": "",
+      "applies": 0
+    },
+    {
+      "name": "is no: fan_only is neither",
+      "rules": [
+        {
+          "op": "no"
+        }
+      ],
+      "value": "fan_only",
+      "applies": "otherwise"
+    },
+    {
+      "name": "is yes does not match no",
+      "rules": [
+        {
+          "op": "yes"
+        }
+      ],
+      "value": "off",
+      "applies": "otherwise"
+    },
+    {
+      "name": "nothing arrived: no value yet, never no",
+      "rules": [
+        {
+          "op": "no"
+        }
+      ],
+      "applies": "noValueYet"
+    },
+    {
+      "name": "nothing arrived: no value yet before any rule",
+      "rules": [
+        {
+          "op": "!=",
+          "operand": "x"
+        }
+      ],
+      "applies": "noValueYet"
+    },
+    {
+      "name": "the first rule that matches wins",
+      "rules": [
+        {
+          "op": "<",
+          "operand": "0"
+        },
+        {
+          "op": "<",
+          "operand": "3"
+        },
+        {
+          "op": "<",
+          "operand": "10"
+        }
+      ],
+      "value": "1",
+      "applies": 1
+    },
+    {
+      "name": "an earlier rule wins over a later one that also matches",
+      "rules": [
+        {
+          "op": "<",
+          "operand": "3"
+        },
+        {
+          "op": "<",
+          "operand": "0"
+        }
+      ],
+      "value": "-2",
+      "applies": 0
+    },
+    {
+      "name": "no rules: otherwise",
+      "rules": [],
+      "value": "42",
+      "applies": "otherwise"
+    },
+    {
+      "name": "no rules and nothing arrived: no value yet",
+      "rules": [],
+      "applies": "noValueYet"
+    }
+  ],
+  "text": [
+    {
+      "name": "no format: the value as it came",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": []
+      },
+      "value": "75.193",
+      "expected": "75.193"
+    },
+    {
+      "name": "number, 1 decimal",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [],
+        "format": {
+          "kind": "number",
+          "decimals": 1,
+          "grouped": false
+        }
+      },
+      "value": "21.46",
+      "expected": "21.5"
+    },
+    {
+      "name": "number, 0 decimals, half away from zero",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [],
+        "format": {
+          "kind": "number",
+          "decimals": 0,
+          "grouped": false
+        }
+      },
+      "value": "72.5",
+      "expected": "73"
+    },
+    {
+      "name": "number, 2 decimals, negative half",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [],
+        "format": {
+          "kind": "number",
+          "decimals": 2,
+          "grouped": false
+        }
+      },
+      "value": "-1.005",
+      "expected": "-1.01"
+    },
+    {
+      "name": "number, a sign on nothing is dropped",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [],
+        "format": {
+          "kind": "number",
+          "decimals": 2,
+          "grouped": false
+        }
+      },
+      "value": "-0.001",
+      "expected": "0.00"
+    },
+    {
+      "name": "number, grouped, Swiss",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [],
+        "format": {
+          "kind": "number",
+          "decimals": 0,
+          "grouped": true
+        }
+      },
+      "value": "12345.6",
+      "expected": "12'346"
+    },
+    {
+      "name": "number, grouped, German separators",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [],
+        "format": {
+          "kind": "number",
+          "decimals": 2,
+          "grouped": true
+        }
+      },
+      "value": "1234567.891",
+      "decimal": ",",
+      "thousands": ".",
+      "expected": "1.234.567,89"
+    },
+    {
+      "name": "number format on a non-number: as it came",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [],
+        "format": {
+          "kind": "number",
+          "decimals": 1,
+          "grouped": false
+        }
+      },
+      "value": "ON",
+      "expected": "ON"
+    },
+    {
+      "name": "duration h:mm:ss",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [],
+        "format": {
+          "kind": "duration",
+          "pattern": "h:mm:ss"
+        }
+      },
+      "value": "12198",
+      "expected": "3:23:18"
+    },
+    {
+      "name": "duration h:mm",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [],
+        "format": {
+          "kind": "duration",
+          "pattern": "h:mm"
+        }
+      },
+      "value": "12198",
+      "expected": "3:23"
+    },
+    {
+      "name": "duration m:ss",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [],
+        "format": {
+          "kind": "duration",
+          "pattern": "m:ss"
+        }
+      },
+      "value": "12198",
+      "expected": "203:18"
+    },
+    {
+      "name": "duration past a day stays in hours",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [],
+        "format": {
+          "kind": "duration",
+          "pattern": "h:mm:ss"
+        }
+      },
+      "value": "123735",
+      "expected": "34:22:15"
+    },
+    {
+      "name": "duration zero",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [],
+        "format": {
+          "kind": "duration",
+          "pattern": "h:mm:ss"
+        }
+      },
+      "value": "0",
+      "expected": "0:00:00"
+    },
+    {
+      "name": "duration of a fraction keeps whole seconds",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [],
+        "format": {
+          "kind": "duration",
+          "pattern": "m:ss"
+        }
+      },
+      "value": "59.9",
+      "expected": "0:59"
+    },
+    {
+      "name": "duration of a negative number: as it came",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [],
+        "format": {
+          "kind": "duration",
+          "pattern": "h:mm:ss"
+        }
+      },
+      "value": "-5",
+      "expected": "-5"
+    },
+    {
+      "name": "duration of a non-number: as it came",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [],
+        "format": {
+          "kind": "duration",
+          "pattern": "h:mm:ss"
+        }
+      },
+      "value": "soon",
+      "expected": "soon"
+    },
+    {
+      "name": "a rule's text",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [
+          {
+            "op": "yes",
+            "result": {
+              "kind": "text",
+              "parts": [
+                "läuft"
+              ]
+            }
+          },
+          {
+            "op": "no",
+            "result": {
+              "kind": "text",
+              "parts": [
+                "aus"
+              ]
+            }
+          }
+        ]
+      },
+      "value": "true",
+      "expected": "läuft"
+    },
+    {
+      "name": "a rule's text with the value in its format",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [
+          {
+            "op": "==",
+            "operand": "0",
+            "result": {
+              "kind": "text",
+              "parts": []
+            }
+          }
+        ],
+        "format": {
+          "kind": "duration",
+          "pattern": "h:mm:ss"
+        },
+        "otherwise": {
+          "kind": "text",
+          "parts": [
+            " timer ",
+            {
+              "value": true
+            }
+          ]
+        }
+      },
+      "value": "12198",
+      "expected": " timer 3:23:18"
+    },
+    {
+      "name": "an empty result leaves nothing",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [
+          {
+            "op": "==",
+            "operand": "0",
+            "result": {
+              "kind": "text",
+              "parts": []
+            }
+          }
+        ],
+        "format": {
+          "kind": "duration",
+          "pattern": "h:mm:ss"
+        },
+        "otherwise": {
+          "kind": "text",
+          "parts": [
+            " timer ",
+            {
+              "value": true
+            }
+          ]
+        }
+      },
+      "value": "0",
+      "expected": ""
+    },
+    {
+      "name": "otherwise absent: the value in its format",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [
+          {
+            "op": "<",
+            "operand": "0",
+            "result": {
+              "kind": "text",
+              "parts": [
+                "Frost"
+              ]
+            }
+          }
+        ],
+        "format": {
+          "kind": "number",
+          "decimals": 1,
+          "grouped": false
+        }
+      },
+      "value": "4.25",
+      "expected": "4.3"
+    },
+    {
+      "name": "no value yet absent: nothing",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [],
+        "format": {
+          "kind": "number",
+          "decimals": 1,
+          "grouped": false
+        }
+      },
+      "expected": ""
+    },
+    {
+      "name": "no value yet given",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [],
+        "noValueYet": {
+          "kind": "text",
+          "parts": [
+            "?"
+          ]
+        }
+      },
+      "expected": "?"
+    },
+    {
+      "name": "no value yet is not formatted as a number",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [],
+        "format": {
+          "kind": "number",
+          "decimals": 1,
+          "grouped": false
+        },
+        "noValueYet": {
+          "kind": "text",
+          "parts": [
+            "–"
+          ]
+        }
+      },
+      "expected": "–"
+    },
+    {
+      "name": "the value token with nothing arrived is empty",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [],
+        "noValueYet": {
+          "kind": "text",
+          "parts": [
+            "(",
+            {
+              "value": true
+            },
+            ")"
+          ]
+        }
+      },
+      "expected": "()"
+    },
+    {
+      "name": "an icon result reads as nothing in a text",
+      "liveValue": {
+        "id": "lv1",
+        "source": {
+          "namespace": "topic",
+          "path": "t"
+        },
+        "rules": [
+          {
+            "op": "yes",
+            "result": {
+              "kind": "icon",
+              "icon": "asset-1"
+            }
+          }
+        ]
+      },
+      "value": "on",
+      "expected": ""
+    }
+  ],
+  "resolve": [
+    {
+      "name": "a text with three live values",
+      "text": "Heizung {live:lv1}{live:lv2} · {live:lv3} °C",
+      "liveValues": [
+        {
+          "id": "lv1",
+          "source": {
+            "namespace": "topic",
+            "path": "heizung/status"
+          },
+          "rules": [
+            {
+              "op": "yes",
+              "result": {
+                "kind": "text",
+                "parts": [
+                  "läuft"
+                ]
+              }
+            },
+            {
+              "op": "no",
+              "result": {
+                "kind": "text",
+                "parts": [
+                  "aus"
+                ]
+              }
+            }
+          ],
+          "noValueYet": {
+            "kind": "text",
+            "parts": [
+              "?"
+            ]
+          }
+        },
+        {
+          "id": "lv2",
+          "source": {
+            "namespace": "topic",
+            "path": "heizung/timer"
+          },
+          "rules": [
+            {
+              "op": "==",
+              "operand": "0",
+              "result": {
+                "kind": "text",
+                "parts": []
+              }
+            }
+          ],
+          "format": {
+            "kind": "duration",
+            "pattern": "h:mm:ss"
+          },
+          "otherwise": {
+            "kind": "text",
+            "parts": [
+              " timer ",
+              {
+                "value": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "lv3",
+          "source": {
+            "namespace": "topic",
+            "path": "van/klima#innen"
+          },
+          "rules": [],
+          "format": {
+            "kind": "number",
+            "decimals": 1,
+            "grouped": false
+          },
+          "noValueYet": {
+            "kind": "text",
+            "parts": [
+              "–"
+            ]
+          }
+        }
+      ],
+      "values": {
+        "topic:heizung/status": "true",
+        "topic:heizung/timer": "12198",
+        "topic:van/klima#innen": "21.38"
+      },
+      "expected": "Heizung läuft timer 3:23:18 · 21.4 °C"
+    },
+    {
+      "name": "the same text with the heater off",
+      "text": "Heizung {live:lv1}{live:lv2} · {live:lv3} °C",
+      "liveValues": [
+        {
+          "id": "lv1",
+          "source": {
+            "namespace": "topic",
+            "path": "heizung/status"
+          },
+          "rules": [
+            {
+              "op": "yes",
+              "result": {
+                "kind": "text",
+                "parts": [
+                  "läuft"
+                ]
+              }
+            },
+            {
+              "op": "no",
+              "result": {
+                "kind": "text",
+                "parts": [
+                  "aus"
+                ]
+              }
+            }
+          ],
+          "noValueYet": {
+            "kind": "text",
+            "parts": [
+              "?"
+            ]
+          }
+        },
+        {
+          "id": "lv2",
+          "source": {
+            "namespace": "topic",
+            "path": "heizung/timer"
+          },
+          "rules": [
+            {
+              "op": "==",
+              "operand": "0",
+              "result": {
+                "kind": "text",
+                "parts": []
+              }
+            }
+          ],
+          "format": {
+            "kind": "duration",
+            "pattern": "h:mm:ss"
+          },
+          "otherwise": {
+            "kind": "text",
+            "parts": [
+              " timer ",
+              {
+                "value": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "lv3",
+          "source": {
+            "namespace": "topic",
+            "path": "van/klima#innen"
+          },
+          "rules": [],
+          "format": {
+            "kind": "number",
+            "decimals": 1,
+            "grouped": false
+          },
+          "noValueYet": {
+            "kind": "text",
+            "parts": [
+              "–"
+            ]
+          }
+        }
+      ],
+      "values": {
+        "topic:heizung/status": "false",
+        "topic:heizung/timer": "0",
+        "topic:van/klima#innen": "18.2"
+      },
+      "expected": "Heizung aus · 18.2 °C"
+    },
+    {
+      "name": "the same text before anything arrived",
+      "text": "Heizung {live:lv1}{live:lv2} · {live:lv3} °C",
+      "liveValues": [
+        {
+          "id": "lv1",
+          "source": {
+            "namespace": "topic",
+            "path": "heizung/status"
+          },
+          "rules": [
+            {
+              "op": "yes",
+              "result": {
+                "kind": "text",
+                "parts": [
+                  "läuft"
+                ]
+              }
+            },
+            {
+              "op": "no",
+              "result": {
+                "kind": "text",
+                "parts": [
+                  "aus"
+                ]
+              }
+            }
+          ],
+          "noValueYet": {
+            "kind": "text",
+            "parts": [
+              "?"
+            ]
+          }
+        },
+        {
+          "id": "lv2",
+          "source": {
+            "namespace": "topic",
+            "path": "heizung/timer"
+          },
+          "rules": [
+            {
+              "op": "==",
+              "operand": "0",
+              "result": {
+                "kind": "text",
+                "parts": []
+              }
+            }
+          ],
+          "format": {
+            "kind": "duration",
+            "pattern": "h:mm:ss"
+          },
+          "otherwise": {
+            "kind": "text",
+            "parts": [
+              " timer ",
+              {
+                "value": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "lv3",
+          "source": {
+            "namespace": "topic",
+            "path": "van/klima#innen"
+          },
+          "rules": [],
+          "format": {
+            "kind": "number",
+            "decimals": 1,
+            "grouped": false
+          },
+          "noValueYet": {
+            "kind": "text",
+            "parts": [
+              "–"
+            ]
+          }
+        }
+      ],
+      "values": {},
+      "expected": "Heizung ? · – °C"
+    },
+    {
+      "name": "an unknown id stays as written",
+      "text": "A {live:lv9} B",
+      "liveValues": [],
+      "values": {},
+      "expected": "A {live:lv9} B"
+    },
+    {
+      "name": "doubled braces are braces",
+      "text": "{{live:lv1}} {live:lv1}",
+      "liveValues": [
+        {
+          "id": "lv1",
+          "source": {
+            "namespace": "topic",
+            "path": "t"
+          },
+          "rules": []
+        }
+      ],
+      "values": {
+        "topic:t": "5"
+      },
+      "expected": "{live:lv1} 5"
+    },
+    {
+      "name": "a brace that opens nothing stays",
+      "text": "a { b } c",
+      "liveValues": [],
+      "values": {},
+      "expected": "a { b } c"
+    },
+    {
+      "name": "a device source",
+      "text": "{live:lv1}",
+      "liveValues": [
+        {
+          "id": "lv1",
+          "source": {
+            "namespace": "device",
+            "path": "model"
+          },
+          "rules": []
+        }
+      ],
+      "values": {
+        "device:model": "Knob"
+      },
+      "expected": "Knob"
+    },
+    {
+      "name": "the same live value twice",
+      "text": "{live:lv1}/{live:lv1}",
+      "liveValues": [
+        {
+          "id": "lv1",
+          "source": {
+            "namespace": "topic",
+            "path": "t"
+          },
+          "rules": [],
+          "format": {
+            "kind": "number",
+            "decimals": 0,
+            "grouped": false
+          }
+        }
+      ],
+      "values": {
+        "topic:t": "2.6"
+      },
+      "expected": "3/3"
+    }
+  ],
+  "combined": [
+    {
+      "name": "frost and rain: glaette",
+      "combinedTopics": [
+        {
+          "id": "c1",
+          "name": "frost",
+          "mode": "all",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "outside_temp"
+              },
+              "op": "<",
+              "operand": "1"
+            }
+          ]
+        },
+        {
+          "id": "c2",
+          "name": "nass",
+          "mode": "any",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "rain"
+              },
+              "op": "yes"
+            },
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "humidity"
+              },
+              "op": ">",
+              "operand": "90"
+            }
+          ]
+        },
+        {
+          "id": "c3",
+          "name": "glaette",
+          "mode": "all",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "frost"
+              },
+              "op": "yes"
+            },
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "nass"
+              },
+              "op": "yes"
+            }
+          ]
+        }
+      ],
+      "values": {
+        "outside_temp": "-2",
+        "rain": "true",
+        "humidity": "70"
+      },
+      "expected": {
+        "frost": "true",
+        "nass": "true",
+        "glaette": "true"
+      }
+    },
+    {
+      "name": "frost, dry: no glaette",
+      "combinedTopics": [
+        {
+          "id": "c1",
+          "name": "frost",
+          "mode": "all",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "outside_temp"
+              },
+              "op": "<",
+              "operand": "1"
+            }
+          ]
+        },
+        {
+          "id": "c2",
+          "name": "nass",
+          "mode": "any",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "rain"
+              },
+              "op": "yes"
+            },
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "humidity"
+              },
+              "op": ">",
+              "operand": "90"
+            }
+          ]
+        },
+        {
+          "id": "c3",
+          "name": "glaette",
+          "mode": "all",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "frost"
+              },
+              "op": "yes"
+            },
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "nass"
+              },
+              "op": "yes"
+            }
+          ]
+        }
+      ],
+      "values": {
+        "outside_temp": "-2",
+        "rain": "false",
+        "humidity": "70"
+      },
+      "expected": {
+        "frost": "true",
+        "nass": "false",
+        "glaette": "false"
+      }
+    },
+    {
+      "name": "warm and humid: no glaette",
+      "combinedTopics": [
+        {
+          "id": "c1",
+          "name": "frost",
+          "mode": "all",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "outside_temp"
+              },
+              "op": "<",
+              "operand": "1"
+            }
+          ]
+        },
+        {
+          "id": "c2",
+          "name": "nass",
+          "mode": "any",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "rain"
+              },
+              "op": "yes"
+            },
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "humidity"
+              },
+              "op": ">",
+              "operand": "90"
+            }
+          ]
+        },
+        {
+          "id": "c3",
+          "name": "glaette",
+          "mode": "all",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "frost"
+              },
+              "op": "yes"
+            },
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "nass"
+              },
+              "op": "yes"
+            }
+          ]
+        }
+      ],
+      "values": {
+        "outside_temp": "8",
+        "rain": "false",
+        "humidity": "95"
+      },
+      "expected": {
+        "frost": "false",
+        "nass": "true",
+        "glaette": "false"
+      }
+    },
+    {
+      "name": "any: one yes is enough while another has not arrived",
+      "combinedTopics": [
+        {
+          "id": "c1",
+          "name": "frost",
+          "mode": "all",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "outside_temp"
+              },
+              "op": "<",
+              "operand": "1"
+            }
+          ]
+        },
+        {
+          "id": "c2",
+          "name": "nass",
+          "mode": "any",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "rain"
+              },
+              "op": "yes"
+            },
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "humidity"
+              },
+              "op": ">",
+              "operand": "90"
+            }
+          ]
+        },
+        {
+          "id": "c3",
+          "name": "glaette",
+          "mode": "all",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "frost"
+              },
+              "op": "yes"
+            },
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "nass"
+              },
+              "op": "yes"
+            }
+          ]
+        }
+      ],
+      "values": {
+        "outside_temp": "-2",
+        "rain": "on"
+      },
+      "expected": {
+        "frost": "true",
+        "nass": "true",
+        "glaette": "true"
+      }
+    },
+    {
+      "name": "any: nothing yes and one missing is no value yet",
+      "combinedTopics": [
+        {
+          "id": "c1",
+          "name": "frost",
+          "mode": "all",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "outside_temp"
+              },
+              "op": "<",
+              "operand": "1"
+            }
+          ]
+        },
+        {
+          "id": "c2",
+          "name": "nass",
+          "mode": "any",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "rain"
+              },
+              "op": "yes"
+            },
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "humidity"
+              },
+              "op": ">",
+              "operand": "90"
+            }
+          ]
+        },
+        {
+          "id": "c3",
+          "name": "glaette",
+          "mode": "all",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "frost"
+              },
+              "op": "yes"
+            },
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "nass"
+              },
+              "op": "yes"
+            }
+          ]
+        }
+      ],
+      "values": {
+        "outside_temp": "-2",
+        "rain": "off"
+      },
+      "expected": {
+        "frost": "true",
+        "nass": null,
+        "glaette": null
+      }
+    },
+    {
+      "name": "all: one no is enough while another has not arrived",
+      "combinedTopics": [
+        {
+          "id": "c1",
+          "name": "frost",
+          "mode": "all",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "outside_temp"
+              },
+              "op": "<",
+              "operand": "1"
+            }
+          ]
+        },
+        {
+          "id": "c2",
+          "name": "nass",
+          "mode": "any",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "rain"
+              },
+              "op": "yes"
+            },
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "humidity"
+              },
+              "op": ">",
+              "operand": "90"
+            }
+          ]
+        },
+        {
+          "id": "c3",
+          "name": "glaette",
+          "mode": "all",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "frost"
+              },
+              "op": "yes"
+            },
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "nass"
+              },
+              "op": "yes"
+            }
+          ]
+        }
+      ],
+      "values": {
+        "outside_temp": "8"
+      },
+      "expected": {
+        "frost": "false",
+        "nass": null,
+        "glaette": "false"
+      }
+    },
+    {
+      "name": "nothing arrived: no value yet everywhere",
+      "combinedTopics": [
+        {
+          "id": "c1",
+          "name": "frost",
+          "mode": "all",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "outside_temp"
+              },
+              "op": "<",
+              "operand": "1"
+            }
+          ]
+        },
+        {
+          "id": "c2",
+          "name": "nass",
+          "mode": "any",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "rain"
+              },
+              "op": "yes"
+            },
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "humidity"
+              },
+              "op": ">",
+              "operand": "90"
+            }
+          ]
+        },
+        {
+          "id": "c3",
+          "name": "glaette",
+          "mode": "all",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "frost"
+              },
+              "op": "yes"
+            },
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "nass"
+              },
+              "op": "yes"
+            }
+          ]
+        }
+      ],
+      "values": {},
+      "expected": {
+        "frost": null,
+        "nass": null,
+        "glaette": null
+      }
+    },
+    {
+      "name": "a non-number does not match <",
+      "combinedTopics": [
+        {
+          "id": "c1",
+          "name": "frost",
+          "mode": "all",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "outside_temp"
+              },
+              "op": "<",
+              "operand": "1"
+            }
+          ]
+        },
+        {
+          "id": "c2",
+          "name": "nass",
+          "mode": "any",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "rain"
+              },
+              "op": "yes"
+            },
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "humidity"
+              },
+              "op": ">",
+              "operand": "90"
+            }
+          ]
+        },
+        {
+          "id": "c3",
+          "name": "glaette",
+          "mode": "all",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "frost"
+              },
+              "op": "yes"
+            },
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "nass"
+              },
+              "op": "yes"
+            }
+          ]
+        }
+      ],
+      "values": {
+        "outside_temp": "n/a",
+        "rain": "true"
+      },
+      "expected": {
+        "frost": "false",
+        "nass": "true",
+        "glaette": "false"
+      }
+    },
+    {
+      "name": "order does not matter in the list",
+      "combinedTopics": [
+        {
+          "id": "c3",
+          "name": "glaette",
+          "mode": "all",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "frost"
+              },
+              "op": "yes"
+            },
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "nass"
+              },
+              "op": "yes"
+            }
+          ]
+        },
+        {
+          "id": "c1",
+          "name": "frost",
+          "mode": "all",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "outside_temp"
+              },
+              "op": "<",
+              "operand": "1"
+            }
+          ]
+        },
+        {
+          "id": "c2",
+          "name": "nass",
+          "mode": "any",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "rain"
+              },
+              "op": "yes"
+            },
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "humidity"
+              },
+              "op": ">",
+              "operand": "90"
+            }
+          ]
+        }
+      ],
+      "values": {
+        "outside_temp": "-2",
+        "rain": "true"
+      },
+      "expected": {
+        "frost": "true",
+        "nass": "true",
+        "glaette": "true"
+      }
+    },
+    {
+      "name": "a JSON field as a source",
+      "combinedTopics": [
+        {
+          "id": "c1",
+          "name": "warm",
+          "mode": "all",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "topic",
+                "path": "van/klima#innen"
+              },
+              "op": ">",
+              "operand": "25"
+            }
+          ]
+        }
+      ],
+      "values": {
+        "van/klima#innen": "27.5"
+      },
+      "expected": {
+        "warm": "true"
+      }
+    },
+    {
+      "name": "no conditions: no value yet",
+      "combinedTopics": [
+        {
+          "id": "c1",
+          "name": "empty",
+          "mode": "all",
+          "conditions": []
+        }
+      ],
+      "values": {},
+      "expected": {
+        "empty": null
+      }
+    },
+    {
+      "name": "a circular reference is named as a chain",
+      "combinedTopics": [
+        {
+          "id": "c1",
+          "name": "nass",
+          "mode": "any",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "glaette"
+              },
+              "op": "yes"
+            }
+          ]
+        },
+        {
+          "id": "c2",
+          "name": "glaette",
+          "mode": "all",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "nass"
+              },
+              "op": "yes"
+            }
+          ]
+        }
+      ],
+      "values": {},
+      "circular": [
+        "glaette",
+        "nass",
+        "glaette"
+      ]
+    },
+    {
+      "name": "a topic referring to itself",
+      "combinedTopics": [
+        {
+          "id": "c1",
+          "name": "selbst",
+          "mode": "any",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "selbst"
+              },
+              "op": "yes"
+            }
+          ]
+        }
+      ],
+      "values": {},
+      "circular": [
+        "selbst",
+        "selbst"
+      ]
+    },
+    {
+      "name": "an unknown combined topic is no value yet",
+      "combinedTopics": [
+        {
+          "id": "c1",
+          "name": "a",
+          "mode": "any",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "fehlt"
+              },
+              "op": "yes"
+            }
+          ]
+        }
+      ],
+      "values": {},
+      "expected": {
+        "a": null
+      }
+    }
+  ]
+}
