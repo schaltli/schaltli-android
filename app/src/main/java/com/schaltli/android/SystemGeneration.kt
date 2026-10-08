@@ -13,5 +13,8 @@ package com.schaltli.android
  * 1.3: opens and closes popups - popups[], popupFence, open-popup, close-popup
  * (§2.5). The designer warns before deploying a project whose buttons open a
  * popup to a device below it.
+ * 1.4: draws live values and combined topics - liveText, liveValues,
+ * liveIconId, combinedTopics[] (§2.6). The designer warns before deploying a
+ * project with live values to a device below it.
  */
-const val SYSTEM_GENERATION = "1.3"
+const val SYSTEM_GENERATION = "1.4"

@@ -2,6 +2,7 @@ package com.schaltli.android.data
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 
 // Mirrors the shape lib/android-export.ts actually writes into project.json
@@ -63,7 +64,18 @@ data class Project(
     val popupFence: PopupFence? = null,
     val exportedAt: String? = null,
     val version: String? = null,
-)
+    /**
+     * Yes/no values the app works out itself from other values (the
+     * designer's docs/device-contract.md §2.6), written in evaluation order.
+     * Read raw and parsed once into [combinedOrder]. Absent before 1.4.
+     */
+    val combinedTopics: JsonArray = JsonArray(emptyList()),
+) {
+    /** [combinedTopics] parsed, ordered again so a hand-edited file computes right; none where one is circular. */
+    val combinedOrder: List<CombinedTopics.CombinedTopic> by lazy {
+        CombinedTopics.evaluationOrder(CombinedTopics.parse(combinedTopics))
+    }
+}
 
 @Serializable
 data class FontEntry(

@@ -16,17 +16,21 @@ import kotlinx.serialization.json.contentOrNull
 fun Project.collectTopicNames(): Set<String> {
     val topics = mutableSetOf<String>()
     for (screen in screens) {
-        collectTopicsFromObjects(screen.objects, topics)
+        collectTopicsFromObjects(screen.objects, topics, combinedOrder)
     }
     // A popup's objects read their topics as a screen's do; walked from
     // 2026-10-06, when popups came - the knob had the same gap.
     for (popup in popups) {
-        collectTopicsFromObjects(popup.objects, topics)
+        collectTopicsFromObjects(popup.objects, topics, combinedOrder)
     }
     return topics
 }
 
-private fun collectTopicsFromObjects(objects: List<ScreenObject>, into: MutableSet<String>) {
+private fun collectTopicsFromObjects(
+    objects: List<ScreenObject>,
+    into: MutableSet<String>,
+    combined: List<CombinedTopics.CombinedTopic>,
+) {
     for (obj in objects) {
         for (key in READ_TOPIC_KEYS) {
             val topicRef = (obj.properties[key] as? JsonPrimitive)?.contentOrNull
@@ -41,8 +45,16 @@ private fun collectTopicsFromObjects(objects: List<ScreenObject>, into: MutableS
             val text = (obj.properties["text"] as? JsonPrimitive)?.contentOrNull.orEmpty()
             for (reference in Placeholders.referencedTopics(text)) into.add(splitTopicPath(reference).topic)
         }
+        // And every topic a live value reads - a combined topic's down to the
+        // topics under it (the designer's docs/device-contract.md §2.6).
+        for (liveValue in LiveValues.parseLiveValues(obj.properties["liveValues"])) {
+            when (liveValue.source.namespace) {
+                "topic" -> into.add(splitTopicPath(liveValue.source.path).topic)
+                CombinedTopics.NAMESPACE -> into.addAll(CombinedTopics.inputTopics(combined, liveValue.source.path))
+            }
+        }
         if (obj.children.isNotEmpty()) {
-            collectTopicsFromObjects(obj.children, into)
+            collectTopicsFromObjects(obj.children, into, combined)
         }
     }
 }

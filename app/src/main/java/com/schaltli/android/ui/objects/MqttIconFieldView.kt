@@ -22,7 +22,6 @@ import kotlinx.serialization.json.JsonObject
 @Composable
 fun MqttIconFieldView(obj: ScreenObject, currentValue: String, assetFileOf: (String) -> java.io.File) {
     val props = obj.properties
-    val backgroundColor = props.colorOrDefault("backgroundColor", Color.Transparent)
     val pairs = props["valueIconPairs"] as? JsonArray
 
     // No value yet, no icon - not even one paired with an empty value.
@@ -32,15 +31,26 @@ fun MqttIconFieldView(obj: ScreenObject, currentValue: String, assetFileOf: (Str
         ?.find { it.stringOrNull("value") == currentValue }
         ?.stringOrNull("path")
 
+    IconPathView(obj, matchedPath, assetFileOf)
+}
+
+/**
+ * One icon picture at an object's place, over its background colour: a live
+ * icon's (the designer's docs/device-contract.md §2.6) or a Live Icon's pair.
+ * No [path], no picture.
+ */
+@Composable
+fun IconPathView(obj: ScreenObject, path: String?, assetFileOf: (String) -> java.io.File) {
+    val backgroundColor = obj.properties.colorOrDefault("backgroundColor", Color.Transparent)
     Box(
         modifier = Modifier
             .offset(x = obj.x.dp, y = obj.y.dp)
             .size(width = obj.width.dp, height = obj.height.dp)
             .background(backgroundColor),
     ) {
-        if (matchedPath != null) {
+        if (path != null) {
             AsyncImage(
-                model = assetFileOf(matchedPath),
+                model = assetFileOf(path),
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
             )

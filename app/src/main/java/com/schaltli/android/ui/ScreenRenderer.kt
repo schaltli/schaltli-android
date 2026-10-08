@@ -22,10 +22,13 @@ import com.schaltli.android.data.Project
 import com.schaltli.android.data.Screen
 import com.schaltli.android.data.ScreenObject
 import com.schaltli.android.data.ButtonAction
+import com.schaltli.android.data.liveIconPath
+import com.schaltli.android.data.resolveLiveText
 import com.schaltli.android.data.resolvePlaceholders
 import com.schaltli.android.data.resolveTopicValue
 import com.schaltli.android.ddf.DeviceIdentity
 import com.schaltli.android.ui.objects.ArcLevelView
+import com.schaltli.android.ui.objects.IconPathView
 import com.schaltli.android.ui.objects.LevelIndicatorView
 import com.schaltli.android.ui.objects.MqttDataLineView
 import com.schaltli.android.ui.objects.MqttIconFieldView
@@ -229,9 +232,17 @@ fun DynamicObjectView(
             // topics its placeholders name as a bound object follows its own.
             val context = LocalContext.current
             val identity = remember { DeviceIdentity.deviceName(context) to DeviceIdentity.deviceId(context) }
-            val text = resolvePlaceholders(
-                obj.properties.stringOrNull("text") ?: "", project, topicValues, identity.first, identity.second,
-            )
+            // A project for 1.4 carries liveText beside `text` (the same text
+            // lowered to placeholders, for the devices before) and is read
+            // through its live values (the designer's docs/device-contract.md §2.6).
+            val liveText = obj.properties.stringOrNull("liveText")
+            val text = if (!liveText.isNullOrEmpty()) {
+                resolveLiveText(liveText, obj.properties, project, topicValues, identity.first, identity.second)
+            } else {
+                resolvePlaceholders(
+                    obj.properties.stringOrNull("text") ?: "", project, topicValues, identity.first, identity.second,
+                )
+            }
             TextBoxView(obj, project, text, assetFileOf)
         }
         "live-text" -> {
@@ -287,6 +298,13 @@ fun DynamicObjectView(
             val value = resolveTopicValue(obj.properties.stringOrNull("topic"), project, topicValues)
             MqttDataLineView(obj, value)
         }
-        else -> Unit // box, line, icon, panel (outside a tab-control): already baked into the background.
+        // A live icon is left out of the background (§2.6) and drawn here:
+        // the icon its live value gives now. A fixed icon is baked.
+        "icon" -> if (!obj.properties.stringOrNull("liveIconId").isNullOrEmpty()) {
+            val context = LocalContext.current
+            val identity = remember { DeviceIdentity.deviceName(context) to DeviceIdentity.deviceId(context) }
+            IconPathView(obj, liveIconPath(obj.properties, project, topicValues, identity.first, identity.second), assetFileOf)
+        }
+        else -> Unit // box, line, fixed icon, panel (outside a tab-control): already baked into the background.
     }
 }
