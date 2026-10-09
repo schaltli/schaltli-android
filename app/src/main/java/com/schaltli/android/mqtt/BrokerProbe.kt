@@ -33,7 +33,7 @@ suspend fun probeBroker(config: BrokerConfig, timeoutMs: Long = 6000): Result<Un
             .identifier("schaltli-probe-" + UUID.randomUUID().toString().take(8))
             .serverHost(config.host)
             .serverPort(config.port)
-            .buildAsync()
+            .buildRx()
 
         try {
             var connect = client.connectWith()
@@ -46,11 +46,11 @@ suspend fun probeBroker(config: BrokerConfig, timeoutMs: Long = 6000): Result<Un
             }
             withTimeout(timeoutMs) {
                 suspendCancellableCoroutine { continuation ->
-                    connect.send().whenComplete { _, error ->
-                        if (continuation.isActive) {
-                            continuation.resume(if (error == null) Result.success(Unit) else Result.failure(error))
-                        }
-                    }
+                    val attempt = connect.applyConnect().subscribe(
+                        { if (continuation.isActive) continuation.resume(Result.success(Unit)) },
+                        { error -> if (continuation.isActive) continuation.resume(Result.failure(error)) },
+                    )
+                    continuation.invokeOnCancellation { attempt.dispose() }
                 }
             }
         } catch (timeout: TimeoutCancellationException) {
@@ -58,7 +58,7 @@ suspend fun probeBroker(config: BrokerConfig, timeoutMs: Long = 6000): Result<Un
         } catch (error: Throwable) {
             Result.failure(error)
         } finally {
-            runCatching { client.disconnect() }
+            runCatching { client.disconnect().onErrorComplete().subscribe() }
         }
     }
 

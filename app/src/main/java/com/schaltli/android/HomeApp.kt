@@ -70,6 +70,13 @@ object HomeApp {
             @Suppress("DEPRECATION")
             activity.window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
         }
-        if (keyguard.isKeyguardLocked) keyguard.requestDismissKeyguard(activity, null)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (keyguard.isKeyguardLocked) keyguard.requestDismissKeyguard(activity, null)
+        } else {
+            // Android 6 and 7 have no request to make: the window asks with a
+            // flag, and Android dismisses a lock screen without a secret.
+            @Suppress("DEPRECATION")
+            activity.window.addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD)
+        }
     }
 }

@@ -3,7 +3,11 @@ package com.schaltli.android.mqtt
 import android.util.Log
 import com.hivemq.client.mqtt.MqttClient
 import com.hivemq.client.mqtt.datatypes.MqttQos
-import com.hivemq.client.mqtt.mqtt3.Mqtt3AsyncClient
+import com.hivemq.client.mqtt.mqtt3.Mqtt3RxClient
+import com.hivemq.client.mqtt.mqtt3.message.publish.Mqtt3Publish
+import io.reactivex.Flowable
+import io.reactivex.disposables.Disposable
+import io.reactivex.plugins.RxJavaPlugins
 import com.schaltli.android.SYSTEM_GENERATION
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
@@ -38,7 +42,10 @@ data class BrokerConfig(
  * (`MqttClient.cpp:59-64`).
  */
 class MqttRepository {
-    private var client: Mqtt3AsyncClient? = null
+    // The Rx client rather than the async one: every call of the async one
+    // answers with a CompletableFuture, which Android has only from 7.0 on,
+    // and desugaring does not bring it to Android 6 (schaltli-android#2).
+    private var client: Mqtt3RxClient? = null
     private var subscribedTopics: Set<String> = emptySet()
 
     /**
@@ -53,6 +60,18 @@ class MqttRepository {
      * own install (android HIL, 2026-09-28). Emptied with each new client.
      */
     private val listening: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
+    // What delivers each topic's messages, so a topic dropped by [setTopics]
+    // stops arriving here even if the broker keeps sending it.
+    private val deliveries = java.util.concurrent.ConcurrentHashMap<String, Disposable>()
+
+    init {
+        // An Rx error with nobody left to hear it - a publish failing on a
+        // connection that just dropped - would otherwise end the app.
+        if (RxJavaPlugins.getErrorHandler() == null) {
+            RxJavaPlugins.setErrorHandler { Log.w("MqttRepository", "unheard MQTT error", it) }
+        }
+    }
 
     /**
      * Which connection is the current one.
@@ -187,17 +206,32 @@ class MqttRepository {
     // is retained, so a deploy published while the phone was off arrives the
     // moment it comes back. Once per client ([listening]): a second subscribe
     // is not harmless, it hands every deploy over twice.
-    private fun subscribeToDeploy(activeClient: Mqtt3AsyncClient) {
+    private fun subscribeToDeploy(activeClient: Mqtt3RxClient) {
         val base = deviceBase() ?: return
         if (!listening.add("$base/deploy")) return
-        activeClient.subscribeWith()
+        activeClient.subscribePublishesWith()
             .topicFilter("$base/deploy")
             .qos(MqttQos.AT_MOST_ONCE)
-            .callback { publish ->
+            .applySubscribe()
+            .subscribe({ publish ->
                 val payload = String(publish.payloadAsBytes, StandardCharsets.UTF_8)
                 if (payload.isNotBlank()) onDeploy?.invoke(payload)
-            }
-            .send()
+            }, { Log.w("MqttRepository", "deploy subscription ended", it) })
+    }
+
+    /** Sends one QoS 0 message, then runs [then] whether it went out or not. */
+    private fun Mqtt3RxClient.send(topic: String, payload: String, retain: Boolean = false, then: (() -> Unit)? = null) {
+        val message = Mqtt3Publish.builder()
+            .topic(topic)
+            .qos(MqttQos.AT_MOST_ONCE)
+            .retain(retain)
+            .payload(payload.toByteArray(StandardCharsets.UTF_8))
+            .build()
+        publish(Flowable.just(message)).subscribe(
+            { result -> result.error.ifPresent { Log.w("MqttRepository", "publish to $topic failed", it) } },
+            { Log.w("MqttRepository", "publish to $topic failed", it); then?.invoke() },
+            { then?.invoke() },
+        )
     }
 
     private fun publishAnnouncement() {
@@ -225,18 +259,8 @@ class MqttRepository {
             append("}")
         }
         val base = "$TOPIC_PREFIX/${hello.deviceId}"
-        active.publishWith()
-            .topic("$base/hello")
-            .qos(MqttQos.AT_MOST_ONCE)
-            .retain(true)
-            .payload(payload.toByteArray(StandardCharsets.UTF_8))
-            .send()
-        active.publishWith()
-            .topic("$base/status")
-            .qos(MqttQos.AT_MOST_ONCE)
-            .retain(true)
-            .payload("online".toByteArray(StandardCharsets.UTF_8))
-            .send()
+        active.send("$base/hello", payload, retain = true)
+        active.send("$base/status", "online", retain = true)
         Log.i("MqttRepository", "announced $base -> ${hello.url}")
     }
 
@@ -249,11 +273,7 @@ class MqttRepository {
     /** Reports where a deploy has got to, non-retained, as the contract's §4 says. */
     fun publishDeployStatus(payload: String) {
         val base = deviceBase() ?: return
-        client?.publishWith()
-            ?.topic("$base/deploy-status")
-            ?.qos(MqttQos.AT_MOST_ONCE)
-            ?.payload(payload.toByteArray(StandardCharsets.UTF_8))
-            ?.send()
+        client?.send("$base/deploy-status", payload)
     }
 
     private fun escapeJson(text: String): String =
@@ -275,6 +295,8 @@ class MqttRepository {
         val myGeneration = ++generation
         subscribedTopics = topics
         listening.clear()
+        deliveries.values.forEach { it.dispose() }
+        deliveries.clear()
         _topicValues.value = emptyMap()
         _askedValues.value = emptyMap()
 
@@ -303,11 +325,11 @@ class MqttRepository {
                 _connectionState.value = ConnectionState.DISCONNECTED
             }
 
-        val asyncClient = builder.buildAsync()
-        client = asyncClient
+        val rxClient = builder.buildRx()
+        client = rxClient
 
         _connectionState.value = ConnectionState.CONNECTING
-        var connectBuilder = asyncClient.connectWith()
+        var connectBuilder = rxClient.connectWith()
         // The other half of the retained status: the broker says "offline"
         // for us when this connection drops, whether or not the app had a
         // chance to say anything itself.
@@ -327,16 +349,11 @@ class MqttRepository {
                 .password(config.password.toByteArray(StandardCharsets.UTF_8))
                 .applySimpleAuth()
         }
-        Log.i("MqttRepository", "calling send()")
-        val future = connectBuilder.send()
-        Log.i("MqttRepository", "send() returned, future=$future")
-        future.whenComplete { _, throwable ->
-            if (throwable != null) {
-                Log.e("MqttRepository", "connect failed", throwable)
-            } else {
-                Log.i("MqttRepository", "connect ack received")
-            }
-        }
+        Log.i("MqttRepository", "connecting")
+        connectBuilder.applyConnect().subscribe(
+            { Log.i("MqttRepository", "connect ack received") },
+            { Log.e("MqttRepository", "connect failed", it) },
+        )
     }
 
     fun disconnect() {
@@ -352,15 +369,11 @@ class MqttRepository {
             // says "offline" itself before it goes - found on 2026-09-28, when
             // the phone moved to the van's broker and the one at home still
             // showed it online, and a test run waited for it there.
-            leaving.publishWith()
-                .topic("$TOPIC_PREFIX/${hello.deviceId}/status")
-                .qos(MqttQos.AT_MOST_ONCE)
-                .retain(true)
-                .payload("offline".toByteArray(StandardCharsets.UTF_8))
-                .send()
-                .whenComplete { _, _ -> leaving.disconnect() }
+            leaving.send("$TOPIC_PREFIX/${hello.deviceId}/status", "offline", retain = true) {
+                leaving.disconnectQuietly()
+            }
         } else {
-            leaving?.disconnect()
+            leaving?.disconnectQuietly()
         }
         client = null
         subscribedTopics = emptySet()
@@ -392,7 +405,9 @@ class MqttRepository {
         val activeClient = client ?: return
         for (topic in removed) {
             listening.remove(topic)
-            activeClient.unsubscribeWith().topicFilter(topic).send()
+            deliveries.remove(topic)?.dispose()
+            activeClient.unsubscribeWith().topicFilter(topic).applyUnsubscribe()
+                .subscribe({}, { Log.w("MqttRepository", "unsubscribe $topic failed", it) })
         }
         for (topic in added) {
             subscribeToValue(activeClient, topic)
@@ -425,11 +440,7 @@ class MqttRepository {
             _droppedCommands.tryEmit(topic)
             return false
         }
-        activeClient.publishWith()
-            .topic(topic)
-            .qos(MqttQos.AT_MOST_ONCE)
-            .payload(message.toByteArray(StandardCharsets.UTF_8))
-            .send()
+        activeClient.send(topic, message)
         return true
     }
 
@@ -449,12 +460,13 @@ class MqttRepository {
         }
     }
 
-    private fun subscribeToValue(activeClient: Mqtt3AsyncClient, topic: String) {
+    private fun subscribeToValue(activeClient: Mqtt3RxClient, topic: String) {
         if (!listening.add(topic)) return
-        activeClient.subscribeWith()
+        deliveries[topic] = activeClient.subscribePublishesWith()
             .topicFilter(topic)
             .qos(MqttQos.AT_MOST_ONCE)
-            .callback { publish ->
+            .applySubscribe()
+            .subscribe({ publish ->
                 val payload = String(publish.payloadAsBytes, StandardCharsets.UTF_8)
                 // Whether this answers what a finger asked, decided before the
                 // value is stored.
@@ -466,8 +478,12 @@ class MqttRepository {
                     awaitUntil.remove(topic)
                     _askedValues.update { if (it.containsKey(topic)) it - topic else it }
                 }
-            }
-            .send()
+            }, { Log.w("MqttRepository", "subscription to $topic ended", it) })
+    }
+
+    // A client still retrying refuses a disconnect; that refusal is no news.
+    private fun Mqtt3RxClient.disconnectQuietly() {
+        disconnect().subscribe({}, { Log.i("MqttRepository", "disconnect: ${it.message}") })
     }
 }
 

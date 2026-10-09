@@ -51,6 +51,12 @@ jobs:
       - name: Unit tests
         run: gradle testDebugUnitTest --console=plain
 
+      # Lint's NewApi check is what keeps Android 6 (minSdk 23) working: a
+      # call that only exists on a newer Android fails the release here
+      # rather than on an old tablet in someone's van.
+      - name: Lint
+        run: gradle lintDebug --console=plain
+
       - name: Signed release APK
         env:
           SCHALTLI_KEYSTORE_BASE64: ${{ secrets.SCHALTLI_KEYSTORE_BASE64 }}
@@ -79,4 +85,4 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" "$RUNNER_TEMP/schaltli-$GITHUB_REF_NAME.apk" \
             --title "Schaltli $GITHUB_REF_NAME" \
-            --notes "Die Schaltli-App für Android 8.0 oder neuer. Installieren und einrichten: https://schaltli.com/geraete/android.html"
+            --notes "Die Schaltli-App für Android 6.0 oder neuer. Installieren und einrichten: https://schaltli.com/geraete/android.html"

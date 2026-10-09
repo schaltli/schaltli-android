@@ -11,6 +11,7 @@ coilCompose = "2.7.0"
 datastorePreferences = "1.1.1"
 lifecycleViewmodelCompose = "2.8.7"
 junit = "4.13.2"
+desugarJdkLibs = "2.1.4"
 json = "20240303"
 
 [libraries]
@@ -30,6 +31,7 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 hivemq-mqtt-client = { group = "com.hivemq", name = "hivemq-mqtt-client", version.ref = "hivemqMqttClient" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coilCompose" }
 coil-svg = { group = "io.coil-kt", name = "coil-svg", version.ref = "coilCompose" }
+desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugarJdkLibs" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 json = { group = "org.json", name = "json", version.ref = "json" }
 

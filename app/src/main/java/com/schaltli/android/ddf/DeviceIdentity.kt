@@ -51,7 +51,8 @@ object DeviceIdentity {
         }
 
         val model = Build.MODEL?.trim().orEmpty()
-        if (context != null) {
+        // The name given in Settings exists from Android 7.1 on.
+        if (context != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
             val given = Settings.Global.getString(context.contentResolver, Settings.Global.DEVICE_NAME)?.trim()
             if (!given.isNullOrBlank() && !given.equals(model, ignoreCase = true)) return given
         }

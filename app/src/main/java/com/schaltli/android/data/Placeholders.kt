@@ -161,7 +161,7 @@ object Placeholders {
      */
     fun formatNumber(value: String, format: NumberFormat, separators: Separators): String? {
         // JavaScript's trim(), which the designer uses, takes these too.
-        val text = value.trim { it.isWhitespace() || it == '﻿' }
+        val text = value.trim { it.isWhitespace() || it == Char(0xFEFF) }
         var i = 0
         var negative = false
         if (text.getOrNull(i) == '+' || text.getOrNull(i) == '-') {

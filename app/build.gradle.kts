@@ -22,10 +22,10 @@ android {
 
     defaultConfig {
         applicationId = "com.schaltli.android"
-        minSdk = 26
+        minSdk = 23
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.6.0"
+        versionCode = 7
+        versionName = "0.7.0"
     }
 
     signingConfigs {
@@ -49,6 +49,11 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // Android 6 lacks parts of the Java 8 library the MQTT client and
+        // this app use (Optional, streams, ConcurrentHashMap.newKeySet);
+        // desugaring compiles them into the app instead. CompletableFuture
+        // it does not bring, which is why MqttRepository uses the Rx client.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -87,6 +92,7 @@ android {
 }
 
 dependencies {
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
