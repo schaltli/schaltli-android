@@ -153,6 +153,10 @@ private fun stateIndexForTap(obj: ScreenObject, xUnits: Double, count: Int, acti
         if (slot >= 0) return slot
         return if (activeIndex < 0) 0 else (activeIndex + 1) % count
     }
+    // A button group of two toggles too, wherever it is hit, once a state is
+    // shown (the designer's #65). Before any value the segment under the
+    // finger is what was meant.
+    if (count == 2 && activeIndex >= 0) return if (activeIndex == 0) 1 else 0
     return switchSegmentAt(obj, count, xUnits)
 }
 
