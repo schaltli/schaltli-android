@@ -49,6 +49,16 @@ object NavigatorLayout {
         Edge.RIGHT -> Rect(screenWidth - thickness, 0, thickness, screenHeight)
     }
 
+    /** The line towards the screen (the designer's NAVIGATOR_DIVIDER): the strip's last pixels on the screen's side. */
+    const val DIVIDER = 2
+
+    fun dividerRect(edge: Edge, strip: Rect): Rect = when (edge) {
+        Edge.LEFT -> Rect(strip.x + strip.width - DIVIDER, strip.y, DIVIDER, strip.height)
+        Edge.RIGHT -> Rect(strip.x, strip.y, DIVIDER, strip.height)
+        Edge.TOP -> Rect(strip.x, strip.y + strip.height - DIVIDER, strip.width, DIVIDER)
+        Edge.BOTTOM -> Rect(strip.x, strip.y, strip.width, DIVIDER)
+    }
+
     fun strip(edge: Edge, withText: Boolean, screenWidth: Int, screenHeight: Int): Rect =
         stripOf(edge, thicknessFor(withText), screenWidth, screenHeight)
 

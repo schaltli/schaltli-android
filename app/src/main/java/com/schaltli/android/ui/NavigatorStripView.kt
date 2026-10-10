@@ -119,6 +119,12 @@ fun NavigatorStripView(
                     }
                 }
             }
+            // The line towards the screen, over the entries (§2.7): so the
+            // strip reads as a bar, not as one button on the screen's ground.
+            nav.borderColor?.let(::parseHexColor)?.let { line ->
+                val d = NavigatorLayout.dividerRect(layout.edge, strip)
+                Box(modifier = Modifier.offset((d.x - strip.x).dp, (d.y - strip.y).dp).size(d.width.dp, d.height.dp).background(line))
+            }
         }
     }
 }

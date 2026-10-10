@@ -157,6 +157,8 @@ data class Navigator(
     val thickness: Int = 0,
     val entryLength: Int = 0,
     val backgroundColor: String? = null,
+    // The line towards the screen (§2.7, 2026-10-10); none without it.
+    val borderColor: String? = null,
     val entries: List<NavigatorEntry> = emptyList(),
 )
 
