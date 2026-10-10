@@ -299,7 +299,7 @@ fun SchaltliRoot(app: SchaltliApp) {
         val connectivity = context.getSystemService(ConnectivityManager::class.java)
         val main = Handler(Looper.getMainLooper())
         val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) { main.post { networkChanges++ } }
+            override fun onAvailable(network: Network) { android.util.Log.i("SchaltliRoot", "network available"); main.post { networkChanges++ } }
             override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) { main.post { networkChanges++ } }
             override fun onLost(network: Network) { main.post { networkChanges++ } }
         }
@@ -334,6 +334,7 @@ fun SchaltliRoot(app: SchaltliApp) {
     // network change, as well as for a new description.
     LaunchedEffect(ddfHash, networkChanges) {
         val hash = ddfHash ?: return@LaunchedEffect
+        android.util.Log.i("SchaltliRoot", "announcing at ${ddfServer.url()} (network change $networkChanges)")
         mqttRepository.setAnnouncement(
             MqttRepository.Announcement(
                 deviceId = DeviceIdentity.deviceId(context),
