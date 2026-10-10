@@ -4,6 +4,14 @@ import com.schaltli.android.data.NavigatorLayout
 import com.schaltli.android.ui.NavigatorStripView
 import com.schaltli.android.ui.navigatorOf
 import android.content.pm.ActivityInfo
+import android.net.ConnectivityManager
+import android.net.LinkProperties
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
+import android.os.Handler
+import android.os.Looper
+import com.schaltli.android.mqtt.ConnectionState
 import android.os.Bundle
 import android.view.WindowManager
 import android.widget.Toast
@@ -280,6 +288,27 @@ fun SchaltliRoot(app: SchaltliApp) {
         context.getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager
         ).defaultDisplay.rotation
 
+    // The network the phone is on, counted: every change of it - another
+    // WiFi, a new address - announces the phone again with the address it
+    // has now. Until 2026-10-10 the address was taken once, at start: a phone
+    // that moved from the home WiFi to the van's kept announcing the home
+    // one, and the designer could not fetch its description
+    // (schaltli-android#6).
+    var networkChanges by remember { mutableStateOf(0) }
+    DisposableEffect(context) {
+        val connectivity = context.getSystemService(ConnectivityManager::class.java)
+        val main = Handler(Looper.getMainLooper())
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) { main.post { networkChanges++ } }
+            override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) { main.post { networkChanges++ } }
+            override fun onLost(network: Network) { main.post { networkChanges++ } }
+        }
+        val request = NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI).build()
+        connectivity?.registerNetworkCallback(request, callback)
+        onDispose { connectivity?.unregisterNetworkCallback(callback) }
+    }
+    var ddfHash by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(configuration.screenWidthDp, configuration.screenHeightDp, displayRotation) {
         val roboto = context.assets.open("Roboto.ttf").use { it.readBytes() }
         // Announced in the device's native orientation, always. A project's
@@ -299,12 +328,18 @@ fun SchaltliRoot(app: SchaltliApp) {
             robotoTtf = roboto,
         )
         ddfServer.serve(ddf.bytes)
+        ddfHash = ddf.hash
+    }
+    // Announced with the address the phone has right now: again on every
+    // network change, as well as for a new description.
+    LaunchedEffect(ddfHash, networkChanges) {
+        val hash = ddfHash ?: return@LaunchedEffect
         mqttRepository.setAnnouncement(
             MqttRepository.Announcement(
                 deviceId = DeviceIdentity.deviceId(context),
                 deviceName = DeviceIdentity.deviceName(context),
                 appVersion = BuildConfig.VERSION_NAME,
-                ddfHash = ddf.hash,
+                ddfHash = hash,
                 url = ddfServer.url(),
             ),
         )
@@ -349,6 +384,15 @@ fun SchaltliRoot(app: SchaltliApp) {
     LaunchedEffect(project) {
         mqttRepository.setTopics(wantedTopics())
     }
+
+    // A project made for another phone loads, and says so (ProjectRepository,
+    // schaltli-android#3).
+    LaunchedEffect(app.projectRepository) {
+        app.projectRepository.notices.collect { notice ->
+            Toast.makeText(context, notice, Toast.LENGTH_LONG).show()
+        }
+    }
+    val connection by mqttRepository.connectionState.collectAsStateWithLifecycle()
 
     // A command tapped while the broker is away is dropped, not saved for
     // later (MqttRepository.publish), and a tap that silently does nothing
@@ -431,6 +475,24 @@ fun SchaltliRoot(app: SchaltliApp) {
                 onCancel = { showSettings = false },
                 onChooseHomeApp = { HomeApp.openChooser(context as Activity) },
                 isHomeApp = HomeApp.isDefault(context),
+                // The way to a project file while one is running
+                // (schaltli-android#4): the import screen is only there while
+                // the phone has none.
+                connectionLine = when (connection) {
+                    ConnectionState.CONNECTED -> "Connected to ${brokerConfig.host}:${brokerConfig.port}"
+                    ConnectionState.CONNECTING -> "Connecting to ${brokerConfig.host}:${brokerConfig.port}..."
+                    ConnectionState.DISCONNECTED ->
+                        if (brokerConfig.host.isBlank()) "No broker set" else "Not connected to ${brokerConfig.host}:${brokerConfig.port}"
+                },
+                phoneLine = "This phone: ${DeviceIdentity.deviceName(context)} (${DeviceIdentity.deviceId(context)})",
+                importError = importError,
+                onBundleSelected = { uri ->
+                    scope.launch {
+                        app.projectRepository.importBundle(uri)
+                            .onSuccess { importError = null; showSettings = false }
+                            .onFailure { importError = it.message ?: "Import failed" }
+                    }
+                },
             )
             activeProject == null -> ImportScreen(
                 errorMessage = importError,

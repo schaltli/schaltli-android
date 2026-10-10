@@ -58,8 +58,19 @@ fun SettingsScreen(
     // phone start Schaltli by itself, and the way back to its usual launcher.
     onChooseHomeApp: () -> Unit = {},
     isHomeApp: Boolean = false,
+    // Whether the app is on its broker, and which phone this is - what the
+    // designer lists it as (schaltli-android#4).
+    connectionLine: String? = null,
+    phoneLine: String? = null,
+    // A project from a file, also while one is running: the import screen is
+    // only there while the phone has none (schaltli-android#4).
+    importError: String? = null,
+    onBundleSelected: ((android.net.Uri) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
+    val pickBundle = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument(),
+    ) { uri -> uri?.let { onBundleSelected?.invoke(it) } }
     var host by remember(initialConfig) { mutableStateOf(initialConfig.host) }
     var port by remember(initialConfig) { mutableStateOf(initialConfig.port.toString()) }
     var username by remember(initialConfig) { mutableStateOf(initialConfig.username) }
@@ -87,6 +98,8 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(text = "MQTT Broker", style = MaterialTheme.typography.titleLarge)
+            connectionLine?.let { Text(text = it, style = MaterialTheme.typography.bodyMedium) }
+            phoneLine?.let { Text(text = it, style = MaterialTheme.typography.bodySmall) }
 
             OutlinedTextField(
                 value = host,
@@ -172,6 +185,23 @@ fun SettingsScreen(
 
             TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
                 Text("Cancel")
+            }
+
+            if (onBundleSelected != null) {
+                Text(text = "Project", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "A project normally comes from the designer with Deploy to Device. A project file made for this phone (Export Project in the designer) can be loaded here too.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                OutlinedButton(
+                    onClick = { pickBundle.launch(arrayOf("application/zip", "application/octet-stream")) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Load project from file…")
+                }
+                importError?.let {
+                    Text(text = it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                }
             }
 
             Text(

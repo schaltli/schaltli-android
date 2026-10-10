@@ -120,8 +120,11 @@ class DdfServer(private val port: Int = DEFAULT_PORT) {
      */
     private fun lanAddress(): String? {
         return try {
+            // The WiFi's own address first: a phone also has a mobile-data
+            // interface, and a VPN one, and either may come first in the list.
             NetworkInterface.getNetworkInterfaces().toList()
                 .filter { it.isUp && !it.isLoopback }
+                .sortedBy { if (it.name.startsWith("wlan")) 0 else 1 }
                 .flatMap { it.inetAddresses.toList() }
                 .firstOrNull { it is InetAddress && !it.isLoopbackAddress && it.hostAddress?.contains(':') == false }
                 ?.hostAddress

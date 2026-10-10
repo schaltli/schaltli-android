@@ -11,6 +11,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import com.schaltli.android.ddf.DeviceIdentity
 
 /**
  * Owns the currently-imported project bundle (the .zip exported by the
@@ -21,6 +25,11 @@ import kotlinx.serialization.json.JsonElement
  */
 class ProjectRepository(private val context: Context) {
     private val projectDir = File(context.filesDir, "project")
+
+    // Something to say about the project just installed (a project made for
+    // another phone): shown once, as a toast.
+    private val _notices = kotlinx.coroutines.flow.MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val notices: kotlinx.coroutines.flow.SharedFlow<String> = _notices
     private val json = Json { ignoreUnknownKeys = true }
 
     private val _project = MutableStateFlow<Project?>(null)
@@ -124,6 +133,35 @@ class ProjectRepository(private val context: Context) {
             return Result.failure(IllegalStateException("Bundle has no project.json"))
         }
 
+        // Made for this phone? A board's export (no "platform", or another
+        // one) is refused, with the way to the right one; one made for another
+        // phone loads, and says so. Until 2026-10-10 either was drawn as it
+        // came: tester Arno loaded a 4.3B export on his tablet and got it
+        // small, on its side and without its buttons, with no word why
+        // (schaltli-android#3).
+        val header = try {
+            json.parseToJsonElement(File(staging, "project.json").readText()).jsonObject
+        } catch (e: Exception) {
+            null
+        }
+        fun field(name: String) = header?.get(name)?.jsonPrimitive?.contentOrNull
+        if (header != null && field("platform") != "android") {
+            staging.deleteRecursively()
+            val target = field("deviceId")?.let { "\"$it\"" } ?: "a board"
+            return Result.failure(
+                IllegalStateException(
+                    "This file is a project exported for $target, not for this phone. In the designer, choose this phone " +
+                        "under Settings › Device (or Switch this project to it in Deploy to Device), then send it with Deploy to Device.",
+                ),
+            )
+        }
+        val madeFor = field("deviceId")
+        val notice = if (madeFor != null && madeFor != DeviceIdentity.deviceId(context)) {
+            "This project was made for \"${field("deviceName") ?: madeFor}\", not this phone. It may not fit its screen."
+        } else {
+            null
+        }
+
         if (previous.exists()) previous.deleteRecursively()
         if (projectDir.exists() && !projectDir.renameTo(previous)) {
             staging.deleteRecursively()
@@ -138,6 +176,7 @@ class ProjectRepository(private val context: Context) {
         previous.deleteRecursively()
 
         val loaded = loadFromDisk() ?: return Result.failure(IllegalStateException("Bundle has no project.json"))
+        notice?.let { _notices.tryEmit(it) }
         // After loadFromDisk, so that anything watching both sees the new
         // project rather than the old one under a new number.
         _installation.value += 1

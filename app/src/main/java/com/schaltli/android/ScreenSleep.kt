@@ -88,8 +88,11 @@ class ScreenSleep(private val activity: Activity) {
     companion object {
         const val DEFAULT_SECONDS = 60
 
-        // The lowest brightness a window can ask for without asking for the
-        // screen to be switched off, which some phones would take literally.
-        private const val DARKEST = 0.01f
+        // The backlight off (BRIGHTNESS_OVERRIDE_OFF). Until 2026-10-10 this
+        // was 0.01, the lowest brightness short of "off": dark on an OLED
+        // phone, but an LCD tablet glowed grey in the dark (tester Arno, a Sony
+        // tablet; schaltli-android#5). The window stays on and keeps its
+        // touches - only the light goes - so a touch still wakes it.
+        private const val DARKEST = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_OFF
     }
 }
