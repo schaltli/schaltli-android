@@ -564,6 +564,10 @@ fun SchaltliRoot(app: SchaltliApp) {
                             assetFileOf = { path -> app.projectRepository.assetFile(path) },
                             onScroll = { navigatorScroll = it },
                             onNavigate = { id -> currentScreenId = id; openPopupId = null },
+                            // The bridge answers on THEME_TOPIC, which redraws.
+                            onThemeSwitch = {
+                                mqttRepository.publish("schaltli/cmnd/theme", if (isDarkTheme(topicValues[THEME_TOPIC])) "light" else "dark")
+                            },
                         )
                     },
                 ) { drawn ->

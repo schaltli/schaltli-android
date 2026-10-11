@@ -18,5 +18,8 @@ package com.schaltli.android
  * project with live values to a device below it.
  * 1.5: draws the navigator and pages past hidden screens - navigators[],
  * navigatorId, hidden (§2.7).
+ * 1.6: draws the navigator's light/dark switch - a navigator's themeSwitch, a
+ * place on the strip that does not scroll; a tap on it asks
+ * schaltli/cmnd/theme for the other variant (§2.7).
  */
-const val SYSTEM_GENERATION = "1.5"
+const val SYSTEM_GENERATION = "1.6"

@@ -34,7 +34,8 @@ fun navigatorOf(project: Project, screen: Screen): Pair<Navigator, NavigatorLayo
     val nav = screen.navigatorId?.let { id -> project.navigators.find { it.id == id } } ?: return null
     val edge = NavigatorLayout.edgeFrom(nav.edge)
     val strip = NavigatorLayout.stripOf(edge, nav.thickness, project.screenWidth, project.screenHeight)
-    return nav to NavigatorLayout.layoutInStrip(edge, strip, nav.entries.size, nav.entryLength)
+    val sw = nav.themeSwitch
+    return nav to NavigatorLayout.barLayout(edge, strip, nav.entries.size, nav.entryLength, sw?.at, sw?.length ?: 0)
 }
 
 /** The scroll the navigator is drawn at: [scroll], or (-1) as far as shows the open entry. */
@@ -64,11 +65,14 @@ fun NavigatorStripView(
     assetFileOf: (String) -> File,
     onScroll: (Int) -> Unit,
     onNavigate: (String) -> Unit,
+    onThemeSwitch: () -> Unit = {},
 ) {
     val (nav, layout) = navigatorOf(project, screen) ?: return
     val shown = effectiveNavigatorScroll(nav, layout, screen, scroll)
     val active = nav.entries.indexOfFirst { it.screenId == screen.id }
-    val strip = layout.strip
+    // The whole bar is the navigator's; its entries scroll in their part of it.
+    val strip = layout.bar
+    val entries = layout.strip
     val density = LocalDensity.current.density
     // Read inside the gesture as it is now: as a key it would restart the
     // gesture at every step of the scroll it is making.
@@ -104,17 +108,38 @@ fun NavigatorStripView(
                         if (!moved) {
                             val x = (down.position.x / density).roundToInt() + strip.x
                             val y = (down.position.y / density).roundToInt() + strip.y
+                            // The light/dark switch asks for the other variant (§2.7, 1.6).
+                            val sw = layout.themeSwitch
+                            if (sw != null && x >= sw.x && y >= sw.y && x < sw.x + sw.width && y < sw.y + sw.height) {
+                                onThemeSwitch()
+                                return@awaitEachGesture
+                            }
                             val entry = NavigatorLayout.entryAt(layout, x, y, start)
                             if (entry >= 0 && nav.entries[entry].screenId != currentScreenId) onNavigate(nav.entries[entry].screenId)
                         }
                     }
                 },
         ) {
-            nav.entries.forEachIndexed { i, entry ->
-                val r = NavigatorLayout.entryRect(layout, i, shown)
-                if (r.x >= strip.x + strip.width || r.y >= strip.y + strip.height || r.x + r.width <= strip.x || r.y + r.height <= strip.y) return@forEachIndexed
-                Box(modifier = Modifier.offset((r.x - strip.x).dp, (r.y - strip.y).dp).size(r.width.dp, r.height.dp)) {
-                    for (obj in (if (i == active) entry.active else entry.normal).sortedByZIndex()) {
+            // The entries, clipped to their part: they scroll, the switch stays.
+            Box(
+                modifier = Modifier
+                    .offset((entries.x - strip.x).dp, (entries.y - strip.y).dp)
+                    .size(entries.width.dp, entries.height.dp)
+                    .clip(RoundedCornerShape(0.dp)),
+            ) {
+                nav.entries.forEachIndexed { i, entry ->
+                    val r = NavigatorLayout.entryRect(layout, i, shown)
+                    if (r.x >= entries.x + entries.width || r.y >= entries.y + entries.height || r.x + r.width <= entries.x || r.y + r.height <= entries.y) return@forEachIndexed
+                    Box(modifier = Modifier.offset((r.x - entries.x).dp, (r.y - entries.y).dp).size(r.width.dp, r.height.dp)) {
+                        for (obj in (if (i == active) entry.active else entry.normal).sortedByZIndex()) {
+                            EntryObjectView(obj, project, topicValues, assetFileOf, nav.backgroundColor)
+                        }
+                    }
+                }
+            }
+            layout.themeSwitch?.let { sw ->
+                Box(modifier = Modifier.offset((sw.x - strip.x).dp, (sw.y - strip.y).dp).size(sw.width.dp, sw.height.dp)) {
+                    for (obj in (nav.themeSwitch?.objects ?: emptyList()).sortedByZIndex()) {
                         EntryObjectView(obj, project, topicValues, assetFileOf, nav.backgroundColor)
                     }
                 }

@@ -19,11 +19,17 @@ object NavigatorLayout {
 
     data class Layout(
         val edge: Edge,
+        // The entries' part of the bar: all of it, or what the light/dark
+        // switch leaves. Entries scroll and are hit within it.
         val strip: Rect,
         val horizontal: Boolean,
         val length: Int,
         val count: Int,
         val entryLength: Int,
+        // The whole bar: its ground, its line, what a touch on it belongs to.
+        val bar: Rect = strip,
+        // The light/dark switch's place, if the navigator has one.
+        val themeSwitch: Rect? = null,
     )
 
     data class Listed(val isMaster: Boolean = false, val popup: Boolean = false, val hidden: Boolean = false)
@@ -74,6 +80,23 @@ object NavigatorLayout {
     fun layoutInStrip(edge: Edge, strip: Rect, count: Int, entryLength: Int): Layout {
         val horizontal = edge == Edge.TOP || edge == Edge.BOTTOM
         return Layout(edge, strip, horizontal, if (horizontal) strip.width else strip.height, count, entryLength)
+    }
+
+    /**
+     * The bar split as the designer's barLayout: the switch's place, [length]
+     * long, cut off at its start ([at] "near") or end ("far"); the entries in
+     * the rest. Any other [at]: no switch.
+     */
+    fun barLayout(edge: Edge, bar: Rect, count: Int, entryLength: Int, at: String?, length: Int): Layout {
+        if (at != "near" && at != "far") return layoutInStrip(edge, bar, count, entryLength)
+        val horizontal = edge == Edge.TOP || edge == Edge.BOTTOM
+        val l = minOf(length, if (horizontal) bar.width else bar.height)
+        val near = at == "near"
+        val sw = if (horizontal) Rect(if (near) bar.x else bar.x + bar.width - l, bar.y, l, bar.height)
+        else Rect(bar.x, if (near) bar.y else bar.y + bar.height - l, bar.width, l)
+        val entries = if (horizontal) Rect(if (near) bar.x + l else bar.x, bar.y, bar.width - l, bar.height)
+        else Rect(bar.x, if (near) bar.y + l else bar.y, bar.width, bar.height - l)
+        return layoutInStrip(edge, entries, count, entryLength).copy(bar = bar, themeSwitch = sw)
     }
 
     fun maxScroll(l: Layout) = maxOf(0, l.count * l.entryLength - l.length)

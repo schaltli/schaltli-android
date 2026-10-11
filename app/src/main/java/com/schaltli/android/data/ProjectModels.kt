@@ -159,7 +159,17 @@ data class Navigator(
     val backgroundColor: String? = null,
     // The line towards the screen (§2.7, 2026-10-10); none without it.
     val borderColor: String? = null,
+    // The light/dark switch (§2.7, 1.6); none without it.
+    val themeSwitch: NavigatorThemeSwitch? = null,
     val entries: List<NavigatorEntry> = emptyList(),
+)
+
+/** The navigator's light/dark switch: where on the strip ("near", "far"), how long its place is, its objects relative to it. */
+@Serializable
+data class NavigatorThemeSwitch(
+    val at: String = "",
+    val length: Int = 0,
+    val objects: List<ScreenObject> = emptyList(),
 )
 
 @Serializable
