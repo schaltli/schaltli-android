@@ -1,6 +1,7 @@
 package com.schaltli.android.ddf
 
 import android.content.Context
+import android.content.pm.ActivityInfo
 import android.view.Surface
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -43,6 +44,38 @@ object NativeScreen {
     fun isUpright(rotation: Int): Boolean = rotation == Surface.ROTATION_0 || rotation == Surface.ROTATION_180
 
     /**
+     * True for a device that is wider than tall the right way up - most
+     * tablets. Read from what is showing and which way up it is: wide and
+     * upright, or tall and on its side.
+     */
+    fun isNaturalLandscape(widthDp: Int, heightDp: Int, rotation: Int): Boolean =
+        (widthDp > heightDp) == isUpright(rotation)
+
+    /**
+     * The orientation to hold the activity in for a project's rotation:
+     * the display turned by that many degrees from its own native position.
+     *
+     * Until 2026-10-11 rotation 0 was always portrait, which is native only on
+     * a phone. On a tablet that is natively landscape every project came out
+     * the other way round: a landscape design turned up portrait and a
+     * portrait one landscape (Arno's Sony tablet, Pekaway forum). Android
+     * names its orientations by shape, not by turn, so on such a device 0 is
+     * landscape and portrait is 270 (Android's default; 90 is upside down).
+     */
+    fun requestedOrientation(rotation: Int, naturalLandscape: Boolean): Int =
+        if (naturalLandscape) when (rotation) {
+            90 -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
+            180 -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+            270 -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            else -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        } else when (rotation) {
+            90 -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            180 -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
+            270 -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+            else -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
+
+    /**
      * The size to announce, given what the activity is showing right now.
      *
      * Upright: this measurement is the truth, and is remembered. On its side:
@@ -66,6 +99,8 @@ object NativeScreen {
         val height = prefs[Keys.HEIGHT]
         if (width != null && height != null) return Size(width, height)
 
-        return Size(minOf(widthDp, heightDp), maxOf(widthDp, heightDp))
+        // On its side, so native is the other way round - tall for a phone,
+        // wide for a tablet. (Until 2026-10-11 always tall.)
+        return Size(heightDp, widthDp)
     }
 }

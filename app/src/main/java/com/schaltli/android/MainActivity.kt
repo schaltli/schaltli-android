@@ -233,13 +233,18 @@ fun SchaltliRoot(app: SchaltliApp) {
     // Without a project there is nothing to say which way up the panel hangs,
     // so the welcome screen (and the settings reached from it) follows the
     // phone instead of forcing portrait on a phone that lies on its side.
-    LaunchedEffect(activity, project == null, project?.rotation) {
-        activity?.requestedOrientation = if (project == null) ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR else when (project?.rotation ?: 0) {
-            90 -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-            180 -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
-            270 -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
-            else -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        }
+    //
+    // The turn is from the device's own native position, which is portrait
+    // on a phone and landscape on most tablets (NativeScreen).
+    val orientationConfig = LocalConfiguration.current
+    val naturalLandscape = NativeScreen.isNaturalLandscape(
+        orientationConfig.screenWidthDp,
+        orientationConfig.screenHeightDp,
+        (context.getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager).defaultDisplay.rotation,
+    )
+    LaunchedEffect(activity, project == null, project?.rotation, naturalLandscape) {
+        activity?.requestedOrientation = if (project == null) ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+        else NativeScreen.requestedOrientation(project?.rotation ?: 0, naturalLandscape)
     }
 
     var currentScreenId by remember { mutableStateOf<String?>(null) }
