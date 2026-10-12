@@ -46,6 +46,8 @@ object DdfBuilder {
         "line", "live-line", "box", "switcher", "panel",
         // A bar of every screen along an edge (§2.7), since 1.5.
         "navigator",
+        // Where the power goes (§2.8), since 1.7.
+        "energy-diagram",
     )
 
     /**

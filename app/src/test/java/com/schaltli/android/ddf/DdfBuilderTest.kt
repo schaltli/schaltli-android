@@ -139,6 +139,8 @@ class DdfBuilderTest {
         assertTrue("button-group missing", list.contains("button-group"))
         assertTrue("slider missing", list.contains("slider"))
         assertTrue("dial missing", list.contains("dial"))
+        // The energy diagram since 1.7 (the designer's device contract §2.8).
+        assertTrue("energy-diagram missing", list.contains("energy-diagram"))
 
         // showScreenMenu is what a swipe binds to for the "which screen am I
         // on" overlay; without it the designer offers no such binding.
@@ -147,7 +149,7 @@ class DdfBuilderTest {
 
         // Every target declares which system generation it speaks, and the
         // deploy dialog compares majors before uploading anything.
-        assertEquals("1.6", manifest.getString("systemGeneration"))
+        assertEquals("1.7", manifest.getString("systemGeneration"))
     }
 
     @Test

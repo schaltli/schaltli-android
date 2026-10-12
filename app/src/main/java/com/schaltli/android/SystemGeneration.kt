@@ -21,5 +21,7 @@ package com.schaltli.android
  * 1.6: draws the navigator's light/dark switch - a navigator's themeSwitch, a
  * place on the strip that does not scroll; a tap on it asks
  * schaltli/cmnd/theme for the other variant (§2.7).
+ * 1.7: draws the energy diagram - its nodes, bands or lines, dots and wave,
+ * a tap on a node running its action (§2.8).
  */
-const val SYSTEM_GENERATION = "1.6"
+const val SYSTEM_GENERATION = "1.7"
