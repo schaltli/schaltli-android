@@ -24,7 +24,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.pointerInput
 import com.schaltli.android.data.ButtonAction
 import com.schaltli.android.mqtt.actionOf
@@ -180,12 +181,29 @@ fun EnergyDiagramView(
             .size(width = obj.width.dp, height = obj.height.dp)
             .clipToBounds()
             // A tap on a node runs its action, the actions a button has
-            // (decision 13); the bus and the space between run none.
+            // (decision 13); the bus and the space between run none. Nothing
+            // is consumed: the diagram may cover the screen, and a swipe that
+            // starts on it still pages (SwipeNavigation.kt reads a consumed
+            // touch as a control's; detectTapGestures consumes the down).
             .pointerInput(obj.id) {
-                detectTapGestures(onTap = { at ->
-                    val action = energyActionAt(obj, project, latestValues.value, (at.x / density).toDouble(), (at.y / density).toDouble())
-                    if (action != null) ScreenObject("${obj.id}-tap", "button", 0.0, 0.0, 0.0, 0.0, properties = JsonObject(mapOf("action" to action))).actionOf()?.let(onAction)
-                })
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    var moved = false
+                    while (true) {
+                        val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
+                        if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) moved = true
+                        if (!change.pressed) {
+                            if (!moved) {
+                                val at = down.position
+                                val action = energyActionAt(obj, project, latestValues.value, (at.x / density).toDouble(), (at.y / density).toDouble())
+                                if (action != null) {
+                                    ScreenObject("${obj.id}-tap", "button", 0.0, 0.0, 0.0, 0.0, properties = JsonObject(mapOf("action" to action))).actionOf()?.let(onAction)
+                                }
+                            }
+                            break
+                        }
+                    }
+                }
             },
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {

@@ -1,5 +1,7 @@
 package com.schaltli.android.data
 
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 
@@ -51,6 +53,26 @@ private fun collectTopicsFromObjects(
             when (liveValue.source.namespace) {
                 "topic" -> into.add(splitTopicPath(liveValue.source.path).topic)
                 CombinedTopics.NAMESPACE -> into.addAll(CombinedTopics.inputTopics(combined, liveValue.source.path))
+            }
+        }
+        // An energy diagram's nodes read their watts and charge, and their
+        // lines are live texts (the designer's docs/device-contract.md §2.8).
+        if (obj.type == "energy-diagram") {
+            for (node in (obj.properties["nodes"] as? JsonArray).orEmpty().filterIsInstance<JsonObject>()) {
+                for (key in listOf("topic", "chargeTopic")) {
+                    val topicRef = (node[key] as? JsonPrimitive)?.contentOrNull
+                    if (!topicRef.isNullOrEmpty()) into.add(splitTopicPath(topicRef).topic)
+                }
+                for (line in (node["lines"] as? JsonArray).orEmpty().filterIsInstance<JsonObject>()) {
+                    val text = (line["text"] as? JsonPrimitive)?.contentOrNull.orEmpty()
+                    for (reference in Placeholders.referencedTopics(text)) into.add(splitTopicPath(reference).topic)
+                    for (liveValue in LiveValues.parseLiveValues(line["liveValues"])) {
+                        when (liveValue.source.namespace) {
+                            "topic" -> into.add(splitTopicPath(liveValue.source.path).topic)
+                            CombinedTopics.NAMESPACE -> into.addAll(CombinedTopics.inputTopics(combined, liveValue.source.path))
+                        }
+                    }
+                }
             }
         }
         if (obj.children.isNotEmpty()) {

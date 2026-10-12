@@ -166,6 +166,20 @@ class EnergyDiagramLayoutTest {
     }
 
     @Test
+    fun `a diagram's topics are subscribed - watts, charge and what its lines read`() {
+        val diagram = Json.parseToJsonElement(
+            """{"nodes":[{"id":"bus","role":"bus"},{"id":"s","role":"source","topic":"van/solar#p","lines":[{"text":"{watts} W"}]},
+               {"id":"b","role":"storage","topic":"van/shunt","chargeTopic":"van/soc","lines":[{"text":"{topic:van/volt:F1} V"},
+               {"text":"x","liveText":"{live:t}","liveValues":[{"id":"t","source":{"namespace":"topic","path":"van/temp"},"rules":[]}]}]}]}""",
+        ).jsonObject
+        val p = Project(
+            name = "E", screenWidth = 100, screenHeight = 100,
+            screens = listOf(Screen(id = "s", name = "S", objects = listOf(ScreenObject("e", "energy-diagram", 0.0, 0.0, 100.0, 100.0, properties = diagram)))),
+        )
+        assertEquals(setOf("van/solar", "van/shunt", "van/soc", "van/volt", "van/temp"), p.collectTopicNames())
+    }
+
+    @Test
     fun wattsInALine() {
         assertEquals("92 W", E.withWatts("{watts} W", 92.4))
         assertEquals("93 W", E.withWatts("{watts} W", 92.5))

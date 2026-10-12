@@ -1,5 +1,5 @@
 {
-  "about": "The energy diagram's core (lib/energy-diagram.ts, docs/2026-10-11-energy-diagram.md). Designer, firmware and Android app run these cases; the copies there are byte-for-byte this file. Expected values worked out by hand, not taken from the code; numbers to 2 decimals.",
+  "about": "The energy diagram's core (lib/energy-diagram.ts, docs/2026-10-11-energy-diagram.md). Designer, firmware and Android app run these cases; the copies there are byte-for-byte this file. Expected values worked out by hand, not taken from the code; numbers to 2 decimals - except `shapes`, `mix565` and `rgb565`, whole numbers taken from the designer's code (2026-10-12) to hold the other ports to the very same pixels.",
   "nodes": [
     { "id": "bus", "role": "bus", "name": "12 V", "x": 338, "y": 186 },
     { "id": "solar", "role": "source", "name": "Solar", "x": 114, "y": 52 },
@@ -113,6 +113,27 @@
     {"name": "flow: the storage's ring keeps its label off", "mode": "flow", "values": {"battery": {"watts": 40, "charge": 82}}, "lines": {"battery": 2}, "metrics": {"fontSize": 16, "valueFontSize": 22}, "expected": {"bus": {"x": 360, "y": 176, "width": 120, "align": "left"}, "nodes": {"battery": {"icon": {"x": 187, "y": 287, "width": 30, "height": 30}, "label": {"x": 122, "y": 347, "width": 160, "align": "center"}}}}},
     {"name": "sankey: drive, a label beside its bar on each side", "mode": "sankey", "size": {"width": 676, "height": 396}, "fullScale": 1000, "values": {"solar": {"watts": 120}, "engine": {"watts": 414}, "battery": {"watts": 446}}, "lines": {"solar": 2, "battery": 1}, "metrics": {"fontSize": 16, "valueFontSize": 22}, "expected": {"bus": {"x": 270, "y": 84, "width": 132, "align": "center"}, "nodes": {"solar": {"icon": {"x": 139, "y": 89, "width": 19, "height": 19}, "label": {"x": 0, "y": 89, "width": 133, "align": "right"}}, "battery": {"icon": {"x": 518, "y": 136, "width": 19, "height": 19}, "label": {"x": 543, "y": 136, "width": 133, "align": "left"}}}}},
     {"name": "sankey: a slot grown by its band, its label centred in it", "mode": "sankey", "size": {"width": 676, "height": 396}, "fullScale": 300, "values": {"shore": {"watts": 300}}, "lines": {"shore": 3}, "metrics": {"fontSize": 16, "valueFontSize": 22}, "expected": {"bus": {"x": 270, "y": 5, "width": 132, "align": "center"}, "nodes": {"shore": {"icon": {"x": 139, "y": 157, "width": 19, "height": 19}, "label": {"x": 0, "y": 157, "width": 133, "align": "right"}}, "load": {"icon": {"x": 518, "y": 189, "width": 19, "height": 19}, "label": {"x": 543, "y": 189, "width": 133, "align": "left"}}}}}
+  ],
+  "shapes": [
+    {"name": "a dot: radius 3.5 off the pixel grid", "kind": "disc", "args": [10.3, 7.6, 3.5], "expected": {"points": 24, "sumX": 1974, "sumY": 1464, "full": 29, "partial": 20, "coverage": 607, "weighted": 97426}},
+    {"name": "a circle's outer edge, r 33.5", "kind": "disc", "args": [114, 52, 33.5], "expected": {"points": 120, "sumX": 109440, "sumY": 49920, "full": 3432, "partial": 210, "coverage": 56444, "weighted": 82610540}},
+    {"name": "a storage's track: a ring 5 px wide round r 39", "kind": "ring", "args": [202, 302, 41.5, 36.5], "expected": {"points": 302, "sumX": 488656, "sumY": 729632, "full": 981, "partial": 497, "coverage": 19610, "weighted": 104513636}},
+    {"name": "a line 9.08 px wide with round ends", "kind": "capsule", "args": [144.89, 70.48, 325.99, 178.81, 9.08], "expected": {"points": 62, "sumX": 116778, "sumY": 61824, "full": 1769, "partial": 459, "coverage": 31911, "weighted": 104040200}},
+    {"name": "a charge of 82 %: 295 degrees of the ring", "kind": "arc", "args": [202, 302, 39, 5, 295], "expected": {"points": 275, "sumX": 448920, "sumY": 671457, "full": 818, "partial": 423, "coverage": 16388, "weighted": 89118517}},
+    {"name": "a left bar, its outer corners rounded by 3", "kind": "bar", "args": [170, 100.22, 12, 40.8, 3, true], "expected": {"points": 16, "sumX": 22082, "sumY": 15440, "full": 474, "partial": 17, "coverage": 7767, "weighted": 21672523}},
+    {"name": "a right bar at the thinnest", "kind": "bar", "args": [494, 156.5, 12, 3, 1.5, false], "expected": {"points": 16, "sumX": 64510, "sumY": 20224, "full": 22, "partial": 26, "coverage": 556, "weighted": 3081694}},
+    {"name": "the Sankey's bus", "kind": "rect", "args": [330, 107.22, 16, 181.56], "expected": {"points": 4, "sumX": 10816, "sumY": 6336, "full": 2880, "partial": 32, "coverage": 46464, "weighted": 229067520}}
+  ],
+  "mix565": [
+    {"under": 65535, "over": 0, "w": 128, "expected": 33808},
+    {"under": 27220, "over": 65535, "w": 8, "expected": 29301},
+    {"under": 50336, "over": 11402, "w": 200, "expected": 19592},
+    {"under": 4660, "over": 43981, "w": 256, "expected": 43981},
+    {"under": 4660, "over": 43981, "w": 0, "expected": 4660}
+  ],
+  "rgb565": [
+    {"hex": "#c99400", "expected": 52384, "expanded": [206, 150, 0]},
+    {"hex": "#ffffff", "expected": 65535, "expanded": [255, 255, 255]}
   ],
   "dotGap": [
     { "watts": 0, "expected": 120 },
