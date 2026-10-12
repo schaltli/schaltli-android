@@ -27,6 +27,7 @@ import com.schaltli.android.data.resolveLiveText
 import com.schaltli.android.data.resolvePlaceholders
 import com.schaltli.android.data.resolveTopicValue
 import com.schaltli.android.ddf.DeviceIdentity
+import com.schaltli.android.ui.objects.EnergyDiagramView
 import com.schaltli.android.ui.objects.ArcLevelView
 import com.schaltli.android.ui.objects.IconPathView
 import com.schaltli.android.ui.objects.LevelIndicatorView
@@ -304,6 +305,14 @@ fun DynamicObjectView(
             val context = LocalContext.current
             val identity = remember { DeviceIdentity.deviceName(context) to DeviceIdentity.deviceId(context) }
             IconPathView(obj, liveIconPath(obj.properties, project, topicValues, identity.first, identity.second), assetFileOf)
+        }
+        // The energy diagram (the designer's docs/device-contract.md §2.8):
+        // drawn from the core's places on every value of its topics.
+        "energy-diagram" -> {
+            val context = LocalContext.current
+            val identity = remember { DeviceIdentity.deviceName(context) to DeviceIdentity.deviceId(context) }
+            val ground = screenBackgroundColor?.let(::parseHexColor)?.takeIf { it != Color.Transparent } ?: Color.White
+            EnergyDiagramView(obj, project, topicValues, ground, assetFileOf, identity.first, identity.second, onAction)
         }
         else -> Unit // box, line, fixed icon, panel (outside a tab-control): already baked into the background.
     }
