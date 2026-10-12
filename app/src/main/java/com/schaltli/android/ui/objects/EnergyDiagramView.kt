@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -246,12 +247,22 @@ fun EnergyDiagramView(
                         drawPath(Path().apply { addRoundRect(rr) }, colours[bar.id] ?: text)
                     }
                 } else if (flowLayout != null) {
+                    // A storage's dots past its line: drawn over its track, below.
+                    val trackDots = mutableListOf<Pair<E.PathDot, Color>>()
                     for (line in flowLayout.lines) {
                         val r = resolved.first { it.id == line.id }
                         val c = if (line.live) colourOf(r) else idle
                         drawLine(c, pt(line.x0, line.y0), pt(line.x1, line.y1), line.width.toFloat(), StrokeCap.Round, alpha = if (line.live) 0.5f else 1f)
                         if (!line.live) continue
-                        for (d in E.dotsOnLine(line, phases.dots[line.id] ?: 0.0, r.gives, r.watts)) drawCircle(c, E.DOT_R.toFloat(), pt(d.x, d.y))
+                        val phase = phases.dots[line.id] ?: 0.0
+                        val fn = flowLayout.nodes.firstOrNull { it.id == line.id }
+                        if (r.role == E.Role.STORAGE && fn?.ringR != null) {
+                            for (d in E.storageDots(line, fn, phase, r.gives, r.watts)) {
+                                if (d.onLine) drawCircle(c, E.DOT_R.toFloat(), pt(d.x, d.y)) else trackDots += d to c
+                            }
+                        } else {
+                            for (d in E.dotsOnLine(line, phase, r.gives, r.watts)) drawCircle(c, E.DOT_R.toFloat(), pt(d.x, d.y))
+                        }
                     }
                     drawCircle(bus, flowLayout.busR.toFloat(), pt(flowLayout.busX, flowLayout.busY))
                     for (fn in flowLayout.nodes) {
@@ -259,17 +270,24 @@ fun EnergyDiagramView(
                         val c = if (fn.live) colourOf(r) else idle
                         val centre = pt(fn.x, fn.y)
                         fn.ringR?.let { ringR ->
-                            drawCircle(idle, ringR.toFloat(), centre, style = Stroke(5f))
+                            // The track: opaque, the bar's colour mixed into the ground, over the line's end.
+                            val t = E.trackColour(rgbOf(colourOf(r)), rgbOf(screenBackgroundColor))
+                            val w = E.FLOW_RING_W.toFloat()
+                            drawCircle(Color(t[0], t[1], t[2]), ringR.toFloat(), centre, style = Stroke(w))
                             if (fn.ringFraction > 0) {
                                 val rr = ringR.toFloat()
                                 drawArc(
                                     colourOf(r), -90f, (fn.ringFraction * 360).toFloat(), false,
-                                    Offset(centre.x - rr, centre.y - rr), Size(2 * rr, 2 * rr), style = Stroke(5f, cap = StrokeCap.Round),
+                                    Offset(centre.x - rr, centre.y - rr), Size(2 * rr, 2 * rr), style = Stroke(w, cap = StrokeCap.Round),
                                 )
                             }
                         }
                         drawCircle(screenBackgroundColor, fn.r.toFloat(), centre)
                         drawCircle(c, fn.r.toFloat(), centre, style = Stroke(3f))
+                    }
+                    for ((d, c) in trackDots) {
+                        val ink = if (d.onBar) lerp(c, Color.White, E.BAR_DOT_LIGHT.toFloat()) else c
+                        drawCircle(ink, E.DOT_R.toFloat(), pt(d.x, d.y), alpha = d.alpha.toFloat())
                     }
                 }
             }

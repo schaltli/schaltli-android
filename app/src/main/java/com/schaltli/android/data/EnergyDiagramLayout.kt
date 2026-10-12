@@ -183,7 +183,11 @@ object EnergyDiagramLayout {
     const val FLOW_NODE_R = 32.0
     const val FLOW_BUS_R = 14.0
     const val FLOW_LINE_GAP = 4.0
-    const val FLOW_RING_GAP = 7.0
+    const val FLOW_RING_GAP = 8.0
+
+    /** The storage's track: this wide, the bar's colour mixed TRACK_ALPHA into the ground (2026-10-12). */
+    const val FLOW_RING_W = 10.0
+    const val TRACK_ALPHA = 0.25
     const val FLOW_LABEL_GAP = 10.0
     private val LABEL_BESIDE_BELOW = cos(PI / 6)
 
@@ -219,7 +223,7 @@ object EnergyDiagramLayout {
             val ux = if (len > 0) dx / len else 0.0
             val uy = if (len > 0) dy / len else 0.0
             val ringed = n.role == Role.STORAGE
-            val outer = FLOW_NODE_R + if (ringed) FLOW_RING_GAP else 0.0
+            val outer = FLOW_NODE_R + if (ringed) FLOW_RING_GAP + FLOW_RING_W / 2 else 0.0
             val beside = uy > LABEL_BESIDE_BELOW
             out += FlowNode(
                 id = n.id,
@@ -230,14 +234,16 @@ object EnergyDiagramLayout {
                 ringR = if (ringed) FLOW_NODE_R + FLOW_RING_GAP else null,
                 ringFraction = if (ringed && n.charge != null) max(0.0, min(1.0, n.charge / 100)) else 0.0,
                 labelX = if (beside) n.x + outer + FLOW_LABEL_GAP else n.x,
-                labelY = if (beside) n.y - FLOW_NODE_R + 8 else n.y + FLOW_NODE_R + if (ringed) 26 else 20,
+                labelY = if (beside) n.y - FLOW_NODE_R + 8 else n.y + FLOW_NODE_R + if (ringed) 30 else 20,
                 labelBeside = beside,
             )
-            if (len <= FLOW_NODE_R + FLOW_LINE_GAP + FLOW_BUS_R) continue
+            // A storage's line ends at its track's outer edge.
+            val start = if (ringed) FLOW_NODE_R + FLOW_RING_GAP + FLOW_RING_W / 2 else FLOW_NODE_R + FLOW_LINE_GAP
+            if (len <= start + FLOW_BUS_R) continue
             lines += FlowLine(
                 n.id,
-                n.x + ux * (FLOW_NODE_R + FLOW_LINE_GAP),
-                n.y + uy * (FLOW_NODE_R + FLOW_LINE_GAP),
+                n.x + ux * start,
+                n.y + uy * start,
                 bx - ux * FLOW_BUS_R,
                 by - uy * FLOW_BUS_R,
                 lineWidth(n.watts),
@@ -296,7 +302,7 @@ object EnergyDiagramLayout {
             val top = if (fn.labelBeside) {
                 fn.y - FLOW_NODE_R
             } else {
-                max(fn.labelY - jsRound(m.fontSize * 0.8), fn.y + (fn.ringR?.let { it + 4 } ?: (fn.r + 4)))
+                max(fn.labelY - jsRound(m.fontSize * 0.8), fn.y + (fn.ringR?.let { it + FLOW_RING_W / 2 + 4 } ?: (fn.r + 4)))
             }
             NodeBoxes(
                 fn.id,
@@ -341,6 +347,77 @@ object EnergyDiagramLayout {
         while (d < len) {
             val f = if (gives) d / len else 1 - d / len
             out += Point(line.x0 + (line.x1 - line.x0) * f, line.y0 + (line.y1 - line.y0) * f)
+            d += gap
+        }
+        return out
+    }
+
+    /** The track's colour: the bar's mixed TRACK_ALPHA into the ground. */
+    fun trackColour(bar: IntArray, ground: IntArray): IntArray =
+        IntArray(3) { i -> jsRound(ground[i] + (bar[i] - ground[i]) * TRACK_ALPHA).toInt() }
+
+    const val TRACK_DOT_ALPHA = 0.5
+    const val BAR_DOT_LIGHT = 0.6
+
+    data class PathDot(val x: Double, val y: Double, val alpha: Double, val onBar: Boolean, val onLine: Boolean)
+
+    /**
+     * A storage's dots run on into its track (the designer's storageDots):
+     * entering the bar, along its longer branch, fading, drawn lighter;
+     * entering the empty track, the shorter way to the bar at half; giving,
+     * backwards.
+     */
+    fun storageDots(line: FlowLine, node: FlowNode, phase: Double, gives: Boolean, watts: Double): List<PathDot> {
+        val len = kotlin.math.sqrt((line.x1 - line.x0) * (line.x1 - line.x0) + (line.y1 - line.y0) * (line.y1 - line.y0))
+        val gap = dotGap(watts)
+        val out = mutableListOf<PathDot>()
+        val ringR = node.ringR
+        val sweep = if (ringR != null) max(0, min(360, jsRound(node.ringFraction * 360).toInt())) else 0
+        val toBus = kotlin.math.atan2(line.y1 - node.y, line.x1 - node.x)
+        val entry = (((toBus * 180 / PI + 90) % 360) + 360) % 360
+        var arc = 0.0
+        var way = 1
+        var inBar = false
+        if (ringR != null && sweep > 0) {
+            if (entry <= sweep) {
+                inBar = true
+                val back = entry
+                val on = sweep - entry
+                way = if (on >= back) 1 else -1
+                arc = max(back, on)
+            } else {
+                val back = entry - sweep
+                val on = 360 - entry
+                way = if (on <= back) 1 else -1
+                arc = min(back, on)
+            }
+        }
+        val r = ringR ?: 0.0
+        val lineEnd = kotlin.math.sqrt((line.x0 - node.x) * (line.x0 - node.x) + (line.y0 - node.y) * (line.y0 - node.y))
+        val inward = if (ringR != null && sweep > 0) max(0.0, lineEnd - r) else 0.0
+        val onLine = len + inward
+        val arcLen = arc / 360 * 2 * PI * r
+        val total = onLine + arcLen
+        var d = phase * gap
+        while (d < total) {
+            val t = if (gives) total - d else d
+            val p = when {
+                t <= len -> {
+                    val f = 1 - t / len
+                    PathDot(line.x0 + (line.x1 - line.x0) * f, line.y0 + (line.y1 - line.y0) * f, 1.0, false, true)
+                }
+                t <= onLine -> {
+                    val q = lineEnd - (t - len)
+                    PathDot(node.x + q * cos(toBus), node.y + q * kotlin.math.sin(toBus), if (inBar) 1.0 else TRACK_DOT_ALPHA, inBar, false)
+                }
+                else -> {
+                    val s = t - onLine
+                    val deg = entry + way * s * 360 / (2 * PI * r)
+                    val rad = (deg - 90) * PI / 180
+                    PathDot(node.x + r * cos(rad), node.y + r * kotlin.math.sin(rad), if (inBar) max(0.0, 1 - s / arcLen) else TRACK_DOT_ALPHA, inBar, false)
+                }
+            }
+            if (p.alpha > 0) out += p
             d += gap
         }
         return out

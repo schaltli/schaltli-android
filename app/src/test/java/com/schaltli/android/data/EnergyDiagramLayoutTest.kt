@@ -162,6 +162,23 @@ class EnergyDiagramLayoutTest {
             if (!near(E.waveMix(x, phase), c.num("mix")) || !got.contentEquals(rgb("colour"))) failures += "wave $x $phase: ${got.toList()}"
         }
 
+        for (c in doc["storageDots"]!!.jsonArray.map { it.jsonObject }) {
+            val r = E.resolve(nodes, valuesOf(c["values"]?.jsonObject))
+            val l = E.flowLayout(nodes, r)
+            val rb = r.first { it.id == "battery" }
+            val dots = E.storageDots(l.lines.first { it.id == "battery" }, l.nodes.first { it.id == "battery" }, c.num("phase")!!, rb.gives, rb.watts)
+            val e = c["expected"]!!.jsonArray.map { it.jsonArray }
+            val ok = dots.size == e.size && dots.zip(e).all { (d, q) ->
+                near(d.x, q[0].jsonPrimitive.double) && near(d.y, q[1].jsonPrimitive.double) && near(d.alpha, q[2].jsonPrimitive.double) &&
+                    (if (d.onBar) 1 else 0) == q[3].jsonPrimitive.int && (if (d.onLine) 1 else 0) == q[4].jsonPrimitive.int
+            }
+            if (!ok) failures += "storage dots ${c.str("name")}: ${dots.size}"
+        }
+        for (c in doc["trackColour"]!!.jsonArray.map { it.jsonObject }) {
+            fun rgb(key: String) = c[key]!!.jsonArray.map { it.jsonPrimitive.int }.toIntArray()
+            if (!E.trackColour(rgb("bar"), rgb("ground")).contentEquals(rgb("expected"))) failures += "track colour"
+        }
+
         assertEquals("energy diagram vectors failed", emptyList<String>(), failures)
     }
 
