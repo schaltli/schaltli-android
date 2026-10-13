@@ -142,7 +142,7 @@ object DdfBuilder {
         |  ],
         |  "supportedObjectTypes": [$types],
         |  "systemGeneration": "$SYSTEM_GENERATION",
-        |  "supportedFeatures": ["local-topics"],
+        |  "supportedFeatures": ["local-topics", "static-objects"],
         |  "deviceActions": ["showScreenMenu"]
         |}
         |

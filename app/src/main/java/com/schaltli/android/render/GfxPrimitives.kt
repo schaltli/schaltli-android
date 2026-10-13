@@ -30,14 +30,12 @@ import android.graphics.PorterDuffXfermode
  * half, 2 = left half, matching the library's own convention.
  */
 private fun fillCircleHelper(
-    canvas: Canvas,
-    paint: Paint,
     x0: Int,
     y0: Int,
     r: Int,
     corners: Int,
     deltaIn: Int,
-    scale: Float,
+    span: (x: Int, y: Int, w: Int, h: Int) -> Unit,
 ) {
     var f = 1 - r
     var ddFX = 1
@@ -58,12 +56,12 @@ private fun fillCircleHelper(
         ddFX += 2
         f += ddFX
         if (x < y + 1) {
-            if (corners and 1 != 0) span(canvas, paint, x0 + x, y0 - y, 1, 2 * y + delta, scale)
-            if (corners and 2 != 0) span(canvas, paint, x0 - x, y0 - y, 1, 2 * y + delta, scale)
+            if (corners and 1 != 0) span(x0 + x, y0 - y, 1, 2 * y + delta)
+            if (corners and 2 != 0) span(x0 - x, y0 - y, 1, 2 * y + delta)
         }
         if (y != py) {
-            if (corners and 1 != 0) span(canvas, paint, x0 + py, y0 - px, 1, 2 * px + delta, scale)
-            if (corners and 2 != 0) span(canvas, paint, x0 - py, y0 - px, 1, 2 * px + delta, scale)
+            if (corners and 1 != 0) span(x0 + py, y0 - px, 1, 2 * px + delta)
+            if (corners and 2 != 0) span(x0 - py, y0 - px, 1, 2 * px + delta)
             py = y
         }
         px = x
@@ -119,15 +117,29 @@ fun fillRoundRectSides(
     rLeft: Int,
     rRight: Int,
     scale: Float,
+) = roundRectSpans(x, y, w, h, rLeft, rRight) { sx, sy, sw, sh -> span(canvas, paint, sx, sy, sw, sh, scale) }
+
+/**
+ * The runs of whole pixels [fillRoundRectSides] lays down, without a canvas -
+ * what StaticObjectGoldenTest holds to the designer's own pixels.
+ */
+fun roundRectSpans(
+    x: Int,
+    y: Int,
+    w: Int,
+    h: Int,
+    rLeft: Int,
+    rRight: Int,
+    span: (x: Int, y: Int, w: Int, h: Int) -> Unit,
 ) {
     if (w <= 0 || h <= 0) return
     val maxRadius = minOf(w, h) / 2
     val left = maxOf(0, minOf(maxRadius, rLeft))
     val right = maxOf(0, minOf(maxRadius, rRight))
 
-    span(canvas, paint, x + left, y, w - left - right, h, scale)
-    if (right > 0) fillCircleHelper(canvas, paint, x + w - right - 1, y + right, right, 1, h - 2 * right - 1, scale)
-    if (left > 0) fillCircleHelper(canvas, paint, x + left, y + left, left, 2, h - 2 * left - 1, scale)
+    span(x + left, y, w - left - right, h)
+    if (right > 0) fillCircleHelper(x + w - right - 1, y + right, right, 1, h - 2 * right - 1, span)
+    if (left > 0) fillCircleHelper(x + left, y + left, left, 2, h - 2 * left - 1, span)
 }
 
 /**

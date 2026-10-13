@@ -30,6 +30,8 @@ import com.schaltli.android.ddf.DeviceIdentity
 import com.schaltli.android.ui.objects.EnergyDiagramView
 import com.schaltli.android.ui.objects.ArcLevelView
 import com.schaltli.android.ui.objects.IconPathView
+import com.schaltli.android.ui.objects.BoxView
+import com.schaltli.android.ui.objects.LineView
 import com.schaltli.android.ui.objects.LevelIndicatorView
 import com.schaltli.android.ui.objects.MqttDataLineView
 import com.schaltli.android.ui.objects.MqttIconFieldView
@@ -88,51 +90,9 @@ fun ScreenRenderer(
                 .fillMaxSize()
                 .then(if (backgroundClip != null) Modifier.clip(backgroundClip).background(backgroundColor) else Modifier),
         ) {
-        screen.backgroundImage?.let { path ->
-            // The background is a pixel-exact rendering of box/line/icon
-            // objects at the project's own 360x800 reference resolution -
-            // it needs to reach the screen with zero resampling artifacts
-            // when Compose scales it up to the device's real (much higher)
-            // pixel density. Coil's AsyncImage got this most of the way
-            // (filterQuality = FilterQuality.None killed the bilinear blur,
-            // matching the web designer's own "imageRendering: pixelated"),
-            // but its underlying Paint still draws with anti-aliasing on,
-            // which softens the *edges* of the scaled bitmap independently
-            // of filterQuality - visible as single stray dark pixels
-            // bleeding a row past a hard black/white border at certain
-            // fractional scale offsets (2026-07-27 HIL finding, confirmed
-            // reproducible across repeated captures). Drawing the decoded
-            // bitmap directly via a native Paint with isAntiAlias = false
-            // (alongside isFilterBitmap = false, the native equivalent of
-            // FilterQuality.None) removes both smoothing sources at once.
-            //
-            // Keyed on the installation as well as the path, because the path
-            // is the same in every project there has ever been: every screen's
-            // background is `assets/<screenId>.png`. Keyed on the path alone,
-            // this cache handed back the first project's pixels for every
-            // project after it - a deploy landed, its objects drew (those come
-            // from project.json, which is read afresh) and the background under
-            // them stayed the old one. Reported from a phone on 2026-09-21 as
-            // "a blue frame that is not part of my project, and a black
-            // background although the project says white": both were an
-            // earlier project's baked background, still in the cache.
-            val bitmap = remember(path, LocalBundleInstallation.current) {
-                BitmapFactory.decodeFile(assetFileOf(path).path)?.asImageBitmap()
-            }
-            bitmap?.let { image ->
-                val androidBitmap = image.asAndroidBitmap()
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    drawIntoCanvas { canvas ->
-                        val paint = android.graphics.Paint().apply {
-                            isAntiAlias = false
-                            isFilterBitmap = false
-                        }
-                        val dst = android.graphics.Rect(0, 0, size.width.toInt(), size.height.toInt())
-                        canvas.nativeCanvas.drawBitmap(androidBitmap, null, dst, paint)
-                    }
-                }
-            }
-        }
+        // No background picture: the export bakes none since 2026-10-13
+        // (tasks/android-draws-all-plan.md) - the screen is its colour, and
+        // every object below draws itself.
         }
 
         for (obj in screen.objects.sortedByZIndex()) {
@@ -178,9 +138,9 @@ fun List<ScreenObject>.sortedByZIndex(): List<ScreenObject> =
 /**
  * Type-based dispatch for one object - the Compose equivalent of the
  * firmware's `ScreenRenderer::renderObject` switch (`ScreenRenderer.cpp:133`)
- * and the designer's `drawObject`. Static types (box/line/icon/a bare
- * "panel" outside a switcher) are intentionally no-ops: they're already
- * part of the flattened background image drawn beneath this.
+ * and the designer's `drawObject`. Every type draws itself, box, line and
+ * fixed icon included since 2026-10-13 (no baked background any more); a
+ * bare "panel" outside a switcher has nothing of its own to draw.
  */
 @Composable
 fun DynamicObjectView(
@@ -300,11 +260,15 @@ fun DynamicObjectView(
             MqttDataLineView(obj, value)
         }
         // A live icon is left out of the background (§2.6) and drawn here:
-        // the icon its live value gives now. A fixed icon is baked.
+        // the icon its live value gives now; a fixed one its own.
         "icon" -> if (!obj.properties.stringOrNull("liveIconId").isNullOrEmpty()) {
             val context = LocalContext.current
             val identity = remember { DeviceIdentity.deviceName(context) to DeviceIdentity.deviceId(context) }
             IconPathView(obj, liveIconPath(obj.properties, project, topicValues, identity.first, identity.second), assetFileOf)
+        } else {
+            // A fixed icon, from the SVG the export gives it - drawn here
+            // since 2026-10-13, as on every board, not baked into a background.
+            IconPathView(obj, obj.path, assetFileOf)
         }
         // The energy diagram (the designer's docs/device-contract.md §2.8):
         // drawn from the core's places on every value of its topics.
@@ -314,6 +278,10 @@ fun DynamicObjectView(
             val ground = screenBackgroundColor?.let(::parseHexColor)?.takeIf { it != Color.Transparent } ?: Color.White
             EnergyDiagramView(obj, project, topicValues, ground, assetFileOf, identity.first, identity.second, onAction)
         }
-        else -> Unit // box, line, fixed icon, panel (outside a tab-control): already baked into the background.
+        // Drawn here since 2026-10-13, as every board draws them (device
+        // contract §2, «Static content»), not baked into a background.
+        "box" -> BoxView(obj)
+        "line" -> LineView(obj)
+        else -> Unit // a panel outside a switcher draws nothing of its own.
     }
 }
