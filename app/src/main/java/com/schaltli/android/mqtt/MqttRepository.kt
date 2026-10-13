@@ -1,6 +1,8 @@
 package com.schaltli.android.mqtt
 
 import android.util.Log
+import com.schaltli.android.data.LocalTopics
+import com.schaltli.android.data.splitTopicPath
 import com.hivemq.client.mqtt.MqttClient
 import com.hivemq.client.mqtt.datatypes.MqttQos
 import com.hivemq.client.mqtt.mqtt3.Mqtt3RxClient
@@ -96,6 +98,24 @@ class MqttRepository {
     private val _topicValues = MutableStateFlow<Map<String, String>>(emptyMap())
     val topicValues: StateFlow<Map<String, String>> = _topicValues.asStateFlow()
 
+    // The project's local topics (device contract §2.9). Their values sit in
+    // [topicValues] beside the broker's, are written by [publish] and kept
+    // over a reconnect; only [setLocalTopics] - a project loaded - resets them.
+    @Volatile private var localTopics = LocalTopics.NONE
+    private val _localValues = MutableStateFlow<Map<String, String>>(emptyMap())
+
+    /**
+     * The local topics of the project just loaded, each at its initial value
+     * again: called at start and after every install.
+     */
+    fun setLocalTopics(topics: LocalTopics) {
+        val before = localTopics.names
+        localTopics = topics
+        _localValues.value = topics.initialValues
+        _topicValues.update { (it - before - topics.names) + topics.initialValues }
+        _askedValues.update { it - before - topics.names }
+    }
+
     /**
      * What a finger asked of a value, keyed by the topic the request is about
      * (the designer's docs/2026-09-17-settable-level.md, decision 6c): a
@@ -123,6 +143,8 @@ class MqttRepository {
 
     fun noteAsked(topic: String, value: String, awaitAnswer: Boolean = false, stillHolding: Boolean = false) {
         if (topic.isEmpty()) return
+        // A local topic has its value the moment it is written: nothing to ask.
+        if (localTopics.isLocal(topic)) return
         if (stillHolding) holding.add(topic) else holding.remove(topic)
         // Nothing was sent without a connection (see [publish]), so there is
         // no request for a marker to show.
@@ -297,7 +319,8 @@ class MqttRepository {
         listening.clear()
         deliveries.values.forEach { it.dispose() }
         deliveries.clear()
-        _topicValues.value = emptyMap()
+        // The broker's values go with the connection; this display's own stay.
+        _topicValues.value = _localValues.value
         _askedValues.value = emptyMap()
 
         val builder = MqttClient.builder()
@@ -435,6 +458,13 @@ class MqttRepository {
      * the send, a few milliseconds wide.
      */
     fun publish(topic: String, message: String): Boolean {
+        // A local topic is written here and goes nowhere, connected or not.
+        if (localTopics.isLocal(topic)) {
+            val name = splitTopicPath(topic).topic
+            _localValues.update { it + (name to message) }
+            _topicValues.update { it + (name to message) }
+            return true
+        }
         val activeClient = client
         if (activeClient == null || !activeClient.state.isConnected) {
             _droppedCommands.tryEmit(topic)
@@ -470,6 +500,8 @@ class MqttRepository {
                 val payload = String(publish.payloadAsBytes, StandardCharsets.UTF_8)
                 // Whether this answers what a finger asked, decided before the
                 // value is stored.
+                // A topic of this display's own is not the broker's to set.
+                if (localTopics.isLocal(topic)) return@subscribe
                 val answered = answers(topic, payload)
                 _topicValues.update { it + (topic to payload) }
                 // The installation has spoken about this value: whatever a

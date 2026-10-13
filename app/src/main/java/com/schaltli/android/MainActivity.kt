@@ -45,6 +45,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.schaltli.android.data.BrokerConfigStore
+import com.schaltli.android.data.LocalTopics
 import com.schaltli.android.data.THEME_TOPIC
 import com.schaltli.android.data.collectTopicNames
 import com.schaltli.android.data.isDarkTheme
@@ -213,7 +214,11 @@ fun SchaltliRoot(app: SchaltliApp) {
     // which reads the theme itself (a Theme switch on a screen) shares the
     // one subscription, and a project that stops reading it cannot take the
     // subscription away with it.
-    fun wantedTopics(): Set<String> = (project?.collectTopicNames() ?: emptySet()) + THEME_TOPIC
+    // Never a local topic (device contract §2.9): this display keeps those.
+    fun wantedTopics(): Set<String> {
+        val local = LocalTopics(project?.topics.orEmpty())
+        return (project?.collectTopicNames() ?: emptySet()).filterNot { local.isLocal(it) }.toSet() + THEME_TOPIC
+    }
 
     // Which way up this is, decided by the project and not by the way the
     // phone happens to be lying. Without this the activity follows the
@@ -389,6 +394,13 @@ fun SchaltliRoot(app: SchaltliApp) {
 
     LaunchedEffect(project) {
         mqttRepository.setTopics(wantedTopics())
+    }
+
+    // Every local topic at its initial value again, at start and after every
+    // install - keyed on the installation too, since installing an unchanged
+    // project.json changes no project (see the first-screen effect below).
+    LaunchedEffect(project, LocalBundleInstallation.current) {
+        mqttRepository.setLocalTopics(LocalTopics(project?.topics.orEmpty()))
     }
 
     // A project made for another phone loads, and says so (ProjectRepository,

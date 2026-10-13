@@ -117,6 +117,10 @@ data class Topic(
     val type: String = "text", // "numeric" | "text" | "json"
     val examples: List<String> = emptyList(),
     val subtopics: List<JsonSubtopic> = emptyList(),
+    // A local topic (device contract §2.9): kept by this display, never on
+    // the broker; [initial] is its value after every load. See LocalTopics.
+    val local: Boolean = false,
+    val initial: String? = null,
 )
 
 @Serializable
