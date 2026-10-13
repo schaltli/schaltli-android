@@ -149,7 +149,13 @@ class DdfBuilderTest {
 
         // Every target declares which system generation it speaks, and the
         // deploy dialog compares majors before uploading anything.
-        assertEquals("1.7", manifest.getString("systemGeneration"))
+        assertEquals("1.8", manifest.getString("systemGeneration"))
+
+        // Local topics (§2.9) are a feature, not a generation: the designer
+        // sends a project with them only to a device that lists it.
+        val features = manifest.getJSONArray("supportedFeatures")
+        assertEquals(1, features.length())
+        assertEquals("local-topics", features.getString(0))
     }
 
     @Test

@@ -23,5 +23,8 @@ package com.schaltli.android
  * schaltli/cmnd/theme for the other variant (§2.7).
  * 1.7: draws the energy diagram - its nodes, bands or lines, dots and wave,
  * a tap on a node running its action (§2.8).
+ * 1.8: keeps local topics - never subscribed, a write applied here and never
+ * published, each at its initial value after a load (§2.9); the DDF also
+ * lists the feature "local-topics", which is what the designer checks.
  */
-const val SYSTEM_GENERATION = "1.7"
+const val SYSTEM_GENERATION = "1.8"
