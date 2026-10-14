@@ -24,8 +24,8 @@ android {
         applicationId = "com.schaltli.android"
         minSdk = 23
         targetSdk = 35
-        versionCode = 12
-        versionName = "0.12.0"
+        versionCode = 13
+        versionName = "0.13.0"
     }
 
     signingConfigs {
