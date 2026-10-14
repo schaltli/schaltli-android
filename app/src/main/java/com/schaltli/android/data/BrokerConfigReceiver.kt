@@ -45,7 +45,11 @@ class BrokerConfigReceiver : BroadcastReceiver() {
         if (intent.action != ACTION) return
         val host = intent.getStringExtra("host")
         val displayOff = if (intent.hasExtra("displayOffSeconds")) intent.getIntExtra("displayOffSeconds", 0) else null
-        if (host.isNullOrBlank() && displayOff == null) {
+        // The test interface, switched over the cable like a board's over
+        // USB (hil/test-interface.js): `--ez testInterface true --es
+        // testPassword <password>`, or false to switch it off.
+        val testOn = if (intent.hasExtra("testInterface")) intent.getBooleanExtra("testInterface", false) else null
+        if (host.isNullOrBlank() && displayOff == null && testOn == null) {
             Log.w("BrokerConfigReceiver", "no host given - broker left as it is")
             return
         }
@@ -64,6 +68,11 @@ class BrokerConfigReceiver : BroadcastReceiver() {
                 if (config != null) {
                     store.save(config)
                     Log.i("BrokerConfigReceiver", "broker set to ${config.host}:${config.port}")
+                }
+                if (testOn != null) {
+                    val saved = store.saveTestInterface(testOn, intent.getStringExtra("testPassword") ?: "")
+                    pending.resultData = if (saved) "test interface ${if (testOn) "on" else "off"}" else "refused: a password of 4 to 64 characters"
+                    Log.i("BrokerConfigReceiver", pending.resultData ?: "")
                 }
                 if (displayOff != null) {
                     pending.resultData = store.displayOffSeconds.first().toString()

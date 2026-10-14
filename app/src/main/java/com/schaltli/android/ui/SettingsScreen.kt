@@ -53,6 +53,10 @@ fun SettingsScreen(
     // form, one Save.
     initialDisplayOffSeconds: Int,
     onSave: (BrokerConfig, displayOffSeconds: Int) -> Unit,
+    // The test interface (test/AppTestInterface.kt), off from the factory.
+    // Saved on its own: it is not part of what "Save & Connect" means.
+    testInterfaceOn: Boolean = false,
+    onSaveTestInterface: suspend (on: Boolean, password: String) -> Boolean = { _, _ -> false },
     onCancel: () -> Unit = {},
     // Android's "Default home app" choice (HomeApp.kt): the way to make this
     // phone start Schaltli by itself, and the way back to its usual launcher.
@@ -77,6 +81,9 @@ fun SettingsScreen(
     var password by remember(initialConfig) { mutableStateOf(initialConfig.password) }
     var displayOff by remember(initialDisplayOffSeconds) { mutableStateOf(initialDisplayOffSeconds.toString()) }
     var testing by remember { mutableStateOf(false) }
+    var testOn by remember(testInterfaceOn) { mutableStateOf(testInterfaceOn) }
+    var testPassword by remember { mutableStateOf("") }
+    var testSaved by remember { mutableStateOf<String?>(null) }
     var testResult by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
@@ -203,6 +210,41 @@ fun SettingsScreen(
                     Text(text = it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
                 }
             }
+
+            Text(text = "Test interface", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "For automated tests on a bench only. While it is on, anyone who knows the password can install projects over the network, change the broker and tap the screen. Leave it off in the van.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                androidx.compose.material3.Switch(checked = testOn, onCheckedChange = { testOn = it; testSaved = null })
+                Text("  Test interface on port 8080", style = MaterialTheme.typography.bodyMedium)
+            }
+            if (testOn) {
+                OutlinedTextField(
+                    value = testPassword,
+                    onValueChange = { testPassword = it; testSaved = null },
+                    label = { Text("Password for the test interface") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            OutlinedButton(
+                onClick = {
+                    scope.launch {
+                        testSaved = if (onSaveTestInterface(testOn, testPassword)) {
+                            if (testOn) "Test interface on" else "Test interface off"
+                        } else {
+                            "A password of 4 to 64 characters, please"
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Save Test Interface")
+            }
+            testSaved?.let { Text(text = it, style = MaterialTheme.typography.bodyMedium) }
 
             Text(
                 if (isHomeApp) {

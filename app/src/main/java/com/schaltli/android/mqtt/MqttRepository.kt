@@ -205,6 +205,24 @@ class MqttRepository {
     @Volatile var description: (() -> ByteArray?)? = null
     @Volatile var recoveryCopy: (() -> ByteArray?)? = null
 
+    /**
+     * Where the test interface answers (test/AppTestInterface.kt), retained
+     * on `test-interface` while it is on and emptied while it is off - the
+     * boards' rule (device contract §6). HIL finds the phone by it.
+     */
+    fun setTestInterfaceUrl(url: String?) {
+        testInterfaceUrl = url
+        publishTestInterface()
+    }
+
+    @Volatile private var testInterfaceUrl: String? = null
+
+    private fun publishTestInterface() {
+        val base = deviceBase() ?: return
+        val active = client?.takeIf { it.state.isConnected } ?: return
+        active.send("$base/test-interface", testInterfaceUrl?.let { "{\"url\":\"${escapeJson(it)}\"}" } ?: "", retain = true)
+    }
+
     private var announcement: Announcement? = null
 
     /**
@@ -329,6 +347,7 @@ class MqttRepository {
         val base = "$TOPIC_PREFIX/${hello.deviceId}"
         active.send("$base/hello", payload, retain = true)
         active.send("$base/status", "online", retain = true)
+        publishTestInterface()
         Log.i("MqttRepository", "announced $base (${hello.ddfHash})")
     }
 

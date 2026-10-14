@@ -24,6 +24,29 @@ class BrokerConfigStore(private val context: Context) {
         val USERNAME = stringPreferencesKey("broker_username")
         val PASSWORD = stringPreferencesKey("broker_password")
         val DISPLAY_OFF_SECONDS = intPreferencesKey("display_off_seconds")
+        val TEST_ON = androidx.datastore.preferences.core.booleanPreferencesKey("test_interface_on")
+        val TEST_PASSWORD = stringPreferencesKey("test_interface_password")
+    }
+
+    /**
+     * The test interface (test/AppTestInterface.kt): off from the factory,
+     * on with a password of 4 to 64 characters, kept across restarts - the
+     * boards' rule (designer repo, docs/device-contract.md §6). Null while
+     * it is off.
+     */
+    val testInterfacePassword: Flow<String?> = context.settingsDataStore.data.map { prefs ->
+        val password = prefs[Keys.TEST_PASSWORD] ?: ""
+        if (prefs[Keys.TEST_ON] == true && password.length >= 4) password else null
+    }
+
+    /** Off clears the password; on wants one of 4 to 64 characters, and refuses otherwise. */
+    suspend fun saveTestInterface(on: Boolean, password: String): Boolean {
+        if (on && password.length !in 4..64) return false
+        context.settingsDataStore.edit { prefs ->
+            prefs[Keys.TEST_ON] = on
+            if (on) prefs[Keys.TEST_PASSWORD] = password else prefs.remove(Keys.TEST_PASSWORD)
+        }
+        return true
     }
 
     val config: Flow<BrokerConfig> = context.settingsDataStore.data.map { prefs ->

@@ -53,6 +53,8 @@ import com.schaltli.android.mqtt.BrokerConfig
 import com.schaltli.android.mqtt.ButtonActionDispatcher
 import com.schaltli.android.ddf.DdfBuilder
 import com.schaltli.android.ddf.DeviceIdentity
+import com.schaltli.android.test.AppTestInterface
+import com.schaltli.android.test.lanAddress
 import com.schaltli.android.ddf.NativeScreen
 import com.schaltli.android.ui.SetupHold
 import com.schaltli.android.ui.objects.parseHexColor
@@ -90,11 +92,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Which instance this phone is on the broker. The Android HIL reads
-        // it from logcat over the cable, to ask this phone - and no other on
-        // the broker - for its description (hil/android/ddf-fonts.js): the
-        // id comes from an ANDROID_ID only this app can read.
-        android.util.Log.i("SchaltliId", DeviceIdentity.deviceId(this))
         screenSleep = ScreenSleep(this)
         enableEdgeToEdge()
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -368,6 +365,51 @@ fun SchaltliRoot(app: SchaltliApp) {
         )
     }
 
+    // The test interface (test/AppTestInterface.kt): open only while it is
+    // switched on, with its password, and said on the broker where it
+    // answers - again on every network change, since that is its address.
+    val testPassword by brokerConfigStore.testInterfacePassword.collectAsStateWithLifecycle(initialValue = null)
+    var testInterfaceRunning by remember { mutableStateOf(false) }
+    DisposableEffect(testPassword) {
+        val password = testPassword
+        val server = password?.let {
+            AppTestInterface(
+                activity = context as Activity,
+                password = it,
+                debug = {
+                    val view = (context as Activity).window.decorView
+                    mapOf(
+                        "deviceId" to DeviceIdentity.deviceId(context),
+                        "appVersion" to BuildConfig.VERSION_NAME,
+                        "width" to view.width,
+                        "height" to view.height,
+                        "density" to context.resources.displayMetrics.density,
+                        "broker" to mapOf("host" to brokerConfig.host, "port" to brokerConfig.port),
+                        "displayOffSeconds" to displayOffSeconds,
+                        "connected" to (mqttRepository.connectionState.value == ConnectionState.CONNECTED),
+                        // What the window asks of the backlight: -1 the
+                        // system's own, 0 off - ScreenSleep's dark.
+                        "screenBrightness" to (context as Activity).window.attributes.screenBrightness,
+                    )
+                },
+                saveDisplayOff = { seconds -> scope.launch { brokerConfigStore.saveDisplayOffSeconds(seconds) } },
+                saveBroker = { host, port, username, pw ->
+                    scope.launch { brokerConfigStore.save(BrokerConfig(host = host, port = port, username = username, password = pw)) }
+                },
+            )
+        }
+        testInterfaceRunning = server?.start() == true
+        onDispose {
+            server?.stop()
+            testInterfaceRunning = false
+        }
+    }
+    LaunchedEffect(testInterfaceRunning, networkChanges, ddfHash) {
+        mqttRepository.setTestInterfaceUrl(
+            if (testInterfaceRunning) lanAddress(context)?.let { "http://$it:${AppTestInterface.PORT}" } else null,
+        )
+    }
+
     // A project pushed from the designer, rather than picked as a file: it
     // lands in the repository the same way, so the screen simply becomes the
     // new one (docs/2026-09-21-android-self-announce.md).
@@ -492,6 +534,8 @@ fun SchaltliRoot(app: SchaltliApp) {
             showSettings -> SettingsScreen(
                 initialConfig = brokerConfig,
                 initialDisplayOffSeconds = displayOffSeconds,
+                testInterfaceOn = testPassword != null,
+                onSaveTestInterface = { on, password -> brokerConfigStore.saveTestInterface(on, password) },
                 onSave = { newConfig, newDisplayOff ->
                     scope.launch {
                         brokerConfigStore.saveDisplayOffSeconds(newDisplayOff)
