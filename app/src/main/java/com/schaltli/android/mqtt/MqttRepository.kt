@@ -192,8 +192,18 @@ class MqttRepository {
         val deviceName: String,
         val appVersion: String,
         val ddfHash: String,
-        val url: String?,
     )
+
+    /**
+     * What the designer asks this phone for over the broker (device contract
+     * §4, 2026-10-14, schaltli-designer#70): its description on `ddf/get`,
+     * answered on `ddf` and retained, and the bundle installed last on
+     * `recovery/get`, answered on `recovery` (empty when there is none).
+     * Until then the phone served its description from a server of its own
+     * on port 8080 (DdfServer), which a designer behind NAT could not reach.
+     */
+    @Volatile var description: (() -> ByteArray?)? = null
+    @Volatile var recoveryCopy: (() -> ByteArray?)? = null
 
     private var announcement: Announcement? = null
 
@@ -221,7 +231,45 @@ class MqttRepository {
         // phone announced itself and never heard a deploy, whether it did
         // depended on which came first (2026-09-27, in the van: the designer
         // sat at "Downloading" while the app logged nothing at all).
-        client?.takeIf { it.state.isConnected }?.let { subscribeToDeploy(it) }
+        client?.takeIf { it.state.isConnected }?.let {
+            subscribeToDeploy(it)
+            subscribeToRequests(it)
+        }
+    }
+
+    // ddf/get and recovery/get, this phone's own topics like the deploy one.
+    private fun subscribeToRequests(activeClient: Mqtt3RxClient) {
+        val base = deviceBase() ?: return
+        for ((leaf, answer) in listOf("ddf" to { description?.invoke() }, "recovery" to { recoveryCopy?.invoke() })) {
+            val request = "$base/$leaf/get"
+            if (!listening.add(request)) continue
+            activeClient.subscribePublishesWith()
+                .topicFilter(request)
+                .qos(MqttQos.AT_MOST_ONCE)
+                .applySubscribe()
+                .subscribe({
+                    // Off the client's thread: a recovery copy is read from disk.
+                    Thread {
+                        val bytes = answer()
+                        if (leaf == "ddf" && bytes == null) return@Thread
+                        activeClient.sendBytes("$base/$leaf", bytes ?: ByteArray(0), retain = leaf == "ddf")
+                        Log.i("MqttRepository", "answered $request with ${bytes?.size ?: 0} bytes")
+                    }.start()
+                }, { Log.w("MqttRepository", "$request subscription ended", it) })
+        }
+    }
+
+    private fun Mqtt3RxClient.sendBytes(topic: String, payload: ByteArray, retain: Boolean) {
+        val message = Mqtt3Publish.builder()
+            .topic(topic)
+            .qos(MqttQos.AT_MOST_ONCE)
+            .retain(retain)
+            .payload(payload)
+            .build()
+        publish(Flowable.just(message)).subscribe(
+            { result -> result.error.ifPresent { Log.w("MqttRepository", "publish to $topic failed", it) } },
+            { Log.w("MqttRepository", "publish to $topic failed", it) },
+        )
     }
 
     // The deploy topic is this device's own, not one of the project's - and it
@@ -273,17 +321,15 @@ class MqttRepository {
             // omits this field, and an absent one means "firmware", exactly
             // as the DDF reads it.
             append(",\"platform\":\"android\"")
+            // No `url` since 2026-10-14: the description goes over the
+            // broker (ddf/get), the way every board hands its own over.
             append(",\"ddfHash\":\"${escapeJson(hello.ddfHash)}\"")
-            // A device that omits `url` is treated as "does not self-announce
-            // its DDF" and skipped by the designer's discovery, which is the
-            // right reading of a phone that has no address to be fetched at.
-            if (hello.url != null) append(",\"url\":\"${escapeJson(hello.url)}\"")
             append("}")
         }
         val base = "$TOPIC_PREFIX/${hello.deviceId}"
         active.send("$base/hello", payload, retain = true)
         active.send("$base/status", "online", retain = true)
-        Log.i("MqttRepository", "announced $base -> ${hello.url}")
+        Log.i("MqttRepository", "announced $base (${hello.ddfHash})")
     }
 
     /**
@@ -484,6 +530,7 @@ class MqttRepository {
         _connectionState.value = ConnectionState.CONNECTED
 
         subscribeToDeploy(activeClient)
+        subscribeToRequests(activeClient)
 
         for (topic in subscribedTopics) {
             subscribeToValue(activeClient, topic)

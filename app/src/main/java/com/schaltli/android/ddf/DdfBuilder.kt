@@ -20,8 +20,9 @@ import java.util.zip.ZipOutputStream
  * can only ever hold one number.
  *
  * So the phone says its own size, the way every board does: this builds the
- * zip, DdfServer serves it, and MqttRepository announces where
- * (docs/2026-09-21-android-self-announce.md in the designer repo).
+ * zip, and MqttRepository announces its hash and hands it over the broker
+ * when asked (device contract §4; docs/2026-09-21-android-self-announce.md
+ * in the designer repo).
  *
  * The bytes are deterministic - fixed entry order, fixed timestamps - so the
  * same phone with the same screen produces the same zip and therefore the

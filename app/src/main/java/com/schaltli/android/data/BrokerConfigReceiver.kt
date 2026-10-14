@@ -29,8 +29,8 @@ import kotlinx.coroutines.launch
  *
  * Only adb can send it: the manifest guards the receiver with
  * android.permission.DUMP, which the shell holds and no installed app can be
- * granted. DdfServer stays what it is - a port on the network that hands out
- * a description and takes nothing.
+ * granted. Nothing on the network can change the broker: the app has no
+ * server open (device contract §4, 2026-10-14).
  *
  * The app follows the stored config as a flow, so saving it is enough: the
  * MQTT connection moves to the new broker on its own.

@@ -69,7 +69,8 @@ class ProjectRepository(private val context: Context) {
         try {
             val input = context.contentResolver.openInputStream(uri)
                 ?: return@withContext Result.failure(IllegalStateException("Could not open the selected file"))
-            input.use { unpackAndSwap(it) }
+            val bytes = input.use { it.readBytes() }
+            bytes.inputStream().use { unpackAndSwap(it) }.also { if (it.isSuccess) keepBundle(bytes) }
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -82,11 +83,33 @@ class ProjectRepository(private val context: Context) {
      */
     suspend fun importBytes(bytes: ByteArray): Result<Project> = withContext(Dispatchers.IO) {
         try {
-            bytes.inputStream().use { unpackAndSwap(it) }
+            bytes.inputStream().use { unpackAndSwap(it) }.also { if (it.isSuccess) keepBundle(bytes) }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+
+    // The bundle installed last, as it arrived: the copy the designer's
+    // «recover» dialog asks for on recovery/get (device contract §4), like
+    // every board's RECOVERY_PROJECT_PATH. Written beside and renamed, so a
+    // crash halfway leaves the copy before it.
+    private val bundleFile = File(context.filesDir, "project.bundle.zip")
+
+    private fun keepBundle(bytes: ByteArray) {
+        try {
+            val incoming = File(context.filesDir, "project.bundle.incoming")
+            incoming.writeBytes(bytes)
+            if (!incoming.renameTo(bundleFile)) {
+                bundleFile.delete()
+                incoming.renameTo(bundleFile)
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("ProjectRepository", "could not keep the bundle for recovery", e)
+        }
+    }
+
+    /** The bundle installed last, or null when there is none (an app installed before 0.12.0 kept none). */
+    fun recoveryBundle(): ByteArray? = bundleFile.takeIf { it.isFile }?.readBytes()
 
     /**
      * Unpacks a bundle beside the live one and only then lets it take its

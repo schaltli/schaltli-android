@@ -52,7 +52,6 @@ import com.schaltli.android.data.isDarkTheme
 import com.schaltli.android.mqtt.BrokerConfig
 import com.schaltli.android.mqtt.ButtonActionDispatcher
 import com.schaltli.android.ddf.DdfBuilder
-import com.schaltli.android.ddf.DdfServer
 import com.schaltli.android.ddf.DeviceIdentity
 import com.schaltli.android.ddf.NativeScreen
 import com.schaltli.android.ui.SetupHold
@@ -91,6 +90,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Which instance this phone is on the broker. The Android HIL reads
+        // it from logcat over the cable, to ask this phone - and no other on
+        // the broker - for its description (hil/android/ddf-fonts.js): the
+        // id comes from an ANDROID_ID only this app can read.
+        android.util.Log.i("SchaltliId", DeviceIdentity.deviceId(this))
         screenSleep = ScreenSleep(this)
         enableEdgeToEdge()
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -283,13 +287,15 @@ fun SchaltliRoot(app: SchaltliApp) {
     }
 
     // This phone's own Device Description File: built from the screen it
-    // actually has, served over HTTP, and pointed at from the retained MQTT
-    // hello (docs/2026-09-21-android-self-announce.md in the designer repo).
-    // Rebuilt whenever the room changes - a rotation, a fold opening - so
-    // the announced hash and the served bytes cannot disagree.
+    // actually has, named by its hash in the retained MQTT hello and handed
+    // over the broker when the designer asks (ddf/get, device contract §4;
+    // until 2026-10-14 served over HTTP on port 8080). Rebuilt whenever the
+    // room changes - a rotation, a fold opening - so the announced hash and
+    // the bytes handed over cannot disagree.
     val configuration = LocalConfiguration.current
-    val ddfServer = remember { DdfServer() }
-    DisposableEffect(ddfServer) { onDispose { ddfServer.stop() } }
+    LaunchedEffect(mqttRepository) {
+        mqttRepository.recoveryCopy = { app.projectRepository.recoveryBundle() }
+    }
 
     // The display's own position, which is not the same question as the
     // configuration's size: the size says what there is room for right now,
@@ -344,21 +350,20 @@ fun SchaltliRoot(app: SchaltliApp) {
             heightDp = native.heightDp,
             robotoTtf = roboto,
         )
-        ddfServer.serve(ddf.bytes)
+        mqttRepository.description = { ddf.bytes }
         ddfHash = ddf.hash
     }
     // Announced with the address the phone has right now: again on every
     // network change, as well as for a new description.
     LaunchedEffect(ddfHash, networkChanges) {
         val hash = ddfHash ?: return@LaunchedEffect
-        android.util.Log.i("SchaltliRoot", "announcing at ${ddfServer.url()} (network change $networkChanges)")
+        android.util.Log.i("SchaltliRoot", "announcing $hash (network change $networkChanges)")
         mqttRepository.setAnnouncement(
             MqttRepository.Announcement(
                 deviceId = DeviceIdentity.deviceId(context),
                 deviceName = DeviceIdentity.deviceName(context),
                 appVersion = BuildConfig.VERSION_NAME,
                 ddfHash = hash,
-                url = ddfServer.url(),
             ),
         )
     }
