@@ -396,6 +396,7 @@ fun SchaltliRoot(app: SchaltliApp) {
                 saveBroker = { host, port, username, pw ->
                     scope.launch { brokerConfigStore.save(BrokerConfig(host = host, port = port, username = username, password = pw)) }
                 },
+                beforeRestart = { mqttRepository.disconnect() },
             )
         }
         testInterfaceRunning = server?.start() == true

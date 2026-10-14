@@ -49,6 +49,11 @@ class AppTestInterface(
     private val debug: () -> Map<String, Any?>,
     private val saveDisplayOff: (Int) -> Unit,
     private val saveBroker: (host: String, port: Int, username: String, password: String) -> Unit,
+    // Before a restart: the MQTT connection closed, so the new process is
+    // not met by the old one still connected under the same id - which
+    // re-delivered the retained deploy and made the phone call its own
+    // install busy (2026-10-14).
+    private val beforeRestart: () -> Unit = {},
     private val port: Int = PORT,
 ) {
     companion object {
@@ -257,23 +262,35 @@ class AppTestInterface(
         val (x1, y1) = points.first()
         val (x2, y2) = points.last()
         val downAt = SystemClock.uptimeMillis()
-        val steps = (ms / 10).coerceIn(1, 200).toInt()
+        // A step every 4 ms or so, as `adb shell input swipe` moves: in steps of
+        // 20 px the first one already lay past the strip's touch slop and the
+        // pager took the gesture as a page (2026-10-14).
+        val steps = (ms / 4).coerceIn(1, 500).toInt()
         val finished = CountDownLatch(1)
+        // A finger, said as a finger: tool type, pressure and size as a
+        // touchscreen reports them. The short form left the tool type
+        // unknown, and taps and drags were read less reliably (2026-10-14).
+        val properties = arrayOf(MotionEvent.PointerProperties().apply { id = 0; toolType = MotionEvent.TOOL_TYPE_FINGER })
         fun send(action: Int, x: Float, y: Float, at: Long) {
-            val event = MotionEvent.obtain(downAt, at, action, x, y, 0)
-            event.source = android.view.InputDevice.SOURCE_TOUCHSCREEN
+            val coords = arrayOf(MotionEvent.PointerCoords().apply { this.x = x; this.y = y; pressure = 1f; size = 0.05f; touchMajor = 40f; touchMinor = 40f })
+            val event = MotionEvent.obtain(downAt, at, action, 1, properties, coords, 0, 0, 1f, 1f, 0, 0, android.view.InputDevice.SOURCE_TOUCHSCREEN, 0)
             activity.window.decorView.dispatchTouchEvent(event)
             event.recycle()
         }
         main.post { send(MotionEvent.ACTION_DOWN, x1, y1, downAt) }
+        // Each event carries the time it was meant for, not the time the main
+        // thread got round to it: a busy frame delivered several moves at
+        // once with one time, which read as a fling and paged the screen
+        // instead of dragging the navigator's strip (2026-10-14).
         for (i in 1..steps) {
             val t = i.toFloat() / steps
             val x = x1 + (x2 - x1) * t
             val y = y1 + (y2 - y1) * t
-            main.postAtTime({ send(MotionEvent.ACTION_MOVE, x, y, SystemClock.uptimeMillis()) }, downAt + ms * i / steps)
+            val at = downAt + ms * i / steps
+            main.postAtTime({ send(MotionEvent.ACTION_MOVE, x, y, at) }, at)
         }
         main.postAtTime({
-            send(MotionEvent.ACTION_UP, x2, y2, SystemClock.uptimeMillis())
+            send(MotionEvent.ACTION_UP, x2, y2, downAt + ms + 1)
             finished.countDown()
         }, downAt + ms + 1)
         finished.await(ms + 5000, TimeUnit.MILLISECONDS)
@@ -283,8 +300,11 @@ class AppTestInterface(
     // question the local-topics check asks (contract §2.9).
     private fun restart() {
         val intent = activity.packageManager.getLaunchIntentForPackage(activity.packageName) ?: return
-        activity.startActivity(Intent.makeRestartActivityTask(intent.component))
-        Runtime.getRuntime().exit(0)
+        beforeRestart()
+        main.postDelayed({
+            activity.startActivity(Intent.makeRestartActivityTask(intent.component))
+            android.os.Process.killProcess(android.os.Process.myPid())
+        }, 500)
     }
 }
 
