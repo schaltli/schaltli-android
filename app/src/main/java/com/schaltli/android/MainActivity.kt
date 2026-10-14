@@ -313,7 +313,14 @@ fun SchaltliRoot(app: SchaltliApp) {
             override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) { main.post { networkChanges++ } }
             override fun onLost(network: Network) { main.post { networkChanges++ } }
         }
-        val request = NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI).build()
+        // Any network, not just WiFi: an Android head unit or a tablet in
+        // the van sits on a cable or a USB adapter, and until 2026-10-14 it
+        // never heard its network come (schaltli-designer#70). Without the
+        // internet capability too - the van's own network has no internet.
+        val request = NetworkRequest.Builder()
+            .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+            .build()
         connectivity?.registerNetworkCallback(request, callback)
         onDispose { connectivity?.unregisterNetworkCallback(callback) }
     }
