@@ -256,44 +256,39 @@ class AppTestInterface(
     }
 
     // A finger on the window: down at the first point, moved to the last in
-    // steps of about 10 ms, up there. Dispatched to the window itself, which
-    // needs no permission an app could not have.
+    // steps of about 4 ms (as `adb shell input swipe` moves), up there.
+    //
+    // Through Instrumentation, which an app may use on its own windows: the
+    // events go through Android's input pipeline as a real touch does, with
+    // its own timing and dispatch. Until 2026-10-14 they were handed to the
+    // window's view directly, and about one tap in ten full runs - a popup's
+    // opener, a nested switch - was lost on the way. Called from the request's
+    // thread: sendPointerSync must not run on the main thread.
     private fun gesture(points: List<Pair<Float, Float>>, ms: Long) {
         val (x1, y1) = points.first()
         val (x2, y2) = points.last()
+        val instrumentation = android.app.Instrumentation()
         val downAt = SystemClock.uptimeMillis()
-        // A step every 4 ms or so, as `adb shell input swipe` moves: in steps of
-        // 20 px the first one already lay past the strip's touch slop and the
-        // pager took the gesture as a page (2026-10-14).
         val steps = (ms / 4).coerceIn(1, 500).toInt()
-        val finished = CountDownLatch(1)
-        // A finger, said as a finger: tool type, pressure and size as a
-        // touchscreen reports them. The short form left the tool type
-        // unknown, and taps and drags were read less reliably (2026-10-14).
         val properties = arrayOf(MotionEvent.PointerProperties().apply { id = 0; toolType = MotionEvent.TOOL_TYPE_FINGER })
         fun send(action: Int, x: Float, y: Float, at: Long) {
             val coords = arrayOf(MotionEvent.PointerCoords().apply { this.x = x; this.y = y; pressure = 1f; size = 0.05f; touchMajor = 40f; touchMinor = 40f })
             val event = MotionEvent.obtain(downAt, at, action, 1, properties, coords, 0, 0, 1f, 1f, 0, 0, android.view.InputDevice.SOURCE_TOUCHSCREEN, 0)
-            activity.window.decorView.dispatchTouchEvent(event)
-            event.recycle()
+            try {
+                instrumentation.sendPointerSync(event)
+            } finally {
+                event.recycle()
+            }
         }
-        main.post { send(MotionEvent.ACTION_DOWN, x1, y1, downAt) }
-        // Each event carries the time it was meant for, not the time the main
-        // thread got round to it: a busy frame delivered several moves at
-        // once with one time, which read as a fling and paged the screen
-        // instead of dragging the navigator's strip (2026-10-14).
+        send(MotionEvent.ACTION_DOWN, x1, y1, downAt)
         for (i in 1..steps) {
-            val t = i.toFloat() / steps
-            val x = x1 + (x2 - x1) * t
-            val y = y1 + (y2 - y1) * t
             val at = downAt + ms * i / steps
-            main.postAtTime({ send(MotionEvent.ACTION_MOVE, x, y, at) }, at)
+            val wait = at - SystemClock.uptimeMillis()
+            if (wait > 0) Thread.sleep(wait)
+            val t = i.toFloat() / steps
+            send(MotionEvent.ACTION_MOVE, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, at)
         }
-        main.postAtTime({
-            send(MotionEvent.ACTION_UP, x2, y2, downAt + ms + 1)
-            finished.countDown()
-        }, downAt + ms + 1)
-        finished.await(ms + 5000, TimeUnit.MILLISECONDS)
+        send(MotionEvent.ACTION_UP, x2, y2, SystemClock.uptimeMillis())
     }
 
     // Afresh, process and all: what kept nothing over a restart is the
