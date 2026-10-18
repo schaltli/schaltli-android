@@ -1,5 +1,8 @@
 package com.schaltli.android.data
 
+import kotlin.math.abs
+import kotlin.math.sqrt
+
 /**
  * The navigator's geometry (the designer's docs/2026-10-08-navigator.md,
  * device contract §2.7): which screens it lists, its strip, where each entry
@@ -107,6 +110,48 @@ object NavigatorLayout {
         val along = index * l.entryLength - scroll
         return if (l.horizontal) Rect(l.strip.x + along, l.strip.y, l.entryLength, l.strip.height)
         else Rect(l.strip.x, l.strip.y + along, l.strip.width, l.entryLength)
+    }
+
+    // The marker gliding with a swipe (the designer's #59, lib/navigator.ts):
+    // while a swipe leads from one entry's screen to another's, the box an
+    // entry's active look begins with moves along the strip with the finger
+    // and settles a little past the entry arrived at and back.
+
+    /** How long the marker takes to come to rest once the finger has lifted, in ms. */
+    const val MARKER_SETTLE_MS = 320
+
+    /** Two different entries, the strip at the same scroll on both screens. */
+    fun markerGlides(from: Int, to: Int, scrollFrom: Int, scrollTo: Int): Boolean =
+        from >= 0 && to >= 0 && from != to && scrollFrom == scrollTo
+
+    /** px along the strip from entry [from]'s place, a swipe [travel] of [span] on towards [to]. */
+    fun markerOffset(l: Layout, from: Int, to: Int, travel: Int, span: Int): Int {
+        if (span <= 0) return 0
+        val t = minOf(abs(travel), span)
+        return ((to - from).toLong() * l.entryLength * t / span).toInt()
+    }
+
+    /** [elapsedMs] after the finger lifted at [start], on the way to [end]: past it by about a tenth and back. */
+    fun markerSettle(start: Int, end: Int, elapsedMs: Long): Int {
+        val t = (elapsedMs * 1000 / MARKER_SETTLE_MS).coerceIn(0L, 1000L)
+        val u = t - 1000
+        val f = 1000 + 27 * u * u * u / 10_000_000 + 17 * u * u / 10_000
+        return start + ((end - start).toLong() * f / 1000).toInt()
+    }
+
+    /** The box ([box], within an entry) [offset] px on from entry [from]'s place at [scroll]. */
+    fun markerRect(l: Layout, from: Int, offset: Int, scroll: Int, box: Rect): Rect {
+        val entry = entryRect(l, from, scroll - offset)
+        return Rect(entry.x + box.x, entry.y + box.y, box.width, box.height)
+    }
+
+    /** How far row [row] of a box with corners of [radius] is cut in at each end, whole pixels. */
+    fun cornerInset(radius: Int, width: Int, height: Int, row: Int): Int {
+        val r = maxOf(0, minOf(radius, width / 2, height / 2))
+        val d = minOf(row, height - 1 - row)
+        if (d < 0 || d >= r) return 0
+        val k = 2 * r - 2 * d - 1
+        return r - (sqrt((4 * r * r - k * k).toDouble()).toInt() + 1) / 2
     }
 
     fun scrollToShow(l: Layout, index: Int, scroll: Int): Int {

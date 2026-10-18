@@ -13,7 +13,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect as GeometryRect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -51,6 +58,48 @@ fun backArrowOf(nav: Navigator, screen: Screen): String? {
     return ScreenGraph.opposite(back).key.takeIf { nav.back[it]?.isNotEmpty() == true }
 }
 
+/**
+ * The navigator's marker on its way along the strip (the designer's #59):
+ * [offset] units from entry [from]'s place, towards [to]'s.
+ */
+data class NavigatorMarker(val from: Int, val to: Int, val offset: Int)
+
+/**
+ * Where the marker is while the screen follows the finger from [screen] to
+ * [target], [travel] of [span] units on - null where it does not glide: off
+ * the main row, to a screen with another navigator, or one the strip
+ * scrolls to (NavigatorLayout.markerGlides).
+ */
+fun navigatorMarkerFor(project: Project, screen: Screen, target: Screen?, scroll: Int, travel: Int, span: Int): NavigatorMarker? {
+    if (target == null || target.navigatorId != screen.navigatorId) return null
+    val (nav, layout) = navigatorOf(project, screen) ?: return null
+    val (_, targetLayout) = navigatorOf(project, target) ?: return null
+    if (backArrowOf(nav, screen) != null || backArrowOf(nav, target) != null) return null
+    val from = nav.entries.indexOfFirst { it.screenId == screen.id }
+    val to = nav.entries.indexOfFirst { it.screenId == target.id }
+    val glides = NavigatorLayout.markerGlides(
+        from, to, effectiveNavigatorScroll(nav, layout, screen, scroll), effectiveNavigatorScroll(nav, targetLayout, target, scroll),
+    )
+    return if (glides) NavigatorMarker(from, to, NavigatorLayout.markerOffset(layout, from, to, travel, span)) else null
+}
+
+/** The box an entry's active look begins with (§2.7): what glides. */
+private fun markerBoxOf(nav: Navigator): ScreenObject? = nav.entries.firstOrNull()?.active?.firstOrNull { it.type == "box" }
+
+/** A box's shape cut in row by row at its corners, as every device cuts the gliding marker (NavigatorLayout.cornerInset). */
+private class MarkerShape(private val box: NavigatorLayout.Rect, private val radius: Int) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val path = Path()
+        val unit = density.density
+        for (row in 0 until box.height) {
+            val inset = NavigatorLayout.cornerInset(radius, box.width, box.height, row)
+            if (box.width - 2 * inset <= 0) continue
+            path.addRect(GeometryRect((box.x + inset) * unit, (box.y + row) * unit, (box.x + box.width - inset) * unit, (box.y + row + 1) * unit))
+        }
+        return Outline.Generic(path)
+    }
+}
+
 /** The scroll the navigator is drawn at: [scroll], or (-1) as far as shows the open entry. */
 fun effectiveNavigatorScroll(nav: Navigator, layout: NavigatorLayout.Layout, screen: Screen, scroll: Int): Int {
     val active = nav.entries.indexOfFirst { it.screenId == screen.id }
@@ -79,6 +128,7 @@ fun NavigatorStripView(
     onScroll: (Int) -> Unit,
     onNavigate: (String) -> Unit,
     onThemeSwitch: () -> Unit = {},
+    marker: NavigatorMarker? = null,
 ) {
     val (nav, layout) = navigatorOf(project, screen) ?: return
     val shown = effectiveNavigatorScroll(nav, layout, screen, scroll)
@@ -148,13 +198,32 @@ fun NavigatorStripView(
                     .size(entries.width.dp, entries.height.dp)
                     .clip(RoundedCornerShape(0.dp)),
             ) {
-                shownEntries.forEachIndexed { i, (_, normal) ->
+                // While the marker glides every entry is normal, and inside
+                // the marker - on its colour - active.
+                val gliding = marker?.takeIf { arrow == null && it.from in nav.entries.indices }
+                val box = gliding?.let { markerBoxOf(nav) }
+                @Composable
+                fun drawEntries(lit: (Int) -> Boolean) = shownEntries.forEachIndexed { i, (_, normal) ->
                     val r = NavigatorLayout.entryRect(layout, i, shown)
                     if (r.x >= entries.x + entries.width || r.y >= entries.y + entries.height || r.x + r.width <= entries.x || r.y + r.height <= entries.y) return@forEachIndexed
                     Box(modifier = Modifier.offset((r.x - entries.x).dp, (r.y - entries.y).dp).size(r.width.dp, r.height.dp)) {
-                        for (obj in (if (i == active) nav.entries[i].active else normal).sortedByZIndex()) {
+                        for (obj in (if (lit(i)) nav.entries[i].active else normal).sortedByZIndex()) {
                             EntryObjectView(obj, project, topicValues, assetFileOf, nav.backgroundColor)
                         }
+                    }
+                }
+                drawEntries { i -> box == null && i == active }
+                if (gliding != null && box != null) {
+                    val at = NavigatorLayout.markerRect(layout, gliding.from, gliding.offset, shown, NavigatorLayout.Rect(box.x.roundToInt(), box.y.roundToInt(), box.width.roundToInt(), box.height.roundToInt()))
+                    val radius = (box.properties["cornerRadius"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.toDoubleOrNull()?.toInt() ?: 0
+                    val within = NavigatorLayout.Rect(at.x - entries.x, at.y - entries.y, at.width, at.height)
+                    Box(
+                        modifier = Modifier
+                            .size(entries.width.dp, entries.height.dp)
+                            .clip(MarkerShape(within, radius))
+                            .background(box.properties.stringOrNull("fillColor")?.let(::parseHexColor) ?: Color.Transparent),
+                    ) {
+                        drawEntries { true }
                     }
                 }
             }

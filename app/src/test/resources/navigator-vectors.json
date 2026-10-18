@@ -51,5 +51,50 @@
     { "name": "back a page from the end", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 12 }, "scroll": 576, "direction": -1, "expected": 136 },
     { "name": "back from the start: stays", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 12 }, "scroll": 0, "direction": -1, "expected": 0 },
     { "name": "PaperS3: ten entries a page, only 96 to go", "layout": { "edge": "bottom", "shows": "iconsAndText", "screenWidth": 960, "screenHeight": 540, "count": 12 }, "scroll": 0, "direction": 1, "expected": 96 }
+  ],
+  "markerGlides": [
+    { "name": "to the next entry, the strip as it was", "from": 2, "to": 3, "scrollFrom": 0, "scrollTo": 0, "expected": true },
+    { "name": "back one, scrolled alike", "from": 3, "to": 2, "scrollFrom": 100, "scrollTo": 100, "expected": true },
+    { "name": "the same entry", "from": 2, "to": 2, "scrollFrom": 0, "scrollTo": 0, "expected": false },
+    { "name": "from a screen off the main row", "from": -1, "to": 3, "scrollFrom": 0, "scrollTo": 0, "expected": false },
+    { "name": "the strip scrolls on the way", "from": 4, "to": 5, "scrollFrom": 0, "scrollTo": 48, "expected": false }
+  ],
+  "markerOffset": [
+    { "name": "half a swipe to the next entry: half an entry", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 5 }, "from": 1, "to": 2, "travel": -360, "span": 720, "expected": 48 },
+    { "name": "half a swipe back: half an entry up", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 5 }, "from": 2, "to": 1, "travel": 360, "span": 720, "expected": -48 },
+    { "name": "past the span: one entry, no further", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 5 }, "from": 1, "to": 2, "travel": -1000, "span": 720, "expected": 96 },
+    { "name": "100 px: 13 and a third, 13", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 5 }, "from": 1, "to": 2, "travel": -100, "span": 720, "expected": 13 },
+    { "name": "100 px back: towards from, -13", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 5 }, "from": 2, "to": 1, "travel": 100, "span": 720, "expected": -13 },
+    { "name": "bottom strip, a quarter of 800", "layout": { "edge": "bottom", "shows": "icons", "screenWidth": 800, "screenHeight": 480, "count": 3 }, "from": 0, "to": 1, "travel": -200, "span": 800, "expected": 66 },
+    { "name": "no span: nothing", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 5 }, "from": 1, "to": 2, "travel": -100, "span": 0, "expected": 0 }
+  ],
+  "markerSettle": [
+    { "name": "lifted: where it was", "start": 0, "end": 96, "elapsed": 0, "expected": 0 },
+    { "name": "before the lift: where it was", "start": 0, "end": 96, "elapsed": -5, "expected": 0 },
+    { "name": "100 ms: most of the way (t 312, f 925)", "start": 0, "end": 96, "elapsed": 100, "expected": 88 },
+    { "name": "160 ms: past the end (t 500, f 1088)", "start": 0, "end": 96, "elapsed": 160, "expected": 104 },
+    { "name": "250 ms: coming back (t 781, f 1053)", "start": 0, "end": 96, "elapsed": 250, "expected": 101 },
+    { "name": "320 ms: at rest", "start": 0, "end": 96, "elapsed": 320, "expected": 96 },
+    { "name": "long after: at rest", "start": 0, "end": 96, "elapsed": 1000, "expected": 96 },
+    { "name": "a cancelled swipe: back past where it began", "start": 48, "end": 0, "elapsed": 160, "expected": -4 }
+  ],
+  "markerRect": [
+    { "name": "left strip, half an entry down from the second", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 5 }, "from": 1, "offset": 48, "scroll": 0, "box": { "x": 4, "y": 4, "width": 70, "height": 88 }, "expected": { "x": 4, "y": 148, "width": 70, "height": 88 } },
+    { "name": "left strip scrolled 100, back up a little", "layout": { "edge": "left", "shows": "iconsAndText", "screenWidth": 800, "screenHeight": 480, "count": 5 }, "from": 2, "offset": -13, "scroll": 100, "box": { "x": 4, "y": 4, "width": 70, "height": 88 }, "expected": { "x": 4, "y": 83, "width": 70, "height": 88 } },
+    { "name": "bottom strip, half of the first entry along", "layout": { "edge": "bottom", "shows": "icons", "screenWidth": 800, "screenHeight": 480, "count": 3 }, "from": 0, "offset": 133, "scroll": 0, "box": { "x": 4, "y": 6, "width": 258, "height": 54 }, "expected": { "x": 137, "y": 422, "width": 258, "height": 54 } }
+  ],
+  "cornerInset": [
+    { "name": "radius 8, the top row", "radius": 8, "width": 70, "height": 88, "row": 0, "expected": 5 },
+    { "name": "radius 8, row 1", "radius": 8, "width": 70, "height": 88, "row": 1, "expected": 3 },
+    { "name": "radius 8, row 2", "radius": 8, "width": 70, "height": 88, "row": 2, "expected": 2 },
+    { "name": "radius 8, row 3", "radius": 8, "width": 70, "height": 88, "row": 3, "expected": 1 },
+    { "name": "radius 8, row 4", "radius": 8, "width": 70, "height": 88, "row": 4, "expected": 1 },
+    { "name": "radius 8, row 5: square", "radius": 8, "width": 70, "height": 88, "row": 5, "expected": 0 },
+    { "name": "radius 8, the middle", "radius": 8, "width": 70, "height": 88, "row": 40, "expected": 0 },
+    { "name": "radius 8, the bottom row as the top", "radius": 8, "width": 70, "height": 88, "row": 87, "expected": 5 },
+    { "name": "radius 8, the row above it", "radius": 8, "width": 70, "height": 88, "row": 86, "expected": 3 },
+    { "name": "a radius larger than the box: half its height", "radius": 20, "width": 30, "height": 10, "row": 0, "expected": 3 },
+    { "name": "no radius", "radius": 0, "width": 70, "height": 88, "row": 0, "expected": 0 },
+    { "name": "a row outside the box", "radius": 8, "width": 70, "height": 88, "row": 88, "expected": 0 }
   ]
 }

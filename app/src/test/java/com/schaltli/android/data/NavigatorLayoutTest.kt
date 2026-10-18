@@ -108,6 +108,40 @@ class NavigatorLayoutTest {
     }
 
     @Test
+    fun `the marker gliding with a swipe, every vector`() {
+        val failures = mutableListOf<String>()
+        var count = 0
+        fun JsonObject.int(key: String) = this[key]!!.jsonPrimitive.int
+        for (c in doc["markerGlides"]!!.jsonArray.map { it.jsonObject }) {
+            count++
+            val v = NavigatorLayout.markerGlides(c.int("from"), c.int("to"), c.int("scrollFrom"), c.int("scrollTo"))
+            if (v != c["expected"]!!.jsonPrimitive.boolean) failures += "markerGlides ${c.str("name")}: $v"
+        }
+        for (c in doc["markerOffset"]!!.jsonArray.map { it.jsonObject }) {
+            count++
+            val v = NavigatorLayout.markerOffset(layoutOf(c["layout"]!!.jsonObject), c.int("from"), c.int("to"), c.int("travel"), c.int("span"))
+            if (v != c.int("expected")) failures += "markerOffset ${c.str("name")}: $v"
+        }
+        for (c in doc["markerSettle"]!!.jsonArray.map { it.jsonObject }) {
+            count++
+            val v = NavigatorLayout.markerSettle(c.int("start"), c.int("end"), c.int("elapsed").toLong())
+            if (v != c.int("expected")) failures += "markerSettle ${c.str("name")}: $v"
+        }
+        for (c in doc["markerRect"]!!.jsonArray.map { it.jsonObject }) {
+            count++
+            val v = NavigatorLayout.markerRect(layoutOf(c["layout"]!!.jsonObject), c.int("from"), c.int("offset"), c.int("scroll"), rectOf(c["box"]!!.jsonObject))
+            if (v != rectOf(c["expected"]!!.jsonObject)) failures += "markerRect ${c.str("name")}: $v"
+        }
+        for (c in doc["cornerInset"]!!.jsonArray.map { it.jsonObject }) {
+            count++
+            val v = NavigatorLayout.cornerInset(c.int("radius"), c.int("width"), c.int("height"), c.int("row"))
+            if (v != c.int("expected")) failures += "cornerInset ${c.str("name")}: $v"
+        }
+        assertTrue("fewer marker vectors than the designer has", count >= 30)
+        assertTrue("vectors failed:\n" + failures.joinToString("\n"), failures.isEmpty())
+    }
+
+    @Test
     fun `paging passes over hidden screens and wraps, the app opens on the first shown one`() {
         val hidden = listOf(false, true, false, true)
         assertEquals(2, NavigatorLayout.pagedIndex(hidden, 0, 1))

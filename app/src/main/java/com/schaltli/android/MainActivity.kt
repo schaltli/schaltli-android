@@ -1,7 +1,9 @@
 package com.schaltli.android
 
 import com.schaltli.android.data.NavigatorLayout
+import com.schaltli.android.ui.NavigatorMarker
 import com.schaltli.android.ui.NavigatorStripView
+import com.schaltli.android.ui.navigatorMarkerFor
 import com.schaltli.android.ui.navigatorOf
 import android.content.pm.ActivityInfo
 import android.net.ConnectivityManager
@@ -36,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -269,6 +272,11 @@ fun SchaltliRoot(app: SchaltliApp) {
     var pullTabNudge by remember { mutableStateOf(0) }
     // The last swipe a screen named and what it was bound to, for the debug route.
     var lastSwipe by remember { mutableStateOf("") }
+    // The navigator's marker gliding with a swipe (the designer's #59), and
+    // the frames it settled in after the last lift, for the debug route.
+    var navigatorMarker by remember { mutableStateOf<NavigatorMarker?>(null) }
+    var markerFrames by remember { mutableStateOf(0) }
+    val markerScope = rememberCoroutineScope()
     var importError by remember { mutableStateOf<String?>(null) }
 
     // A freshly-loaded (or just-installed) project always starts on its first
@@ -401,6 +409,7 @@ fun SchaltliRoot(app: SchaltliApp) {
                         // for a test that walks the screen graph (§2.10).
                         "screen" to currentScreenId,
                         "lastSwipe" to lastSwipe,
+                        "markerFrames" to markerFrames,
                     )
                 },
                 saveDisplayOff = { seconds -> scope.launch { brokerConfigStore.saveDisplayOffSeconds(seconds) } },
@@ -647,6 +656,33 @@ fun SchaltliRoot(app: SchaltliApp) {
                         action?.let { dispatcher.dispatch(it, activeProject, screen.id) }
                     },
                     modifier = Modifier.fillMaxSize(),
+                    onFollow = { target, travel, span ->
+                        navigatorMarker = navigatorMarkerFor(activeProject, screen, target, navigatorScroll, travel, span)
+                    },
+                    // Once the finger lifts the marker settles on the entry
+                    // arrived at, or back on its own, a little past it and
+                    // back (NavigatorLayout.markerSettle), on its own clock.
+                    onFollowEnd = { committed ->
+                        val start = navigatorMarker
+                        val layout = navigatorOf(activeProject, screen)?.second
+                        if (start != null && layout != null) {
+                            val end = if (committed) (start.to - start.from) * layout.entryLength else 0
+                            markerScope.launch {
+                                val begin = System.currentTimeMillis()
+                                var frames = 0
+                                while (true) {
+                                    val elapsed = System.currentTimeMillis() - begin
+                                    if (navigatorMarker?.from != start.from) break
+                                    navigatorMarker = start.copy(offset = NavigatorLayout.markerSettle(start.offset, end, elapsed))
+                                    frames++
+                                    if (elapsed >= NavigatorLayout.MARKER_SETTLE_MS) break
+                                    withFrameMillis { }
+                                }
+                                markerFrames = frames
+                                navigatorMarker = null
+                            }
+                        }
+                    },
                     overlay = {
                         NavigatorStripView(
                             project = activeProject,
@@ -660,6 +696,7 @@ fun SchaltliRoot(app: SchaltliApp) {
                             onThemeSwitch = {
                                 mqttRepository.publish("schaltli/cmnd/theme", if (isDarkTheme(topicValues[THEME_TOPIC])) "light" else "dark")
                             },
+                            marker = navigatorMarker,
                         )
                     },
                 ) { drawn ->

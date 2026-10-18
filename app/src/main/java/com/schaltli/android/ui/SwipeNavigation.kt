@@ -125,6 +125,11 @@ fun FollowingScreens(
     // Drawn over both screens and not moved with them - the navigator
     // (docs/2026-10-08-navigator.md), which stands still while they slide.
     overlay: @Composable () -> Unit = {},
+    // The screen being followed to, and how far: `travel` of `span` units
+    // (null when nothing is followed); then whether the swipe went there.
+    // For the navigator's marker, which glides with it (the designer's #59).
+    onFollow: (target: Screen?, travel: Int, span: Int) -> Unit = { _, _, _ -> },
+    onFollowEnd: (committed: Boolean) -> Unit = {},
     render: @Composable (Screen) -> Unit,
 ) {
     val density = LocalDensity.current.density
@@ -238,6 +243,7 @@ fun FollowingScreens(
                                     } else {
                                         travel.coerceIn(0f, extent)
                                     }
+                                    onFollow(incoming, (offsetPx / density).roundToInt(), (extent / density).roundToInt())
                                 }
                             }
 
@@ -263,6 +269,7 @@ fun FollowingScreens(
                             val commit = travelled >= (extent / density) / COMMIT_FRACTION || flick
 
                             settling = true
+                            onFollowEnd(commit)
                             scope.launch {
                                 val end = if (commit) -incomingSide * extent else 0f
                                 glide(from = offsetPx, to = end, density = density) { offsetPx = it }
