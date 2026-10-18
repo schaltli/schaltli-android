@@ -267,6 +267,8 @@ fun SchaltliRoot(app: SchaltliApp) {
     // it runs the tabs stand still at rest, so a snapshot never catches one
     // half way.
     var pullTabNudge by remember { mutableStateOf(0) }
+    // The last swipe a screen named and what it was bound to, for the debug route.
+    var lastSwipe by remember { mutableStateOf("") }
     var importError by remember { mutableStateOf<String?>(null) }
 
     // A freshly-loaded (or just-installed) project always starts on its first
@@ -395,6 +397,10 @@ fun SchaltliRoot(app: SchaltliApp) {
                         // What the window asks of the backlight: -1 the
                         // system's own, 0 off - ScreenSleep's dark.
                         "screenBrightness" to (context as Activity).window.attributes.screenBrightness,
+                        // Where the app is, and what the last swipe named did -
+                        // for a test that walks the screen graph (§2.10).
+                        "screen" to currentScreenId,
+                        "lastSwipe" to lastSwipe,
                     )
                 },
                 saveDisplayOff = { seconds -> scope.launch { brokerConfigStore.saveDisplayOffSeconds(seconds) } },
@@ -636,8 +642,9 @@ fun SchaltliRoot(app: SchaltliApp) {
                             ?.let { targetId -> activeProject.screens.find { it.id == targetId } }
                     },
                     onSwipe = { buttonId ->
-                        screen.buttonActions[buttonId]
-                            ?.let { dispatcher.dispatch(it, activeProject, screen.id) }
+                        val action = screen.buttonActions[buttonId]
+                        lastSwipe = "$buttonId on ${screen.id}: ${action?.type ?: "unbound"}"
+                        action?.let { dispatcher.dispatch(it, activeProject, screen.id) }
                     },
                     modifier = Modifier.fillMaxSize(),
                     overlay = {
