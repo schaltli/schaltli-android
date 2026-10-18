@@ -76,6 +76,12 @@ data class Project(
      * it shows ([Screen.navigatorId]). Absent before 1.5.
      */
     val navigators: List<Navigator> = emptyList(),
+    /**
+     * The main row's screen ids in order (§2.10): what next and previous
+     * walk. Empty in an export from before it - then the screens that are
+     * not hidden ([ScreenGraphProject]).
+     */
+    val mainRow: List<String> = emptyList(),
 ) {
     /** [combinedTopics] parsed, ordered again so a hand-edited file computes right; none where one is circular. */
     val combinedOrder: List<CombinedTopics.CombinedTopic> by lazy {
@@ -151,6 +157,13 @@ data class Screen(
     val navigatorId: String? = null,
     // Out of next/previous paging, still a goto target, never the start (§2.7).
     val hidden: Boolean = false,
+    // The screen graph (§2.10): the id of the screen lying on each edge
+    // ("up", "down", "left", "right"), the edge the way back lies at (null on
+    // the main row), and the pull tab's colour - its dark variant through the
+    // XDark swap (ThemeVariant).
+    val neighbours: Map<String, String> = emptyMap(),
+    val back: String? = null,
+    val pullTabColor: String? = null,
 )
 
 /** A navigator as exported (§2.7): entries of ordinary objects, relative to the entry. */
@@ -166,6 +179,10 @@ data class Navigator(
     // The light/dark switch (§2.7, 1.6); none without it.
     val themeSwitch: NavigatorThemeSwitch? = null,
     val entries: List<NavigatorEntry> = emptyList(),
+    // The way back (§2.10): on a screen off the main row the one entry, by
+    // the way its arrow points ("up", "down", "left", "right"), laid out as
+    // long as the strip.
+    val back: Map<String, List<ScreenObject>> = emptyMap(),
 )
 
 /** The navigator's light/dark switch: where on the strip ("near", "far"), how long its place is, its objects relative to it. */
@@ -246,14 +263,17 @@ const val POPUP_CLOSE_RADIUS = 18
 data class ButtonAction(
     // "next-screen" | "previous-screen" | "goto-screen" | "send-mqtt" | "device-action"
     // | "open-popup" (targetScreenId: a popup's id) | "close-popup"
+    // | "goto-neighbour" (side: "up" | "down" | "left" | "right", §2.10)
     val type: String,
     val targetScreenId: String? = null,
     val mqttTopic: String? = null,
     val mqttMessage: String? = null,
     // Only for type "device-action": which of the device's own capabilities to
-    // invoke, matched against the DDF's `deviceActions` list. The only one
-    // this platform declares is "showScreenMenu".
+    // invoke, matched against the DDF's `deviceActions` list. This platform
+    // declares none since its screen menu went with the screen graph (§2.10).
     val deviceActionId: String? = null,
+    // Only for type "goto-neighbour": the side the screen lies on.
+    val side: String? = null,
 )
 
 // `properties` is intentionally a loose JsonObject, not a sealed hierarchy

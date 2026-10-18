@@ -1,5 +1,9 @@
 package com.schaltli.android.ui
 
+import com.schaltli.android.data.ScreenGraph
+import com.schaltli.android.data.ScreenGraphProject
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -76,6 +80,8 @@ fun ScreenRenderer(
     // its objects are drawn where they are, inside or not (the designer's
     // docs/device-contract.md §2.5). Null for a screen, which fills it all.
     backgroundClip: Shape? = null,
+    // How far the pull tabs stand nudged towards the middle (§2.10).
+    pullTabNudge: Int = 0,
     modifier: Modifier = Modifier,
 ) {
     val backgroundColor = screen.backgroundColor?.let(::parseHexColor) ?: Color.White
@@ -107,6 +113,37 @@ fun ScreenRenderer(
                 onSetLevel,
                 onAsked,
             )
+        }
+        // The pull tabs (§2.10), over the objects and in the screen's picture,
+        // so they slide with it: boxes with round ends, as every renderer
+        // draws a box, on the edges of what moves beside the navigator.
+        screen.pullTabColor?.let { color ->
+            val sides = ScreenGraphProject.tabSides(project, screen)
+            if (sides.isNotEmpty()) {
+                val nav = navigatorOf(project, screen)?.first
+                val area = ScreenGraph.contentArea(project.screenWidth, project.screenHeight, nav?.edge, nav?.thickness ?: 0)
+                for (side in sides) {
+                    val r = ScreenGraph.tabRect(side, area, pullTabNudge)
+                    BoxView(
+                        ScreenObject(
+                            id = "pull-tab-${side.key}",
+                            type = "box",
+                            x = r.x.toDouble(),
+                            y = r.y.toDouble(),
+                            width = r.width.toDouble(),
+                            height = r.height.toDouble(),
+                            properties = JsonObject(
+                                mapOf(
+                                    "fillColor" to JsonPrimitive(color),
+                                    "strokeColor" to JsonPrimitive(color),
+                                    "strokeWidth" to JsonPrimitive(0),
+                                    "cornerRadius" to JsonPrimitive(ScreenGraph.TAB_RADIUS),
+                                ),
+                            ),
+                        ),
+                    )
+                }
+            }
         }
     }
 }

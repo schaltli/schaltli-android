@@ -1,6 +1,7 @@
 package com.schaltli.android.mqtt
 
-import com.schaltli.android.data.NavigatorLayout
+import com.schaltli.android.data.ScreenGraph
+import com.schaltli.android.data.ScreenGraphProject
 import com.schaltli.android.data.ButtonAction
 import com.schaltli.android.data.Project
 import com.schaltli.android.data.ScreenObject
@@ -28,8 +29,8 @@ class ButtonActionDispatcher(
     private val mqttRepository: MqttRepository,
     private val onNavigate: (screenId: String) -> Unit,
     // A "device-action" reaches whatever the platform itself provides rather
-    // than anything in the project. This platform declares exactly one,
-    // "showScreenMenu", matching the Waveshare's own DDF.
+    // than anything in the project. This platform declares none since its
+    // screen menu went with the screen graph (§2.10).
     private val onDeviceAction: (deviceActionId: String) -> Unit = {},
     // A popup over the current screen, and closing it (the designer's
     // docs/device-contract.md §2.5). Whether one is open is the app's own
@@ -39,7 +40,7 @@ class ButtonActionDispatcher(
 ) {
     fun dispatch(action: ButtonAction, project: Project, currentScreenId: String) {
         when (action.type) {
-            "next-screen", "previous-screen", "goto-screen" -> {
+            "next-screen", "previous-screen", "goto-screen", "goto-neighbour" -> {
                 val target = navigationTarget(action, project, currentScreenId) ?: return
                 onNavigate(target)
             }
@@ -76,19 +77,17 @@ class ButtonActionDispatcher(
          */
         fun navigationTarget(action: ButtonAction, project: Project, currentScreenId: String): String? =
             when (action.type) {
-                "next-screen", "previous-screen" -> {
-                    val screens = project.screens
-                    if (screens.isEmpty()) {
-                        null
-                    } else {
-                        val currentIndex = screens.indexOfFirst { it.id == currentScreenId }
-                        val delta = if (action.type == "next-screen") 1 else -1
-                        val base = if (currentIndex == -1) 0 else currentIndex
-                        // Past hidden screens (§2.7).
-                        screens[NavigatorLayout.pagedIndex(screens.map { it.hidden }, base, delta)].id
-                    }
-                }
+                // Over the main row (§2.10), past hidden and docked screens;
+                // from a screen off it, from its page.
+                "next-screen", "previous-screen" ->
+                    ScreenGraphProject.rowStep(project, currentScreenId, if (action.type == "next-screen") 1 else -1)
                 "goto-screen" -> project.screens.find { it.id == action.targetScreenId }?.id
+                // The screen lying on that side (§2.10); none there: nothing.
+                "goto-neighbour" -> {
+                    val side = ScreenGraph.edgeFrom(action.side)
+                    val screen = project.screens.find { it.id == currentScreenId }
+                    if (side == null || screen == null) null else ScreenGraphProject.neighbourId(project, screen, side)
+                }
                 else -> null
             }
     }

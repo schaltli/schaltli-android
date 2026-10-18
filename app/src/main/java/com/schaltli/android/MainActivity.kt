@@ -62,16 +62,18 @@ import com.schaltli.android.mqtt.DeployReceiver
 import com.schaltli.android.mqtt.MqttRepository
 import com.schaltli.android.ui.ImportScreen
 import com.schaltli.android.ui.LocalBundleInstallation
-import com.schaltli.android.ui.ScreenMenuOverlay
 import com.schaltli.android.ui.ScreenRenderer
 import com.schaltli.android.ui.SettingsScreen
 import com.schaltli.android.ui.FollowingScreens
 import com.schaltli.android.ui.PopupOverlay
 import com.schaltli.android.data.Screen
+import com.schaltli.android.data.ScreenGraph
+import com.schaltli.android.data.ScreenGraphProject
 import com.schaltli.android.data.ScreenObject
 import com.schaltli.android.mqtt.actionOf
 import androidx.compose.ui.geometry.Rect
 import com.schaltli.android.ui.theme.SchaltliTheme
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -255,12 +257,16 @@ fun SchaltliRoot(app: SchaltliApp) {
 
     var currentScreenId by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
-    var showScreenMenu by remember { mutableStateOf(false) }
     // The popup open over the current screen (the designer's
     // docs/device-contract.md §2.5), by id; the app's own state, never on MQTT.
     var openPopupId by remember { mutableStateOf<String?>(null) }
     // How far the navigator is scrolled; -1: as far as shows the open entry.
     var navigatorScroll by remember { mutableStateOf(-1) }
+    // The pull tabs' nudge (§2.10): towards the middle and back once every
+    // 5 s. Declared here, run below once the test interface is known: while
+    // it runs the tabs stand still at rest, so a snapshot never catches one
+    // half way.
+    var pullTabNudge by remember { mutableStateOf(0) }
     var importError by remember { mutableStateOf<String?>(null) }
 
     // A freshly-loaded (or just-installed) project always starts on its first
@@ -275,10 +281,9 @@ fun SchaltliRoot(app: SchaltliApp) {
     // HIL suite on 2026-09-21, which installs the fixture to get back to a
     // known screen and was measured against the wrong one for its trouble.
     LaunchedEffect(project, LocalBundleInstallation.current) {
-        // The first screen that is not hidden (§2.7).
-        currentScreenId = project?.screens?.let { screens ->
-            screens.getOrNull(NavigatorLayout.firstShown(screens.map { it.hidden }))?.id
-        }
+        // The first screen of the main row (§2.10; before it, the first
+        // screen that is not hidden, which is what an older export's row is).
+        currentScreenId = project?.let { ScreenGraphProject.startScreenId(it) }
         openPopupId = null
         navigatorScroll = -1
     }
@@ -405,6 +410,15 @@ fun SchaltliRoot(app: SchaltliApp) {
             testInterfaceRunning = false
         }
     }
+    LaunchedEffect(testInterfaceRunning) {
+        pullTabNudge = 0
+        if (testInterfaceRunning) return@LaunchedEffect
+        val start = System.currentTimeMillis()
+        while (true) {
+            pullTabNudge = ScreenGraph.nudgeAt(System.currentTimeMillis() - start)
+            delay(33)
+        }
+    }
     LaunchedEffect(testInterfaceRunning, networkChanges, ddfHash) {
         mqttRepository.setTestInterfaceUrl(
             if (testInterfaceRunning) lanAddress(context)?.let { "http://$it:${AppTestInterface.PORT}" } else null,
@@ -503,18 +517,11 @@ fun SchaltliRoot(app: SchaltliApp) {
                 currentScreenId = screenId
                 // Another screen closes an open popup, wherever the change came from.
                 openPopupId = null
-                // A screen switch closes the menu that asked for it. Leaving
-                // it up over the new screen would hide the very thing the
-                // choice was about.
-                showScreenMenu = false
             },
-            onDeviceAction = { deviceActionId ->
-                // The one device action this platform declares, matching the
-                // Android DDF's own `deviceActions` list. An unknown id is
-                // ignored rather than crashing: a project may have been built
-                // against a device that offers more of them.
-                if (deviceActionId == "showScreenMenu") showScreenMenu = true
-            },
+            // This platform declares no device action since its screen menu
+            // went with the screen graph (§2.10): an older project's
+            // "showScreenMenu", like any unknown id, is ignored.
+            onDeviceAction = { },
             onOpenPopup = { popupId -> openPopupId = popupId },
             onClosePopup = { openPopupId = null },
         )
@@ -619,9 +626,13 @@ fun SchaltliRoot(app: SchaltliApp) {
                 SetupHold(enabled = true, onEnterSetup = { showSettings = true }) {
                 FollowingScreens(
                     screen = screen,
+                    // Only where the swipe leads to the neighbour it pulls in -
+                    // where the pull tab stands (§2.10); anything else, a wrap
+                    // from the row's last page among it, is the release's.
                     followTargetFor = { buttonId ->
-                        screen.buttonActions[buttonId]
-                            ?.let { ButtonActionDispatcher.navigationTarget(it, activeProject, screen.id) }
+                        val side = ScreenGraph.sideOfSwipe(buttonId)
+                        if (side == null || !ScreenGraphProject.swipeLeadsToNeighbour(activeProject, screen, buttonId)) null
+                        else ScreenGraphProject.neighbourId(activeProject, screen, side)
                             ?.let { targetId -> activeProject.screens.find { it.id == targetId } }
                     },
                     onSwipe = { buttonId ->
@@ -654,6 +665,7 @@ fun SchaltliRoot(app: SchaltliApp) {
                         onAction = { action -> dispatcher.dispatch(action, activeProject, drawn.id) },
                         onSetLevel = setLevel,
                         onAsked = asked,
+                        pullTabNudge = pullTabNudge,
                     )
                 }
                 }
@@ -681,14 +693,6 @@ fun SchaltliRoot(app: SchaltliApp) {
                             backgroundClip = clip,
                         )
                     }
-                }
-                if (showScreenMenu) {
-                    ScreenMenuOverlay(
-                        screens = activeProject.screens,
-                        currentScreenId = screen.id,
-                        onSelect = { screenId -> currentScreenId = screenId; openPopupId = null; showScreenMenu = false },
-                        onDismiss = { showScreenMenu = false },
-                    )
                 }
             }
         }

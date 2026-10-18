@@ -76,7 +76,7 @@ class SwipeNavigationTest {
         )
         assertNull(
             ButtonActionDispatcher.navigationTarget(
-                ButtonAction(type = "device-action", deviceActionId = "showScreenMenu"), p, "a",
+                ButtonAction(type = "device-action", deviceActionId = "displayOff"), p, "a",
             ),
         )
         assertNull(

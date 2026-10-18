@@ -2,6 +2,7 @@ package com.schaltli.android.ddf
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -142,23 +143,25 @@ class DdfBuilderTest {
         // The energy diagram since 1.7 (the designer's device contract §2.8).
         assertTrue("energy-diagram missing", list.contains("energy-diagram"))
 
-        // showScreenMenu is what a swipe binds to for the "which screen am I
-        // on" overlay; without it the designer offers no such binding.
-        val actions = manifest.getJSONArray("deviceActions")
-        assertEquals("showScreenMenu", actions.getString(0))
+        // No device action: the screen menu (showScreenMenu) went with the
+        // screen graph (§2.10), and the designer offers none for the phone.
+        assertFalse(manifest.has("deviceActions"))
 
         // Every target declares which system generation it speaks, and the
         // deploy dialog compares majors before uploading anything.
-        assertEquals("1.8", manifest.getString("systemGeneration"))
+        assertEquals("1.9", manifest.getString("systemGeneration"))
 
         // Local topics (§2.9) are a feature, not a generation: the designer
         // sends a project with them only to a device that lists it.
         val features = manifest.getJSONArray("supportedFeatures")
-        assertEquals(2, features.length())
+        assertEquals(3, features.length())
         assertEquals("local-topics", features.getString(0))
         // And it draws box, line and fixed icon itself (2026-10-13): the
         // Android bundle carries no baked background since.
         assertEquals("static-objects", features.getString(1))
+        // And the screen graph (§2.10): the designer sends a project with a
+        // screen off the main row only to an app that lists it.
+        assertEquals("screen-graph", features.getString(2))
     }
 
     @Test

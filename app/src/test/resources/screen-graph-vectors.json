@@ -1,0 +1,691 @@
+{
+  "about": "The screen graph as a device sees it (device contract §2.10): next/previous over mainRow, the edges with a pull tab, the content area, the tab's box, the nudge, the tab's colour. Written by scripts/screen-graph-vectors.ts from lib/screen-graph-device.ts and lib/pull-tabs.ts; copy it, do not edit a copy.",
+  "pullTab": {
+    "length": 32,
+    "thickness": 4,
+    "radius": 2,
+    "inset": 6,
+    "nudge": 6,
+    "mix": 0.7,
+    "period": 5000,
+    "nudgeMs": 800
+  },
+  "rowStep": [
+    {
+      "mainRow": [
+        "a",
+        "b",
+        "c"
+      ],
+      "current": "a",
+      "delta": 1,
+      "expect": "b"
+    },
+    {
+      "mainRow": [
+        "a",
+        "b",
+        "c"
+      ],
+      "current": "c",
+      "delta": 1,
+      "expect": "a"
+    },
+    {
+      "mainRow": [
+        "a",
+        "b",
+        "c"
+      ],
+      "current": "a",
+      "delta": -1,
+      "expect": "c"
+    },
+    {
+      "mainRow": [
+        "a",
+        "b",
+        "c"
+      ],
+      "current": "a1",
+      "page": "a",
+      "delta": 1,
+      "expect": "b"
+    },
+    {
+      "mainRow": [
+        "a",
+        "b",
+        "c"
+      ],
+      "current": "c1",
+      "page": "c",
+      "delta": -1,
+      "expect": "b"
+    },
+    {
+      "mainRow": [
+        "a",
+        "b",
+        "c"
+      ],
+      "current": "x",
+      "delta": 1,
+      "expect": "b"
+    },
+    {
+      "mainRow": [
+        "a"
+      ],
+      "current": "a",
+      "delta": 1,
+      "expect": "a"
+    },
+    {
+      "mainRow": [],
+      "current": "a",
+      "delta": 1,
+      "expect": null
+    }
+  ],
+  "tabSides": [
+    {
+      "name": "a page with the row on its right and a history below",
+      "mainRow": [
+        "a",
+        "b"
+      ],
+      "screen": {
+        "id": "a",
+        "neighbours": {
+          "right": "b",
+          "down": "a1"
+        },
+        "buttonActions": {
+          "swipe-left": {
+            "type": "next-screen"
+          },
+          "swipe-right": {
+            "type": "previous-screen"
+          },
+          "swipe-up": {
+            "type": "goto-neighbour",
+            "side": "down"
+          }
+        }
+      },
+      "expect": [
+        "down",
+        "right"
+      ]
+    },
+    {
+      "name": "the history: back up",
+      "mainRow": [
+        "a",
+        "b"
+      ],
+      "screen": {
+        "id": "a1",
+        "back": "up",
+        "neighbours": {
+          "up": "a"
+        },
+        "buttonActions": {
+          "swipe-down": {
+            "type": "goto-neighbour",
+            "side": "up"
+          }
+        }
+      },
+      "expect": [
+        "up"
+      ]
+    },
+    {
+      "name": "an own swipe up cuts the history off",
+      "mainRow": [
+        "a",
+        "b"
+      ],
+      "screen": {
+        "id": "a",
+        "neighbours": {
+          "right": "b",
+          "down": "a1"
+        },
+        "buttonActions": {
+          "swipe-left": {
+            "type": "next-screen"
+          },
+          "swipe-up": {
+            "type": "send-mqtt"
+          }
+        }
+      },
+      "expect": [
+        "right"
+      ]
+    },
+    {
+      "name": "the row's last page: next wraps, no tab on the right",
+      "mainRow": [
+        "a",
+        "b"
+      ],
+      "screen": {
+        "id": "b",
+        "neighbours": {
+          "left": "a"
+        },
+        "buttonActions": {
+          "swipe-left": {
+            "type": "next-screen"
+          },
+          "swipe-right": {
+            "type": "previous-screen"
+          }
+        }
+      },
+      "expect": [
+        "left"
+      ]
+    },
+    {
+      "name": "go to a screen naming the neighbour leads there",
+      "mainRow": [
+        "a",
+        "b"
+      ],
+      "screen": {
+        "id": "a",
+        "neighbours": {
+          "right": "b",
+          "down": "a1"
+        },
+        "buttonActions": {
+          "swipe-left": {
+            "type": "goto-screen",
+            "targetScreenId": "b"
+          },
+          "swipe-up": {
+            "type": "goto-screen",
+            "targetScreenId": "z"
+          }
+        }
+      },
+      "expect": [
+        "right"
+      ]
+    },
+    {
+      "name": "next screen on a history leads to no neighbour of its own",
+      "mainRow": [
+        "a",
+        "b"
+      ],
+      "screen": {
+        "id": "a1",
+        "back": "up",
+        "neighbours": {
+          "up": "a"
+        },
+        "buttonActions": {
+          "swipe-left": {
+            "type": "next-screen"
+          },
+          "swipe-down": {
+            "type": "previous-screen"
+          }
+        }
+      },
+      "expect": []
+    },
+    {
+      "name": "goto-neighbour the other way leads nowhere here",
+      "mainRow": [
+        "a",
+        "b"
+      ],
+      "screen": {
+        "id": "a",
+        "neighbours": {
+          "down": "a1"
+        },
+        "buttonActions": {
+          "swipe-up": {
+            "type": "goto-neighbour",
+            "side": "up"
+          }
+        }
+      },
+      "expect": []
+    },
+    {
+      "name": "no actions: no tabs",
+      "mainRow": [
+        "a",
+        "b"
+      ],
+      "screen": {
+        "id": "a",
+        "neighbours": {
+          "right": "b"
+        }
+      },
+      "expect": []
+    }
+  ],
+  "contentArea": [
+    {
+      "width": 800,
+      "height": 480,
+      "expect": {
+        "x": 0,
+        "y": 0,
+        "width": 800,
+        "height": 480
+      }
+    },
+    {
+      "width": 800,
+      "height": 480,
+      "edge": "left",
+      "thickness": 104,
+      "expect": {
+        "x": 104,
+        "y": 0,
+        "width": 696,
+        "height": 480
+      }
+    },
+    {
+      "width": 800,
+      "height": 480,
+      "edge": "right",
+      "thickness": 80,
+      "expect": {
+        "x": 0,
+        "y": 0,
+        "width": 720,
+        "height": 480
+      }
+    },
+    {
+      "width": 800,
+      "height": 480,
+      "edge": "top",
+      "thickness": 60,
+      "expect": {
+        "x": 0,
+        "y": 60,
+        "width": 800,
+        "height": 420
+      }
+    },
+    {
+      "width": 540,
+      "height": 960,
+      "edge": "bottom",
+      "thickness": 72,
+      "expect": {
+        "x": 0,
+        "y": 0,
+        "width": 540,
+        "height": 888
+      }
+    }
+  ],
+  "tabRect": [
+    {
+      "edge": "up",
+      "area": {
+        "x": 0,
+        "y": 0,
+        "width": 800,
+        "height": 480
+      },
+      "nudge": 0,
+      "expect": {
+        "x": 384,
+        "y": 6,
+        "width": 32,
+        "height": 4
+      }
+    },
+    {
+      "edge": "down",
+      "area": {
+        "x": 0,
+        "y": 0,
+        "width": 800,
+        "height": 480
+      },
+      "nudge": 0,
+      "expect": {
+        "x": 384,
+        "y": 470,
+        "width": 32,
+        "height": 4
+      }
+    },
+    {
+      "edge": "left",
+      "area": {
+        "x": 0,
+        "y": 0,
+        "width": 800,
+        "height": 480
+      },
+      "nudge": 0,
+      "expect": {
+        "x": 6,
+        "y": 224,
+        "width": 4,
+        "height": 32
+      }
+    },
+    {
+      "edge": "right",
+      "area": {
+        "x": 0,
+        "y": 0,
+        "width": 800,
+        "height": 480
+      },
+      "nudge": 0,
+      "expect": {
+        "x": 790,
+        "y": 224,
+        "width": 4,
+        "height": 32
+      }
+    },
+    {
+      "edge": "up",
+      "area": {
+        "x": 104,
+        "y": 0,
+        "width": 696,
+        "height": 480
+      },
+      "nudge": 3,
+      "expect": {
+        "x": 436,
+        "y": 9,
+        "width": 32,
+        "height": 4
+      }
+    },
+    {
+      "edge": "down",
+      "area": {
+        "x": 104,
+        "y": 0,
+        "width": 696,
+        "height": 480
+      },
+      "nudge": 3,
+      "expect": {
+        "x": 436,
+        "y": 467,
+        "width": 32,
+        "height": 4
+      }
+    },
+    {
+      "edge": "left",
+      "area": {
+        "x": 104,
+        "y": 0,
+        "width": 696,
+        "height": 480
+      },
+      "nudge": 3,
+      "expect": {
+        "x": 113,
+        "y": 224,
+        "width": 4,
+        "height": 32
+      }
+    },
+    {
+      "edge": "right",
+      "area": {
+        "x": 104,
+        "y": 0,
+        "width": 696,
+        "height": 480
+      },
+      "nudge": 3,
+      "expect": {
+        "x": 787,
+        "y": 224,
+        "width": 4,
+        "height": 32
+      }
+    },
+    {
+      "edge": "up",
+      "area": {
+        "x": 0,
+        "y": 0,
+        "width": 360,
+        "height": 360
+      },
+      "nudge": 6,
+      "expect": {
+        "x": 164,
+        "y": 12,
+        "width": 32,
+        "height": 4
+      }
+    },
+    {
+      "edge": "down",
+      "area": {
+        "x": 0,
+        "y": 0,
+        "width": 360,
+        "height": 360
+      },
+      "nudge": 6,
+      "expect": {
+        "x": 164,
+        "y": 344,
+        "width": 32,
+        "height": 4
+      }
+    },
+    {
+      "edge": "left",
+      "area": {
+        "x": 0,
+        "y": 0,
+        "width": 360,
+        "height": 360
+      },
+      "nudge": 6,
+      "expect": {
+        "x": 12,
+        "y": 164,
+        "width": 4,
+        "height": 32
+      }
+    },
+    {
+      "edge": "right",
+      "area": {
+        "x": 0,
+        "y": 0,
+        "width": 360,
+        "height": 360
+      },
+      "nudge": 6,
+      "expect": {
+        "x": 344,
+        "y": 164,
+        "width": 4,
+        "height": 32
+      }
+    },
+    {
+      "edge": "up",
+      "area": {
+        "x": 0,
+        "y": 60,
+        "width": 401,
+        "height": 419
+      },
+      "nudge": 1,
+      "expect": {
+        "x": 184,
+        "y": 67,
+        "width": 32,
+        "height": 4
+      }
+    },
+    {
+      "edge": "down",
+      "area": {
+        "x": 0,
+        "y": 60,
+        "width": 401,
+        "height": 419
+      },
+      "nudge": 1,
+      "expect": {
+        "x": 184,
+        "y": 468,
+        "width": 32,
+        "height": 4
+      }
+    },
+    {
+      "edge": "left",
+      "area": {
+        "x": 0,
+        "y": 60,
+        "width": 401,
+        "height": 419
+      },
+      "nudge": 1,
+      "expect": {
+        "x": 7,
+        "y": 253,
+        "width": 4,
+        "height": 32
+      }
+    },
+    {
+      "edge": "right",
+      "area": {
+        "x": 0,
+        "y": 60,
+        "width": 401,
+        "height": 419
+      },
+      "nudge": 1,
+      "expect": {
+        "x": 390,
+        "y": 253,
+        "width": 4,
+        "height": 32
+      }
+    }
+  ],
+  "nudge": [
+    {
+      "ms": 0,
+      "expect": 0
+    },
+    {
+      "ms": 50,
+      "expect": 1
+    },
+    {
+      "ms": 100,
+      "expect": 2
+    },
+    {
+      "ms": 200,
+      "expect": 4
+    },
+    {
+      "ms": 300,
+      "expect": 6
+    },
+    {
+      "ms": 400,
+      "expect": 6
+    },
+    {
+      "ms": 500,
+      "expect": 6
+    },
+    {
+      "ms": 700,
+      "expect": 2
+    },
+    {
+      "ms": 799,
+      "expect": 0
+    },
+    {
+      "ms": 800,
+      "expect": 0
+    },
+    {
+      "ms": 2500,
+      "expect": 0
+    },
+    {
+      "ms": 4999,
+      "expect": 0
+    },
+    {
+      "ms": 5000,
+      "expect": 0
+    },
+    {
+      "ms": 5400,
+      "expect": 6
+    },
+    {
+      "ms": 10200,
+      "expect": 4
+    }
+  ],
+  "tabColor": [
+    {
+      "muted": "#49454f",
+      "background": "#ffffff",
+      "colorDepth": "24bit",
+      "expect": "#807d84"
+    },
+    {
+      "muted": "#cac4d0",
+      "background": "#1c1b1f",
+      "colorDepth": "24bit",
+      "expect": "#96919b"
+    },
+    {
+      "muted": "#5f6368",
+      "background": "#f8f9fa",
+      "colorDepth": "24bit",
+      "expect": "#8d9094"
+    },
+    {
+      "muted": "#49454f",
+      "background": "#ffffff",
+      "colorDepth": "4bit",
+      "expect": "#777777"
+    },
+    {
+      "muted": "#888888",
+      "background": "#000000",
+      "colorDepth": "4bit",
+      "expect": "#666666"
+    }
+  ]
+}

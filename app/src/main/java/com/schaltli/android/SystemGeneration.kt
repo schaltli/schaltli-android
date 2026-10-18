@@ -26,5 +26,8 @@ package com.schaltli.android
  * 1.8: keeps local topics - never subscribed, a write applied here and never
  * published, each at its initial value after a load (§2.9); the DDF also
  * lists the feature "local-topics", which is what the designer checks.
+ * 1.9: knows the screen graph - mainRow, neighbours, back, goto-neighbour,
+ * the slide up and down, the pull tab, the navigator's way back; the screen
+ * menu gone (§2.10); the DDF lists the feature "screen-graph".
  */
-const val SYSTEM_GENERATION = "1.8"
+const val SYSTEM_GENERATION = "1.9"

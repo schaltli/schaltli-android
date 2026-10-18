@@ -103,10 +103,11 @@ private const val GLIDE_MAX_MS = 260
  * backwards under the finger. This is the firmware's own rule, written down
  * in `FollowSwipe.h` for the same reason.
  *
- * Only horizontal swipes are followed, and only when they lead somewhere: a
- * vertical swipe, and a horizontal one bound to an MQTT message or the screen
- * menu, have no second picture to bring in, so they are named on release as
- * they always were.
+ * A swipe is followed exactly where it leads to the neighbour it pulls in -
+ * where the pull tab stands (the designer's device contract §2.10) - up and
+ * down as well as sideways: swiping up brings the screen below in from the
+ * bottom. Any other swipe, one bound to an MQTT message among them, has no
+ * second picture to bring in, and is named on release as it always was.
  *
  * @param followTargetFor the screen a given swipe would arrive at, or null
  *   when that swipe is not a move to another screen. Resolved by the caller
@@ -131,9 +132,10 @@ fun FollowingScreens(
 
     var offsetPx by remember { mutableFloatStateOf(0f) }
     var incoming by remember { mutableStateOf<Screen?>(null) }
-    // +1 when the incoming screen waits on the right, which is what a finger
-    // moving left produces.
+    // +1 when the incoming screen waits on the right - or, vertical, below -
+    // which is what a finger moving left (up) produces.
     var incomingSide by remember { mutableIntStateOf(1) }
+    var incomingVertical by remember { mutableStateOf(false) }
     var settling by remember { mutableStateOf(false) }
     // Set between asking for the move and the moved-to screen turning up.
     var awaitingArrival by remember { mutableStateOf(false) }
@@ -177,11 +179,12 @@ fun FollowingScreens(
 
     BoxWithConstraints(modifier) {
         val widthPx = constraints.maxWidth.toFloat()
+        val heightPx = constraints.maxHeight.toFloat()
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(screen, density, widthPx) {
+                .pointerInput(screen, density, widthPx, heightPx) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         val startMs = System.currentTimeMillis()
@@ -210,13 +213,16 @@ fun FollowingScreens(
                             if (!settling && !taken) {
                                 val dx = (last.x - start.x) / density
                                 val dy = (last.y - start.y) / density
-                                if (followedId == null && isHorizontalSwipe(dx, dy)) {
-                                    val id = if (dx > 0) "swipe-right" else "swipe-left"
+                                if (followedId == null && (isHorizontalSwipe(dx, dy) || isVerticalSwipe(dx, dy))) {
+                                    val vertical = isVerticalSwipe(dx, dy)
+                                    val d = if (vertical) dy else dx
+                                    val id = if (vertical) (if (d > 0) "swipe-down" else "swipe-up") else (if (d > 0) "swipe-right" else "swipe-left")
                                     val target = followTargetFor(id)
                                     if (target != null) {
                                         followedId = id
                                         incoming = target
-                                        incomingSide = if (dx > 0) -1 else 1
+                                        incomingVertical = vertical
+                                        incomingSide = if (d > 0) -1 else 1
                                     }
                                 }
                                 if (followedId != null) {
@@ -225,11 +231,12 @@ fun FollowingScreens(
                                     // back past where it began would
                                     // otherwise uncover nothing at all on the
                                     // other side.
-                                    val travel = last.x - start.x
+                                    val extent = if (incomingVertical) heightPx else widthPx
+                                    val travel = if (incomingVertical) last.y - start.y else last.x - start.x
                                     offsetPx = if (incomingSide > 0) {
-                                        travel.coerceIn(-widthPx, 0f)
+                                        travel.coerceIn(-extent, 0f)
                                     } else {
-                                        travel.coerceIn(0f, widthPx)
+                                        travel.coerceIn(0f, extent)
                                     }
                                 }
                             }
@@ -252,11 +259,12 @@ fun FollowingScreens(
                             val travelled = abs(offsetPx) / density
                             val speed = if (elapsed > 0) travelled * 1000f / elapsed else 0f
                             val flick = speed >= FLICK_UNITS_PER_SECOND && travelled >= FLICK_MIN_UNITS
-                            val commit = travelled >= (widthPx / density) / COMMIT_FRACTION || flick
+                            val extent = if (incomingVertical) heightPx else widthPx
+                            val commit = travelled >= (extent / density) / COMMIT_FRACTION || flick
 
                             settling = true
                             scope.launch {
-                                val end = if (commit) -incomingSide * widthPx else 0f
+                                val end = if (commit) -incomingSide * extent else 0f
                                 glide(from = offsetPx, to = end, density = density) { offsetPx = it }
                                 if (commit) {
                                     onSwipe(followed)
@@ -284,7 +292,9 @@ fun FollowingScreens(
             contentAlignment = Alignment.Center,
         ) {
             Box(
-                modifier = Modifier.offset { IntOffset(offsetPx.roundToInt(), 0) },
+                modifier = Modifier.offset {
+                    if (incomingVertical) IntOffset(0, offsetPx.roundToInt()) else IntOffset(offsetPx.roundToInt(), 0)
+                },
                 contentAlignment = Alignment.Center,
             ) {
                 render(screen)
@@ -295,7 +305,10 @@ fun FollowingScreens(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .offset { IntOffset((offsetPx + incomingSide * widthPx).roundToInt(), 0) },
+                    .offset {
+                        if (incomingVertical) IntOffset(0, (offsetPx + incomingSide * heightPx).roundToInt())
+                        else IntOffset((offsetPx + incomingSide * widthPx).roundToInt(), 0)
+                    },
                 contentAlignment = Alignment.Center,
             ) {
                 render(next)
@@ -311,6 +324,10 @@ fun FollowingScreens(
 /** Far enough, and straight enough, to be a sideways swipe rather than a drift. */
 private fun isHorizontalSwipe(dx: Float, dy: Float): Boolean =
     abs(dx) >= SWIPE_MIN_DISTANCE && abs(dx) >= abs(dy) * SWIPE_AXIS_RATIO
+
+/** The same up and down (§2.10). */
+private fun isVerticalSwipe(dx: Float, dy: Float): Boolean =
+    abs(dy) >= SWIPE_MIN_DISTANCE && abs(dy) >= abs(dx) * SWIPE_AXIS_RATIO
 
 /** The button id for a finished gesture, or null if it was not a swipe at all. */
 internal fun nameSwipe(dx: Float, dy: Float): String? = when {

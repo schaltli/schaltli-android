@@ -10,3 +10,6 @@ ddf-source/** -text
 # compared byte for byte by PlaceholdersTest - both are kept LF, or
 # core.autocrlf would make the copy differ on one checkout and not the other.
 app/src/test/resources/placeholder-vectors.json text eol=lf
+
+# The same for the screen graph's vectors (device contract 2.10).
+app/src/test/resources/screen-graph-vectors.json text eol=lf

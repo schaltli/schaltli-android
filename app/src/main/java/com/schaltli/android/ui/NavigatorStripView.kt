@@ -1,5 +1,6 @@
 package com.schaltli.android.ui
 
+import com.schaltli.android.data.ScreenGraph
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -35,7 +36,19 @@ fun navigatorOf(project: Project, screen: Screen): Pair<Navigator, NavigatorLayo
     val edge = NavigatorLayout.edgeFrom(nav.edge)
     val strip = NavigatorLayout.stripOf(edge, nav.thickness, project.screenWidth, project.screenHeight)
     val sw = nav.themeSwitch
+    // Off the main row the way back is its one entry, as long as the
+    // entries' part of the strip (§2.10).
+    if (backArrowOf(nav, screen) != null) {
+        val one = NavigatorLayout.barLayout(edge, strip, 1, nav.entryLength, sw?.at, sw?.length ?: 0)
+        return nav to one.copy(entryLength = one.length)
+    }
     return nav to NavigatorLayout.barLayout(edge, strip, nav.entries.size, nav.entryLength, sw?.at, sw?.length ?: 0)
+}
+
+/** The way back's arrow on [screen] (§2.10): the edge it points to, whose objects [Navigator.back] has; null on the main row. */
+fun backArrowOf(nav: Navigator, screen: Screen): String? {
+    val back = ScreenGraph.edgeFrom(screen.back) ?: return null
+    return ScreenGraph.opposite(back).key.takeIf { nav.back[it]?.isNotEmpty() == true }
 }
 
 /** The scroll the navigator is drawn at: [scroll], or (-1) as far as shows the open entry. */
@@ -69,7 +82,13 @@ fun NavigatorStripView(
 ) {
     val (nav, layout) = navigatorOf(project, screen) ?: return
     val shown = effectiveNavigatorScroll(nav, layout, screen, scroll)
-    val active = nav.entries.indexOfFirst { it.screenId == screen.id }
+    // Off the main row: the way back alone, a tap on it shows the page (§2.10).
+    val arrow = backArrowOf(nav, screen)
+    val backTo = ScreenGraph.edgeFrom(screen.back)?.let { screen.neighbours[it.key] }
+    val shownEntries: List<Pair<String, List<ScreenObject>>> =
+        if (arrow != null) listOf((backTo ?: "") to nav.back[arrow].orEmpty())
+        else nav.entries.map { it.screenId to it.normal }
+    val active = if (arrow != null) -1 else nav.entries.indexOfFirst { it.screenId == screen.id }
     // The whole bar is the navigator's; its entries scroll in their part of it.
     val strip = layout.bar
     val entries = layout.strip
@@ -78,6 +97,7 @@ fun NavigatorStripView(
     // gesture at every step of the scroll it is making.
     val currentShown by rememberUpdatedState(shown)
     val currentScreenId by rememberUpdatedState(screen.id)
+    val currentEntries by rememberUpdatedState(shownEntries)
 
     Box(modifier = Modifier.size(project.screenWidth.dp, project.screenHeight.dp)) {
         Box(
@@ -115,7 +135,8 @@ fun NavigatorStripView(
                                 return@awaitEachGesture
                             }
                             val entry = NavigatorLayout.entryAt(layout, x, y, start)
-                            if (entry >= 0 && nav.entries[entry].screenId != currentScreenId) onNavigate(nav.entries[entry].screenId)
+                            val target = currentEntries.getOrNull(entry)?.first
+                            if (!target.isNullOrEmpty() && target != currentScreenId) onNavigate(target)
                         }
                     }
                 },
@@ -127,11 +148,11 @@ fun NavigatorStripView(
                     .size(entries.width.dp, entries.height.dp)
                     .clip(RoundedCornerShape(0.dp)),
             ) {
-                nav.entries.forEachIndexed { i, entry ->
+                shownEntries.forEachIndexed { i, (_, normal) ->
                     val r = NavigatorLayout.entryRect(layout, i, shown)
                     if (r.x >= entries.x + entries.width || r.y >= entries.y + entries.height || r.x + r.width <= entries.x || r.y + r.height <= entries.y) return@forEachIndexed
                     Box(modifier = Modifier.offset((r.x - entries.x).dp, (r.y - entries.y).dp).size(r.width.dp, r.height.dp)) {
-                        for (obj in (if (i == active) entry.active else entry.normal).sortedByZIndex()) {
+                        for (obj in (if (i == active) nav.entries[i].active else normal).sortedByZIndex()) {
                             EntryObjectView(obj, project, topicValues, assetFileOf, nav.backgroundColor)
                         }
                     }
