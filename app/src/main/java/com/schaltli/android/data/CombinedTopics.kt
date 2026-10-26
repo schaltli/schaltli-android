@@ -8,7 +8,9 @@ import kotlinx.serialization.json.JsonPrimitive
 /**
  * Combined topics: a yes/no the app works out itself from other values - all,
  * or any, of its conditions apply (schaltli-designer
- * docs/2026-10-07-live-values.md decisions 10-15, device contract §2.6).
+ * docs/2026-10-07-live-values.md decisions 10-15, device contract §2.6) - or a
+ * number scaled from one source (a scaled topic, contract §2.11, its cases in
+ * `scaled-value-vectors.json`).
  * A port of the designer's `lib/combined-topics.ts`, as the firmware's
  * CombinedTopics.cpp is; the cases are the «combined» section of
  * `live-value-vectors.json`.
@@ -21,14 +23,27 @@ object CombinedTopics {
 
     data class Condition(val source: LiveValues.Source, val op: String, val operand: String)
 
-    /** [any]: "any"; otherwise "all". */
-    data class CombinedTopic(val id: String, val name: String, val any: Boolean, val conditions: List<Condition>)
+    /** [any]: "any"; otherwise "all". A scaled topic has [scale] and no conditions. */
+    data class CombinedTopic(
+        val id: String,
+        val name: String,
+        val any: Boolean,
+        val conditions: List<Condition>,
+        val scale: Scaled? = null,
+    )
+
+    /** A scaled topic's one source, scaled as [ScaledValue] says. */
+    data class Scaled(val source: LiveValues.Source, val scale: ScaledValue.Scale)
+
+    /** Everything a combined topic reads: its conditions' sources, or its scale's. */
+    fun sources(topic: CombinedTopic): List<LiveValues.Source> =
+        topic.scale?.let { listOf(it.source) } ?: topic.conditions.map { it.source }
 
     /** The namespace a live value's source names a combined topic with. */
     const val NAMESPACE = "combined"
 
     private fun combinedUses(topic: CombinedTopic): List<String> =
-        topic.conditions.filter { it.source.namespace == NAMESPACE }.map { it.source.path }.distinct()
+        sources(topic).filter { it.namespace == NAMESPACE }.map { it.path }.distinct()
 
     /**
      * The topics in an order where each comes after every combined topic it
@@ -70,8 +85,13 @@ object CombinedTopics {
         return order
     }
 
-    /** One combined topic from what its conditions read: "true", "false", or null for no value yet. */
+    /**
+     * One combined topic from what its conditions read: "true", "false", or
+     * null for no value yet; a scaled topic its source scaled, null while the
+     * source has none or is not a number the scale takes.
+     */
     fun evaluate(topic: CombinedTopic, read: (LiveValues.Source) -> String?): String? {
+        topic.scale?.let { s -> return read(s.source)?.let { ScaledValue.scale(it, s.scale) } }
         if (topic.conditions.isEmpty()) return null
         var unknown = false
         for (condition in topic.conditions) {
@@ -114,10 +134,10 @@ object CombinedTopics {
             if (depth > 8) return
             for (t in topics) {
                 if (t.name != n) continue
-                for (c in t.conditions) {
-                    when (c.source.namespace) {
-                        NAMESPACE -> collect(c.source.path, depth + 1)
-                        "topic" -> c.source.path.substringBefore('#').let { if (it !in out) out += it }
+                for (s in sources(t)) {
+                    when (s.namespace) {
+                        NAMESPACE -> collect(s.path, depth + 1)
+                        "topic" -> s.path.substringBefore('#').let { if (it !in out) out += it }
                     }
                 }
             }
@@ -137,6 +157,9 @@ object CombinedTopics {
                 any = t["mode"].str("all") == "any",
                 conditions = (t["conditions"] as? JsonArray).orEmpty().mapNotNull { it as? JsonObject }.map { c ->
                     Condition(LiveValues.parseSource(c["source"]), c["op"].str("=="), c["operand"].str())
+                },
+                scale = (t["scale"] as? JsonObject)?.takeIf { t["mode"].str() == "scale" }?.let {
+                    Scaled(LiveValues.parseSource(it["source"]), ScaledValue.parseScale(it))
                 },
             )
         }

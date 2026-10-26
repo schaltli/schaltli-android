@@ -512,13 +512,14 @@ fun SchaltliRoot(app: SchaltliApp) {
     // marker shows it at once instead of waiting for the installation's
     // answer. While the finger moves, at most every 100 ms - as the boards
     // publish - and always on the lift; what it asks is held until the answer
-    // to the lift's value. The same for a screen and a popup.
-    val setLevel: (String, String, String, Boolean) -> Unit = { markerTopic, writeTopic, value, final ->
+    // to the lift's value. The same for a screen and a popup. What goes out
+    // is the payload its write format made of the value (null: nothing).
+    val setLevel: (String, String, String, String?, Boolean) -> Unit = { markerTopic, writeTopic, value, payload, final ->
         mqttRepository.noteAsked(markerTopic, value, awaitAnswer = final, stillHolding = !final)
         val now = android.os.SystemClock.uptimeMillis()
         if (final || now - levelPublishedAt[0] >= 100) {
             levelPublishedAt[0] = now
-            mqttRepository.publish(writeTopic, value)
+            if (payload != null) mqttRepository.publish(writeTopic, payload)
         }
     }
     // A Switch publishes through the action dispatcher like a button does, so

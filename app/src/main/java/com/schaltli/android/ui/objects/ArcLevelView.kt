@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.schaltli.android.data.FontEntry
 import com.schaltli.android.data.Project
+import com.schaltli.android.data.ScaledValue
 import com.schaltli.android.data.ScreenObject
 import com.schaltli.android.render.ARC_ANGLE_SCALE
 import com.schaltli.android.render.ARC_COVERAGE_MAX
@@ -328,7 +329,7 @@ fun ArcLevelView(
     // topic - the same rule the bar has (the designer's
     // docs/2026-09-17-settable-level.md). The marker follows from rawSetpoint,
     // which the caller feeds from what was asked.
-    onSetLevel: (markerTopic: String, writeTopic: String, value: String, final: Boolean) -> Unit = { _, _, _, _ -> },
+    onSetLevel: (markerTopic: String, writeTopic: String, value: String, payload: String?, final: Boolean) -> Unit = { _, _, _, _, _ -> },
 ) {
     val props = obj.properties
     // No value yet: the track alone - no fill (not even what the calibration
@@ -363,6 +364,9 @@ fun ArcLevelView(
         ?.let { calculateFillPercent(it.toDoubleOrNull() ?: 0.0, calibration) }
 
     val writeTopic = props.stringOrNull("writeTopic") ?: ""
+    // What is published: the write format around the value (contract 2.11);
+    // the marker keeps the value itself.
+    val writeFormat = remember(props["writeFormat"]) { ScaledValue.parseWriteFormat(props["writeFormat"]) }
     val markerTopic = props.stringOrNull("setpointTopic")?.takeIf { it.isNotEmpty() }
         ?: props.stringOrNull("topic") ?: ""
     val step = props.double("step", 1.0)
@@ -517,7 +521,7 @@ fun ArcLevelView(
                                     snapToStep(valueForFillPercent(percent.coerceIn(0.0, 100.0), calibration), step)
                                 formatSetValue(value)
                             } else null
-                        }) { value, final -> onSetLevel(markerTopic, writeTopic, value, final) }
+                        }) { value, final -> onSetLevel(markerTopic, writeTopic, value, ScaledValue.formatWrite(value, writeFormat), final) }
                     }
                 },
             ),

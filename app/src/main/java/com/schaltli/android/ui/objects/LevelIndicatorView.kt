@@ -20,6 +20,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.schaltli.android.data.FontEntry
 import com.schaltli.android.data.Project
+import com.schaltli.android.data.ScaledValue
 import com.schaltli.android.data.ScreenObject
 import com.schaltli.android.render.LevelRect
 import com.schaltli.android.render.LevelRole
@@ -196,7 +197,7 @@ fun LevelIndicatorView(
     // A tap sets the value at the point it landed, on a level with a write
     // topic. Nothing is drawn from here: the marker follows from rawSetpoint,
     // which the caller feeds from the asked value.
-    onSetLevel: (markerTopic: String, writeTopic: String, value: String, final: Boolean) -> Unit = { _, _, _, _ -> },
+    onSetLevel: (markerTopic: String, writeTopic: String, value: String, payload: String?, final: Boolean) -> Unit = { _, _, _, _, _ -> },
 ) {
     val props = obj.properties
     val fonts = project.fonts
@@ -235,6 +236,9 @@ fun LevelIndicatorView(
         ?.let { calculateFillPercent(it.toDoubleOrNull() ?: 0.0, calibration).coerceIn(0.0, 100.0) }
 
     val writeTopic = props.stringOrNull("writeTopic") ?: ""
+    // What is published: the write format around the value (contract 2.11);
+    // the marker keeps the value itself.
+    val writeFormat = remember(props["writeFormat"]) { ScaledValue.parseWriteFormat(props["writeFormat"]) }
     val markerTopic = props.stringOrNull("setpointTopic")?.takeIf { it.isNotEmpty() }
         ?: props.stringOrNull("topic") ?: ""
     val step = (props["step"] as? JsonPrimitive)?.doubleOrNull ?: 1.0
@@ -305,7 +309,7 @@ fun LevelIndicatorView(
                             )
                             val value = snapToStep(valueForFillPercent(percent, calibration), step)
                             formatSetValue(value)
-                        }) { value, final -> onSetLevel(markerTopic, writeTopic, value, final) }
+                        }) { value, final -> onSetLevel(markerTopic, writeTopic, value, ScaledValue.formatWrite(value, writeFormat), final) }
                     }
                 },
             ),

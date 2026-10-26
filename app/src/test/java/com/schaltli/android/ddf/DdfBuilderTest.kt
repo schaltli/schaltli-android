@@ -154,7 +154,7 @@ class DdfBuilderTest {
         // Local topics (§2.9) are a feature, not a generation: the designer
         // sends a project with them only to a device that lists it.
         val features = manifest.getJSONArray("supportedFeatures")
-        assertEquals(3, features.length())
+        assertEquals(4, features.length())
         assertEquals("local-topics", features.getString(0))
         // And it draws box, line and fixed icon itself (2026-10-13): the
         // Android bundle carries no baked background since.
@@ -162,6 +162,8 @@ class DdfBuilderTest {
         // And the screen graph (§2.10): the designer sends a project with a
         // screen off the main row only to an app that lists it.
         assertEquals("screen-graph", features.getString(2))
+        // And scaled values (§2.11): scaled topics and write formats.
+        assertEquals("scaled-values", features.getString(3))
     }
 
     @Test

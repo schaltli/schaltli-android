@@ -143,7 +143,7 @@ object DdfBuilder {
         |  ],
         |  "supportedObjectTypes": [$types],
         |  "systemGeneration": "$SYSTEM_GENERATION",
-        |  "supportedFeatures": ["local-topics", "static-objects", "screen-graph"]
+        |  "supportedFeatures": ["local-topics", "static-objects", "screen-graph", "scaled-values"]
         |}
         |
         """.trimMargin()

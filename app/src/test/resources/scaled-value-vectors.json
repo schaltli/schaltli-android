@@ -1,0 +1,747 @@
+{
+  "about": "Scaled values computed with exact fractions, rounded half away from zero (scripts/scaled-value-vectors.py); lib/scaled-value.ts, the firmware's ScaledValue and the app's ScaledValue.kt must agree. result null: no value.",
+  "scale": [
+    {
+      "value": "12.5",
+      "numerator": 18,
+      "denominator": 5,
+      "offset": "0",
+      "decimals": 2,
+      "result": "45.00"
+    },
+    {
+      "value": "30000",
+      "numerator": 1,
+      "denominator": 1000,
+      "offset": "0",
+      "decimals": 0,
+      "result": "30"
+    },
+    {
+      "value": "90000",
+      "numerator": 1,
+      "denominator": 60000,
+      "offset": "0",
+      "decimals": 1,
+      "result": "1.5"
+    },
+    {
+      "value": "128",
+      "numerator": 20,
+      "denominator": 51,
+      "offset": "0",
+      "decimals": 0,
+      "result": "50"
+    },
+    {
+      "value": "100",
+      "numerator": 1961,
+      "denominator": 5000,
+      "offset": "0",
+      "decimals": 0,
+      "result": "39"
+    },
+    {
+      "value": "294.15",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "-273.15",
+      "decimals": 2,
+      "result": "21.00"
+    },
+    {
+      "value": "21.437",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 1,
+      "result": "21.4"
+    },
+    {
+      "value": "0.5",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 0,
+      "result": "1"
+    },
+    {
+      "value": "-0.5",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 0,
+      "result": "-1"
+    },
+    {
+      "value": "2.5",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 0,
+      "result": "3"
+    },
+    {
+      "value": "1.005",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 2,
+      "result": "1.01"
+    },
+    {
+      "value": "-1.005",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 2,
+      "result": "-1.01"
+    },
+    {
+      "value": "1",
+      "numerator": 1,
+      "denominator": 3,
+      "offset": "0",
+      "decimals": 6,
+      "result": "0.333333"
+    },
+    {
+      "value": "2",
+      "numerator": 1,
+      "denominator": 3,
+      "offset": "0",
+      "decimals": 6,
+      "result": "0.666667"
+    },
+    {
+      "value": "-2",
+      "numerator": 1,
+      "denominator": 3,
+      "offset": "0",
+      "decimals": 6,
+      "result": "-0.666667"
+    },
+    {
+      "value": "1",
+      "numerator": 1,
+      "denominator": 8,
+      "offset": "0",
+      "decimals": 2,
+      "result": "0.13"
+    },
+    {
+      "value": "-1",
+      "numerator": 1,
+      "denominator": 8,
+      "offset": "0",
+      "decimals": 2,
+      "result": "-0.13"
+    },
+    {
+      "value": "-10",
+      "numerator": 3,
+      "denominator": 1,
+      "offset": "5",
+      "decimals": 0,
+      "result": "-25"
+    },
+    {
+      "value": "10",
+      "numerator": -3,
+      "denominator": 1,
+      "offset": "5",
+      "decimals": 0,
+      "result": "-25"
+    },
+    {
+      "value": "-0.001",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 2,
+      "result": "0.00"
+    },
+    {
+      "value": "0.004",
+      "numerator": -1,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 2,
+      "result": "0.00"
+    },
+    {
+      "value": "1",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "-1.5",
+      "decimals": 1,
+      "result": "-0.5"
+    },
+    {
+      "value": "1",
+      "numerator": 1,
+      "denominator": 3,
+      "offset": "-0.4",
+      "decimals": 1,
+      "result": "-0.1"
+    },
+    {
+      "value": "-1",
+      "numerator": 1,
+      "denominator": 3,
+      "offset": "0.4",
+      "decimals": 1,
+      "result": "0.1"
+    },
+    {
+      "value": "0",
+      "numerator": 5,
+      "denominator": 7,
+      "offset": "0",
+      "decimals": 3,
+      "result": "0.000"
+    },
+    {
+      "value": "+7",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 0,
+      "result": "7"
+    },
+    {
+      "value": ".5",
+      "numerator": 2,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 1,
+      "result": "1.0"
+    },
+    {
+      "value": "5.",
+      "numerator": 2,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 0,
+      "result": "10"
+    },
+    {
+      "value": "  42  ",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 0,
+      "result": "42"
+    },
+    {
+      "value": "007.50",
+      "numerator": 2,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 2,
+      "result": "15.00"
+    },
+    {
+      "value": "",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 0,
+      "result": null
+    },
+    {
+      "value": "abc",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 0,
+      "result": null
+    },
+    {
+      "value": "1e3",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 0,
+      "result": null
+    },
+    {
+      "value": "1,5",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 0,
+      "result": null
+    },
+    {
+      "value": "-",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 0,
+      "result": null
+    },
+    {
+      "value": ".",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 0,
+      "result": null
+    },
+    {
+      "value": "true",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 0,
+      "result": null
+    },
+    {
+      "value": "999999999999",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 0,
+      "result": "999999999999"
+    },
+    {
+      "value": "9999999999999",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 0,
+      "result": null
+    },
+    {
+      "value": "0.000000001",
+      "numerator": 1000000,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 3,
+      "result": "0.001"
+    },
+    {
+      "value": "0.0000000001",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 0,
+      "result": null
+    },
+    {
+      "value": "999999999999",
+      "numerator": 1000000,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 0,
+      "result": null
+    },
+    {
+      "value": "999999.999999",
+      "numerator": 1000000,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 6,
+      "result": "999999999999.000000"
+    },
+    {
+      "value": "999999.999999",
+      "numerator": 1,
+      "denominator": 1000000,
+      "offset": "0",
+      "decimals": 6,
+      "result": "1.000000"
+    },
+    {
+      "value": "1",
+      "numerator": 1000001,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 0,
+      "result": null
+    },
+    {
+      "value": "1",
+      "numerator": 1,
+      "denominator": 1000001,
+      "offset": "0",
+      "decimals": 0,
+      "result": null
+    },
+    {
+      "value": "1",
+      "numerator": 1,
+      "denominator": 0,
+      "offset": "0",
+      "decimals": 0,
+      "result": null
+    },
+    {
+      "value": "1",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "0",
+      "decimals": 7,
+      "result": null
+    },
+    {
+      "value": "1",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "0.123",
+      "decimals": 2,
+      "result": null
+    },
+    {
+      "value": "1",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "999999999999",
+      "decimals": 0,
+      "result": null
+    },
+    {
+      "value": "1",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "1000000000000",
+      "decimals": 0,
+      "result": null
+    },
+    {
+      "value": "1",
+      "numerator": 1,
+      "denominator": 1,
+      "offset": "x",
+      "decimals": 0,
+      "result": null
+    }
+  ],
+  "write": [
+    {
+      "value": "30",
+      "format": {
+        "text": "{\"interval\":{value}}",
+        "numerator": 1000
+      },
+      "result": "{\"interval\":30000}"
+    },
+    {
+      "value": "50",
+      "format": {
+        "text": "{\"gain\":{value}}",
+        "numerator": 1961,
+        "denominator": 5000,
+        "decimals": 0
+      },
+      "result": "{\"gain\":20}"
+    },
+    {
+      "value": "21.5",
+      "format": {
+        "text": "{\"id\":1,\"method\":\"Number.Set\",\"params\":{\"id\":200,\"value\":{value}}}"
+      },
+      "result": "{\"id\":1,\"method\":\"Number.Set\",\"params\":{\"id\":200,\"value\":21.5}}"
+    },
+    {
+      "value": "21.5",
+      "format": {
+        "text": "{value}"
+      },
+      "result": "21.5"
+    },
+    {
+      "value": "7",
+      "format": {
+        "text": "set {value} and {value}"
+      },
+      "result": "set 7 and 7"
+    },
+    {
+      "value": "7",
+      "format": {
+        "text": "{{value}} {val} {value"
+      },
+      "result": "{7} {val} {value"
+    },
+    {
+      "value": "abc",
+      "format": {
+        "text": "{value}"
+      },
+      "result": "abc"
+    },
+    {
+      "value": "abc",
+      "format": {
+        "text": "{value}",
+        "numerator": 2
+      },
+      "result": null
+    },
+    {
+      "value": "1.25",
+      "format": {
+        "text": "{value}",
+        "offset": "0.5",
+        "decimals": 1
+      },
+      "result": "1.8"
+    }
+  ],
+  "combined": [
+    {
+      "name": "a scaled topic: m/s to km/h",
+      "combinedTopics": [
+        {
+          "id": "c1",
+          "name": "wind_kmh",
+          "mode": "scale",
+          "conditions": [],
+          "scale": {
+            "source": {
+              "namespace": "topic",
+              "path": "weather#wind"
+            },
+            "numerator": 18,
+            "denominator": 5,
+            "offset": "0",
+            "decimals": 1
+          }
+        }
+      ],
+      "values": {
+        "weather#wind": "12.5"
+      },
+      "expected": {
+        "wind_kmh": "45.0"
+      }
+    },
+    {
+      "name": "a source without a value: no value yet",
+      "combinedTopics": [
+        {
+          "id": "c1",
+          "name": "wind_kmh",
+          "mode": "scale",
+          "conditions": [],
+          "scale": {
+            "source": {
+              "namespace": "topic",
+              "path": "weather#wind"
+            },
+            "numerator": 18,
+            "denominator": 5,
+            "offset": "0",
+            "decimals": 1
+          }
+        }
+      ],
+      "values": {},
+      "expected": {
+        "wind_kmh": null
+      }
+    },
+    {
+      "name": "a source that is not a number: no value",
+      "combinedTopics": [
+        {
+          "id": "c1",
+          "name": "wind_kmh",
+          "mode": "scale",
+          "conditions": [],
+          "scale": {
+            "source": {
+              "namespace": "topic",
+              "path": "weather#wind"
+            },
+            "numerator": 18,
+            "denominator": 5,
+            "offset": "0",
+            "decimals": 1
+          }
+        }
+      ],
+      "values": {
+        "weather#wind": "calm"
+      },
+      "expected": {
+        "wind_kmh": null
+      }
+    },
+    {
+      "name": "a scaled topic reading another, listed before it",
+      "combinedTopics": [
+        {
+          "id": "c2",
+          "name": "fahrenheit",
+          "mode": "scale",
+          "conditions": [],
+          "scale": {
+            "source": {
+              "namespace": "combined",
+              "path": "celsius"
+            },
+            "numerator": 9,
+            "denominator": 5,
+            "offset": "32",
+            "decimals": 1
+          }
+        },
+        {
+          "id": "c3",
+          "name": "celsius",
+          "mode": "scale",
+          "conditions": [],
+          "scale": {
+            "source": {
+              "namespace": "topic",
+              "path": "kelvin"
+            },
+            "numerator": 1,
+            "denominator": 1,
+            "offset": "-273.15",
+            "decimals": 2
+          }
+        }
+      ],
+      "values": {
+        "kelvin": "294.15"
+      },
+      "expected": {
+        "celsius": "21.00",
+        "fahrenheit": "69.8"
+      }
+    },
+    {
+      "name": "a condition on a scaled topic",
+      "combinedTopics": [
+        {
+          "id": "c4",
+          "name": "windy",
+          "mode": "any",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "wind_kmh"
+              },
+              "op": ">",
+              "operand": "50"
+            }
+          ]
+        },
+        {
+          "id": "c1",
+          "name": "wind_kmh",
+          "mode": "scale",
+          "conditions": [],
+          "scale": {
+            "source": {
+              "namespace": "topic",
+              "path": "weather#wind"
+            },
+            "numerator": 18,
+            "denominator": 5,
+            "offset": "0",
+            "decimals": 1
+          }
+        }
+      ],
+      "values": {
+        "weather#wind": "15"
+      },
+      "expected": {
+        "wind_kmh": "54.0",
+        "windy": "true"
+      }
+    },
+    {
+      "name": "a condition on a scaled topic, below",
+      "combinedTopics": [
+        {
+          "id": "c4",
+          "name": "windy",
+          "mode": "any",
+          "conditions": [
+            {
+              "source": {
+                "namespace": "combined",
+                "path": "wind_kmh"
+              },
+              "op": ">",
+              "operand": "50"
+            }
+          ]
+        },
+        {
+          "id": "c1",
+          "name": "wind_kmh",
+          "mode": "scale",
+          "conditions": [],
+          "scale": {
+            "source": {
+              "namespace": "topic",
+              "path": "weather#wind"
+            },
+            "numerator": 18,
+            "denominator": 5,
+            "offset": "0",
+            "decimals": 1
+          }
+        }
+      ],
+      "values": {
+        "weather#wind": "13.8"
+      },
+      "expected": {
+        "wind_kmh": "49.7",
+        "windy": "false"
+      }
+    },
+    {
+      "name": "two scaled topics reading each other: circular",
+      "combinedTopics": [
+        {
+          "id": "c1",
+          "name": "b",
+          "mode": "scale",
+          "conditions": [],
+          "scale": {
+            "source": {
+              "namespace": "combined",
+              "path": "a"
+            },
+            "numerator": 1,
+            "denominator": 1,
+            "offset": "0",
+            "decimals": 0
+          }
+        },
+        {
+          "id": "c2",
+          "name": "a",
+          "mode": "scale",
+          "conditions": [],
+          "scale": {
+            "source": {
+              "namespace": "combined",
+              "path": "b"
+            },
+            "numerator": 1,
+            "denominator": 1,
+            "offset": "0",
+            "decimals": 0
+          }
+        }
+      ],
+      "values": {},
+      "circular": [
+        "a",
+        "b",
+        "a"
+      ]
+    }
+  ]
+}
