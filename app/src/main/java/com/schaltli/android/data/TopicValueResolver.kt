@@ -57,7 +57,10 @@ private fun arrivedValue(topicRef: String, liveValues: Map<String, String>): Str
     return if (raw == null || path.isEmpty()) raw else extractJsonField(raw, path)
 }
 
-/** Every combined topic's value from the topics' current ones: "true", "false", or null (§2.6). */
+/** An object's topic naming a combined topic rather than a topic: `combined:<name>`. */
+const val COMBINED_BINDING = "combined:"
+
+/** Every combined topic's value from the topics' current ones: "true", "false", a scaled number, or null (§2.6, §2.11). */
 fun combinedValues(project: Project, liveValues: Map<String, String>): Map<String, String?> =
     if (project.combinedOrder.isEmpty()) emptyMap()
     else CombinedTopics.compute(project.combinedOrder) { path -> arrivedValue(path, liveValues) }
@@ -118,6 +121,10 @@ fun liveIconPath(
 
 fun resolveTopicValue(topicRef: String?, project: Project, liveValues: Map<String, String>): String {
     if (topicRef.isNullOrEmpty()) return ""
+    // A bar or a gauge may read a combined topic - a scaled topic's number
+    // (the designer's device contract §2.11) - as the boards do: through the
+    // same door as a topic. None yet reads as "".
+    if (topicRef.startsWith(COMBINED_BINDING)) return combinedValues(project, liveValues)[topicRef.removePrefix(COMBINED_BINDING)] ?: ""
     val (topic, path) = splitTopicPath(topicRef)
 
     val rawValue = liveValues[topic] ?: ""

@@ -135,6 +135,32 @@ class ScaledValueTest {
         assertNull(ScaledValue.formatWrite("4", format))
     }
 
+    // A bar reads a scaled topic as `combined:<name>`, as the boards do: the
+    // number, "" before its source has one; the source is subscribed.
+    @Test
+    fun aBarReadsAScaledTopic() {
+        val project = Json { ignoreUnknownKeys = true }.decodeFromString(
+            Project.serializer(),
+            """
+            {
+              "name": "scaled", "screenWidth": 360, "screenHeight": 800,
+              "combinedTopics": [
+                {"id":"c1","name":"wind_kmh","mode":"scale","conditions":[],
+                 "scale":{"source":{"namespace":"topic","path":"weather#wind"},"numerator":18,"denominator":5,"offset":"0","decimals":1}}
+              ],
+              "screens": [
+                { "id": "main", "name": "Main", "objects": [
+                  { "id": "bar", "type": "bar", "x": 0, "y": 0, "width": 200, "height": 40, "zIndex": 1,
+                    "properties": { "topic": "combined:wind_kmh" } } ] }
+              ]
+            }
+            """.trimIndent(),
+        )
+        assertEquals(setOf("weather"), project.collectTopicNames())
+        assertEquals("45.0", resolveTopicValue("combined:wind_kmh", project, mapOf("weather" to """{"wind":12.5}""")))
+        assertEquals("", resolveTopicValue("combined:wind_kmh", project, emptyMap()))
+    }
+
     @Test
     fun theCopyIsTheDesignersByteForByte() {
         val designer = designerVectors()

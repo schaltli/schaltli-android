@@ -36,9 +36,10 @@ private fun collectTopicsFromObjects(
     for (obj in objects) {
         for (key in READ_TOPIC_KEYS) {
             val topicRef = (obj.properties[key] as? JsonPrimitive)?.contentOrNull
-            if (!topicRef.isNullOrEmpty()) {
-                into.add(splitTopicPath(topicRef).topic)
-            }
+            if (topicRef.isNullOrEmpty()) continue
+            // A combined topic is the app's own: what it reads is subscribed.
+            if (topicRef.startsWith(COMBINED_BINDING)) into.addAll(CombinedTopics.inputTopics(combined, topicRef.removePrefix(COMBINED_BINDING)))
+            else into.add(splitTopicPath(topicRef).topic)
         }
         // And every topic a text's placeholder names: a text has no binding,
         // so without this its topics were never subscribed and it showed `??`
