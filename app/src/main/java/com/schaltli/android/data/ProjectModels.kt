@@ -274,6 +274,15 @@ data class ButtonAction(
     val deviceActionId: String? = null,
     // Only for type "goto-neighbour": the side the screen lies on.
     val side: String? = null,
+    // For "send-mqtt", the DDF feature "button-values" ([ButtonValues]): a
+    // combined topic that must be yes for the press to send, and a local
+    // topic set empty after it did.
+    val onlyWhen: String? = null,
+    val clears: String? = null,
+    // What a person typed or picked (a text field, a time field, a switch's
+    // value): sent as it is, never read for `{topic:…}` - a typed
+    // «{topic:…}» must not send another topic's value.
+    @kotlinx.serialization.Transient val literal: Boolean = false,
 )
 
 // `properties` is intentionally a loose JsonObject, not a sealed hierarchy

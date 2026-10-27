@@ -522,6 +522,9 @@ class MqttRepository {
      * The one window left is a connection that drops between this check and
      * the send, a few milliseconds wide.
      */
+    /** Whether the project just loaded declares this topic local (§2.9). */
+    fun isLocalTopic(topic: String): Boolean = localTopics.isLocal(topic)
+
     fun publish(topic: String, message: String): Boolean {
         // A local topic is written here and goes nowhere, connected or not.
         if (localTopics.isLocal(topic)) {

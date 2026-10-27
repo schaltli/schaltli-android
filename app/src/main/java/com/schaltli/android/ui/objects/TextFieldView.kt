@@ -78,6 +78,8 @@ fun TextFieldView(
 ) {
     val props = obj.properties
     val hidden = (props["hidden"] as? JsonPrimitive)?.booleanOrNull == true
+    // «Digits» (button-values): the phone's number pad.
+    val digits = props.stringOrNull("keyboard") == "digits"
     val writeTopic = props.stringOrNull("writeTopic")?.takeIf { it.isNotEmpty() }
     val readTopic = props.stringOrNull("topic")?.takeIf { it.isNotEmpty() } ?: writeTopic
     val bounds = TextField.bounds(props.doubleOrNull("minLength"), props.doubleOrNull("maxLength"))
@@ -91,13 +93,14 @@ fun TextFieldView(
         TextEntryDialog(
             initial = TextField.clampText(shown, bounds.maxLength),
             hidden = hidden,
+            digits = digits,
             bounds = bounds,
             onCancel = { editing = false },
             onSend = { text ->
                 editing = false
                 // Not retained: a command, as a button's message. The field
                 // shows it until its topic answers.
-                onAction(ButtonAction(type = "send-mqtt", mqttTopic = writeTopic, mqttMessage = text))
+                onAction(ButtonAction(type = "send-mqtt", mqttTopic = writeTopic, mqttMessage = text, literal = true))
                 if (readTopic != null) onAsked(readTopic, text)
             },
         )
@@ -183,6 +186,7 @@ fun FieldBox(
 private fun TextEntryDialog(
     initial: String,
     hidden: Boolean,
+    digits: Boolean,
     bounds: TextField.Bounds,
     onCancel: () -> Unit,
     onSend: (String) -> Unit,
@@ -203,7 +207,12 @@ private fun TextEntryDialog(
                     singleLine = true,
                     visualTransformation = if (hidden) PasswordVisualTransformation() else VisualTransformation.None,
                     keyboardOptions = KeyboardOptions(
-                        keyboardType = if (hidden) KeyboardType.Password else KeyboardType.Text,
+                        keyboardType = when {
+                            digits && hidden -> KeyboardType.NumberPassword
+                            digits -> KeyboardType.Number
+                            hidden -> KeyboardType.Password
+                            else -> KeyboardType.Text
+                        },
                         imeAction = ImeAction.Done,
                     ),
                     keyboardActions = KeyboardActions(onDone = { if (sendable) onSend(entry.text) }),

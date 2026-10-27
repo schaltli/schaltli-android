@@ -61,7 +61,7 @@ fun TimeFieldView(
                 picking = false
                 val payload = TimeField.payload(TimeField.onStep(picked, step))
                 // Not retained: a command, as a button's message.
-                onAction(ButtonAction(type = "send-mqtt", mqttTopic = writeTopic, mqttMessage = payload))
+                onAction(ButtonAction(type = "send-mqtt", mqttTopic = writeTopic, mqttMessage = payload, literal = true))
                 if (readTopic != null) onAsked(readTopic, payload)
             },
         )

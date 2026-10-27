@@ -262,7 +262,7 @@ fun SwitchView(
                         // rather than what it believed it was doing. Routed
                         // through the same send-mqtt action every
                         // SoftwareButton uses, so there is one publish path.
-                        onAction(ButtonAction(type = "send-mqtt", mqttTopic = writeTopic, mqttMessage = value))
+                        onAction(ButtonAction(type = "send-mqtt", mqttTopic = writeTopic, mqttMessage = value, literal = true))
                         val readTopic = props.stringOrNull("topic")
                         val readValue = states.getOrNull(index)?.readValue
                         if (!readTopic.isNullOrEmpty() && !readValue.isNullOrEmpty()) onAsked(readTopic, readValue)

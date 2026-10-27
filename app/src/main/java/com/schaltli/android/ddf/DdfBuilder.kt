@@ -147,7 +147,7 @@ object DdfBuilder {
         |  ],
         |  "supportedObjectTypes": [$types],
         |  "systemGeneration": "$SYSTEM_GENERATION",
-        |  "supportedFeatures": ["local-topics", "static-objects", "screen-graph", "scaled-values"]
+        |  "supportedFeatures": ["local-topics", "static-objects", "screen-graph", "scaled-values", "button-values"]
         |}
         |
         """.trimMargin()

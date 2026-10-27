@@ -3,6 +3,10 @@ package com.schaltli.android.mqtt
 import com.schaltli.android.data.ScreenGraph
 import com.schaltli.android.data.ScreenGraphProject
 import com.schaltli.android.data.ButtonAction
+import com.schaltli.android.data.ButtonValues
+import com.schaltli.android.data.combinedValues
+import com.schaltli.android.data.resolveTopicValue
+import com.schaltli.android.data.splitTopicPath
 import com.schaltli.android.data.Project
 import com.schaltli.android.data.ScreenObject
 import kotlinx.serialization.json.Json
@@ -46,7 +50,22 @@ class ButtonActionDispatcher(
             }
             "send-mqtt" -> {
                 val topic = action.mqttTopic ?: return
-                mqttRepository.publish(topic, action.mqttMessage ?: "")
+                val text = action.mqttMessage ?: ""
+                if (action.literal) {
+                    mqttRepository.publish(topic, text)
+                    return
+                }
+                // `{topic:…}` filled in, «Only when» not yes: nothing goes
+                // out. «Then clear»: a local topic only (button-values).
+                val values = mqttRepository.topicValues.value
+                val message = ButtonValues.pressedMessage(
+                    text,
+                    action.onlyWhen,
+                    { name -> combinedValues(project, values)[name] },
+                    { path -> if (splitTopicPath(path).topic in values) resolveTopicValue(path, project, values) else null },
+                ) ?: return
+                mqttRepository.publish(topic, message)
+                action.clears?.takeIf { mqttRepository.isLocalTopic(it) }?.let { mqttRepository.publish(it, "") }
             }
             "device-action" -> {
                 val id = action.deviceActionId ?: return
