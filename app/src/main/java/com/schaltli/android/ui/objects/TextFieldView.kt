@@ -77,71 +77,15 @@ fun TextFieldView(
     onAsked: (readTopic: String, readValue: String) -> Unit,
 ) {
     val props = obj.properties
-    val field = props.colorOrDefault("fieldColor", Color(0xFFE7E0EC))
-    val line = props.colorOrDefault("lineColor", Color(0xFF6750A4))
-    val ink = props.colorOrDefault("textColor", Color(0xFF1D1B20))
     val hidden = (props["hidden"] as? JsonPrimitive)?.booleanOrNull == true
     val writeTopic = props.stringOrNull("writeTopic")?.takeIf { it.isNotEmpty() }
     val readTopic = props.stringOrNull("topic")?.takeIf { it.isNotEmpty() } ?: writeTopic
     val bounds = TextField.bounds(props.doubleOrNull("minLength"), props.doubleOrNull("maxLength"))
 
-    val fontMeta = project.fonts.find { it.id == props.stringOrNull("fontId") }
-    val fontSize = fontMeta?.size ?: 14
-    // The designer's fontMetricsOf, as the level's number uses it: a TTF's
-    // measured capital height is its ascent. Its raw ascent put the text a
-    // dp lower than the designer's (the first HIL run, 2026-10-27).
-    val metrics = fontMetricsOf(fontMeta, 14)
-    val ascent = metrics.ascent
-    val descent = metrics.descent
-    val typefacePath = fontMeta?.path?.let { assetFileOf(it) }
-    val typeface = remember(typefacePath, LocalBundleInstallation.current) {
-        typefacePath?.takeIf { it.exists() }?.let { Typeface.createFromFile(it) } ?: Typeface.DEFAULT
-    }
-
     val shown = askedValue.ifEmpty { value }
     var editing by remember(obj.id) { mutableStateOf(false) }
 
-    val x = obj.x.toInt()
-    val y = obj.y.toInt()
-    val w = obj.width.toInt().coerceAtLeast(1)
-    val h = obj.height.toInt().coerceAtLeast(1)
-    val g = TextField.geometry(w, h)
-
-    Box(
-        modifier = Modifier
-            .offset(x = x.dp, y = y.dp)
-            .size(width = w.dp, height = h.dp)
-            .testTag("text-field-${obj.id}")
-            .pointerInput(obj.id, writeTopic) {
-                if (writeTopic != null) detectTapGestures(onTap = { editing = true })
-            },
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val scale = density
-            drawIntoCanvas { canvas ->
-                val paint = android.graphics.Paint().apply { isAntiAlias = false; style = android.graphics.Paint.Style.FILL }
-                paint.color = field.toArgb()
-                fillRoundRect(canvas.nativeCanvas, paint, 0, 0, w, h, g.radius, scale)
-                if (w > 2 * g.radius) {
-                    paint.color = line.toArgb()
-                    fillRoundRect(canvas.nativeCanvas, paint, g.radius, g.lineY, w - 2 * g.radius, g.lineHeight, 0, scale)
-                }
-                if (shown.isEmpty()) return@drawIntoCanvas
-                val text = TextField.shownText(shown, hidden)
-                val textPaint = android.graphics.Paint().apply {
-                    isAntiAlias = true
-                    this.typeface = typeface
-                    textSize = fontSize * scale
-                    color = ink.toArgb()
-                }
-                val native = canvas.nativeCanvas
-                native.save()
-                native.clipRect(g.pad * scale, 0f, (w - g.pad) * scale, h * scale)
-                native.drawText(text, g.pad * scale, TextField.baseline(h, ascent, descent) * scale, textPaint)
-                native.restore()
-            }
-        }
-    }
+    FieldBox(obj, project, TextField.shownText(shown, hidden), assetFileOf, "text-field-${obj.id}", onTap = writeTopic?.let { { editing = true } })
 
     if (editing && writeTopic != null) {
         TextEntryDialog(
@@ -157,6 +101,80 @@ fun TextFieldView(
                 if (readTopic != null) onAsked(readTopic, text)
             },
         )
+    }
+}
+
+/**
+ * The field and [text] in it - a text field's, and a time field's
+ * (TimeFieldView.kt), which shows its time the same way: the container, the
+ * 2-px line along its bottom, the text cut at the inner edge. [onTap] null:
+ * nothing to set, a tap passes through.
+ */
+@Composable
+fun FieldBox(
+    obj: ScreenObject,
+    project: Project,
+    text: String,
+    assetFileOf: (String) -> java.io.File,
+    tag: String,
+    onTap: (() -> Unit)?,
+) {
+    val props = obj.properties
+    val field = props.colorOrDefault("fieldColor", Color(0xFFE7E0EC))
+    val line = props.colorOrDefault("lineColor", Color(0xFF6750A4))
+    val ink = props.colorOrDefault("textColor", Color(0xFF1D1B20))
+    val fontMeta = project.fonts.find { it.id == props.stringOrNull("fontId") }
+    val fontSize = fontMeta?.size ?: 14
+    // The designer's fontMetricsOf, as the level's number uses it: a TTF's
+    // measured capital height is its ascent. Its raw ascent put the text a
+    // dp lower than the designer's (the first HIL run, 2026-10-27).
+    val metrics = fontMetricsOf(fontMeta, 14)
+    val ascent = metrics.ascent
+    val descent = metrics.descent
+    val typefacePath = fontMeta?.path?.let { assetFileOf(it) }
+    val typeface = remember(typefacePath, LocalBundleInstallation.current) {
+        typefacePath?.takeIf { it.exists() }?.let { Typeface.createFromFile(it) } ?: Typeface.DEFAULT
+    }
+
+    val x = obj.x.toInt()
+    val y = obj.y.toInt()
+    val w = obj.width.toInt().coerceAtLeast(1)
+    val h = obj.height.toInt().coerceAtLeast(1)
+    val g = TextField.geometry(w, h)
+
+    Box(
+        modifier = Modifier
+            .offset(x = x.dp, y = y.dp)
+            .size(width = w.dp, height = h.dp)
+            .testTag(tag)
+            .pointerInput(obj.id, onTap != null) {
+                if (onTap != null) detectTapGestures(onTap = { onTap() })
+            },
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val scale = density
+            drawIntoCanvas { canvas ->
+                val paint = android.graphics.Paint().apply { isAntiAlias = false; style = android.graphics.Paint.Style.FILL }
+                paint.color = field.toArgb()
+                fillRoundRect(canvas.nativeCanvas, paint, 0, 0, w, h, g.radius, scale)
+                if (w > 2 * g.radius) {
+                    paint.color = line.toArgb()
+                    fillRoundRect(canvas.nativeCanvas, paint, g.radius, g.lineY, w - 2 * g.radius, g.lineHeight, 0, scale)
+                }
+                if (text.isEmpty()) return@drawIntoCanvas
+                val textPaint = android.graphics.Paint().apply {
+                    isAntiAlias = true
+                    this.typeface = typeface
+                    textSize = fontSize * scale
+                    color = ink.toArgb()
+                }
+                val native = canvas.nativeCanvas
+                native.save()
+                native.clipRect(g.pad * scale, 0f, (w - g.pad) * scale, h * scale)
+                native.drawText(text, g.pad * scale, TextField.baseline(h, ascent, descent) * scale, textPaint)
+                native.restore()
+            }
+        }
     }
 }
 

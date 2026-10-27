@@ -43,7 +43,7 @@ private fun collectTopicsFromObjects(
         }
         // A text field without a read topic reads its write topic: it shows
         // what was last sent (the designer's tasks/ha-text-plan.md).
-        if (obj.type == "text-field" && (obj.properties["topic"] as? JsonPrimitive)?.contentOrNull.isNullOrEmpty()) {
+        if ((obj.type == "text-field" || obj.type == "time-field") && (obj.properties["topic"] as? JsonPrimitive)?.contentOrNull.isNullOrEmpty()) {
             (obj.properties["writeTopic"] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotEmpty() }?.let { into.add(it) }
         }
         // And every topic a text's placeholder names: a text has no binding,

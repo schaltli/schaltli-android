@@ -143,6 +143,7 @@ class DdfBuilderTest {
         // The energy diagram since 1.7 (the designer's device contract §2.8).
         assertTrue("energy-diagram missing", list.contains("energy-diagram"))
         assertTrue("text-field missing", list.contains("text-field"))
+        assertTrue("time-field missing", list.contains("time-field"))
 
         // No device action: the screen menu (showScreenMenu) went with the
         // screen graph (§2.10), and the designer offers none for the phone.

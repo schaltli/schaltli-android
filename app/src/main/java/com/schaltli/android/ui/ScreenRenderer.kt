@@ -35,6 +35,7 @@ import com.schaltli.android.ui.objects.EnergyDiagramView
 import com.schaltli.android.ui.objects.ArcLevelView
 import com.schaltli.android.ui.objects.IconPathView
 import com.schaltli.android.ui.objects.TextFieldView
+import com.schaltli.android.ui.objects.TimeFieldView
 import com.schaltli.android.ui.objects.BoxView
 import com.schaltli.android.ui.objects.LineView
 import com.schaltli.android.ui.objects.LevelIndicatorView
@@ -288,6 +289,18 @@ fun DynamicObjectView(
             )
         }
         "button" -> SoftwareButtonView(obj, project, assetFileOf, onAction)
+        // Read from its topic, or without one from its write topic (TimeFieldView).
+        "time-field" -> {
+            val topic = obj.properties.stringOrNull("topic")?.takeIf { it.isNotEmpty() }
+                ?: obj.properties.stringOrNull("writeTopic")?.takeIf { it.isNotEmpty() }
+            TimeFieldView(
+                obj, project, resolveTopicValue(topic, project, topicValues),
+                askedValue = topic?.let { askedValues[it] } ?: "",
+                assetFileOf = assetFileOf,
+                onAction = onAction,
+                onAsked = onAsked,
+            )
+        }
         // Read from its topic, or without one from its write topic (TextFieldView).
         "text-field" -> {
             val topic = obj.properties.stringOrNull("topic")?.takeIf { it.isNotEmpty() }
