@@ -44,6 +44,8 @@ object DdfBuilder {
         "live-text", "live-icon", "text", "icon",
         "bar", "slider", "gauge", "dial",
         "switch", "button-group", "button",
+        // A text typed on the phone's own keyboard (the designer's tasks/ha-text-plan.md).
+        "text-field",
         "line", "live-line", "box", "switcher", "panel",
         // A bar of every screen along an edge (§2.7), since 1.5.
         "navigator",
