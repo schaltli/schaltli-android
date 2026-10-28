@@ -445,8 +445,9 @@ fun SchaltliRoot(app: SchaltliApp) {
     // new one (docs/2026-09-21-android-self-announce.md).
     val deployReceiver = remember(mqttRepository) {
         DeployReceiver(
-            projectRepository = app.projectRepository,
+            install = { bytes -> app.projectRepository.importBytes(bytes) },
             publishStatus = { mqttRepository.publishDeployStatus(it) },
+            clearTrigger = { mqttRepository.clearDeployTrigger() },
             scope = scope,
         )
     }

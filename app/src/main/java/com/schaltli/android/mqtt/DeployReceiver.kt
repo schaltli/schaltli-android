@@ -1,7 +1,6 @@
 package com.schaltli.android.mqtt
 
 import android.util.Log
-import com.schaltli.android.data.ProjectRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -28,8 +27,11 @@ import java.util.zip.CRC32
  * terminal state it reports is therefore `applied`, not `rebooting`.
  */
 class DeployReceiver(
-    private val projectRepository: ProjectRepository,
+    private val install: suspend (ByteArray) -> Result<*>,
     private val publishStatus: (String) -> Unit,
+    // Empties the retained `deploy` on the broker (docs/device-contract.md
+    // SS4, gotcha 1).
+    private val clearTrigger: () -> Unit,
     private val scope: CoroutineScope,
 ) {
     companion object {
@@ -61,6 +63,13 @@ class DeployReceiver(
         val url = message.optString("url").ifEmpty { return }
         val crc32 = message.optLong("crc32", -1L)
 
+        // Taken off the broker first, as every board does. Left there, it
+        // came back with each start of the app, which fetched the project
+        // again - or, its designer gone, tried to for as long as a
+        // connection takes to give up, and called the next deploy `busy`
+        // meanwhile (android HIL right after a start, 2026-10-28).
+        clearTrigger()
+
         // Retained, so it arrives again on every reconnect - and installing
         // the same project twice would be a screen that flickers back to
         // where it was every time the network hiccups.
@@ -72,13 +81,17 @@ class DeployReceiver(
         // another deploy. Saying `busy` to it told the designer's dialog that
         // something else had the device, over a progress bar that was mid-
         // download - and the retained message is re-delivered often enough
-        // that this was the usual outcome, not a rare one.
-        if (deployId == runningDeployId) return
-        if (!running.compareAndSet(false, true)) {
-            report(deployId, BUSY)
-            return
+        // that this was the usual outcome, not a rare one. Checked and taken
+        // in one step: apart, a second delivery could come between the
+        // first taking the receiver and naming its deploy, and be told busy.
+        synchronized(this) {
+            if (deployId == runningDeployId) return
+            if (!running.compareAndSet(false, true)) {
+                report(deployId, BUSY)
+                return
+            }
+            runningDeployId = deployId
         }
-        runningDeployId = deployId
         scope.launch {
             try {
                 report(deployId, "downloading", 0)
@@ -95,7 +108,7 @@ class DeployReceiver(
                 }
 
                 report(deployId, "applying")
-                val result = projectRepository.importBytes(bytes)
+                val result = install(bytes)
                 if (result.isFailure) {
                     report(deployId, "error", error = result.exceptionOrNull()?.message ?: "Could not install")
                     return@launch
@@ -109,8 +122,10 @@ class DeployReceiver(
                 Log.w(TAG, "deploy failed", e)
                 report(deployId, "error", error = e.message ?: e::class.java.simpleName)
             } finally {
-                runningDeployId = null
-                running.set(false)
+                synchronized(this@DeployReceiver) {
+                    runningDeployId = null
+                    running.set(false)
+                }
             }
         }
     }

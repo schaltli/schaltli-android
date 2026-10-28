@@ -357,6 +357,12 @@ class MqttRepository {
      */
     private fun deviceBase(): String? = announcement?.let { "$TOPIC_PREFIX/${it.deviceId}" }
 
+    /** Empties this phone's retained `deploy`, as a device taking it does (contract §4). */
+    fun clearDeployTrigger() {
+        val base = deviceBase() ?: return
+        client?.send("$base/deploy", "", retain = true)
+    }
+
     /** Reports where a deploy has got to, non-retained, as the contract's §4 says. */
     fun publishDeployStatus(payload: String) {
         val base = deviceBase() ?: return
