@@ -150,6 +150,13 @@ object LiveValues {
         }
     }
 
+    /**
+     * Whole seconds as h:mm:ss, or the value as it came where it is no number
+     * of seconds: a dial's or gauge's number shown as a duration (designer
+     * device contract §2.12).
+     */
+    fun durationText(value: String): String = formatDuration(value, "h:mm:ss") ?: value
+
     fun formatValue(value: String, format: Format, separators: Placeholders.Separators): String = when (format) {
         Format.AsIs -> value
         is Format.Number ->

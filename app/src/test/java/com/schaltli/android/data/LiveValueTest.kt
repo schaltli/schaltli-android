@@ -158,6 +158,17 @@ class LiveValueTest {
         assertEquals(emptyList<String>(), CombinedTopics.inputTopics(topics, "missing"))
     }
 
+    // A dial's or gauge's number as a duration (designer device contract
+    // §2.12): h:mm:ss, the value as it came where it is no number of seconds.
+    @Test
+    fun durationTextWritesSecondsAsHoursMinutesSeconds() {
+        assertEquals("1:23:29", LiveValues.durationText("5009"))
+        assertEquals("0:05:09", LiveValues.durationText("309"))
+        assertEquals("0:00:00", LiveValues.durationText("0"))
+        assertEquals("-5", LiveValues.durationText("-5"))
+        assertEquals("aus", LiveValues.durationText("aus"))
+    }
+
     @Test
     fun theCopyIsTheDesignersByteForByte() {
         val designer = designerVectors()

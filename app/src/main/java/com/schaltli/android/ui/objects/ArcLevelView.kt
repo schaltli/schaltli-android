@@ -18,6 +18,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.schaltli.android.data.FontEntry
+import com.schaltli.android.data.LiveValues
 import com.schaltli.android.data.Project
 import com.schaltli.android.data.ScaledValue
 import com.schaltli.android.data.ScreenObject
@@ -446,8 +447,12 @@ fun ArcLevelView(
     // one above the other; a bar shows the commanded one alone since it lost
     // its header line (2026-09-29).
     val displayValue = props.string("displayValue", "value")
-    fun asText(raw: String, percent: Double): String =
-        if (displayValue == "percentage") "${percent.roundToInt()}%" else raw
+    // A duration: seconds as h:mm:ss (device contract §2.12).
+    fun asText(raw: String, percent: Double): String = when (displayValue) {
+        "percentage" -> "${percent.roundToInt()}%"
+        "duration" -> LiveValues.durationText(raw)
+        else -> raw
+    }
     val measured = asText(value, fillPercent)
     val commanded = if (setpointPercent != null) asText(rawMarker, setpointPercent) else measured
     val displayText = if (noValue || displayValue == "none") null else commanded
