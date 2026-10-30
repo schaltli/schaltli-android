@@ -120,6 +120,33 @@
       ]
     },
     {
+      "name": "the last page of the row: the first on its right, the one before on its left",
+      "mainRow": [
+        "a",
+        "b",
+        "c"
+      ],
+      "screen": {
+        "id": "c",
+        "neighbours": {
+          "left": "b",
+          "right": "a"
+        },
+        "buttonActions": {
+          "swipe-left": {
+            "type": "next-screen"
+          },
+          "swipe-right": {
+            "type": "previous-screen"
+          }
+        }
+      },
+      "expect": [
+        "left",
+        "right"
+      ]
+    },
+    {
       "name": "the history: back up",
       "mainRow": [
         "a",
