@@ -65,17 +65,22 @@ fun TabControlView(
             .size(width = obj.width.dp, height = obj.height.dp),
     ) {
         for (child in activePanel.children.sortedByZIndex()) {
-            DynamicObjectView(
-                child,
-                project,
-                topicValues,
-                assetFileOf,
-                onAction,
-                screenBackgroundColor,
-                askedValues,
-                onSetLevel,
-                onAsked,
-            )
+            // Clipped by a free area it came from, in the panel's own space (§2.1 `clip`).
+            val clips = clipShapesOf(child)
+            val view: @Composable () -> Unit = {
+                DynamicObjectView(
+                    child,
+                    project,
+                    topicValues,
+                    assetFileOf,
+                    onAction,
+                    screenBackgroundColor,
+                    askedValues,
+                    onSetLevel,
+                    onAsked,
+                )
+            }
+            if (clips.isEmpty()) view() else ClippedTo(clips, view)
         }
     }
 }
