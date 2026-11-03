@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import com.schaltli.android.data.Project
 import com.schaltli.android.data.Screen
 import com.schaltli.android.data.ScreenObject
+import com.schaltli.android.ui.objects.ClippedTo
+import com.schaltli.android.ui.objects.clipShapesOf
 import com.schaltli.android.data.ButtonAction
 import com.schaltli.android.data.liveIconPath
 import com.schaltli.android.data.resolveLiveText
@@ -104,17 +106,22 @@ fun ScreenRenderer(
         }
 
         for (obj in screen.objects.sortedByZIndex()) {
-            DynamicObjectView(
-                obj,
-                project,
-                topicValues,
-                assetFileOf,
-                onAction,
-                screen.backgroundColor,
-                askedValues,
-                onSetLevel,
-                onAsked,
-            )
+            // Clipped by the free area it came from, where it was (§2.1 `clip`).
+            val clips = clipShapesOf(obj)
+            val view: @Composable () -> Unit = {
+                DynamicObjectView(
+                    obj,
+                    project,
+                    topicValues,
+                    assetFileOf,
+                    onAction,
+                    screen.backgroundColor,
+                    askedValues,
+                    onSetLevel,
+                    onAsked,
+                )
+            }
+            if (clips.isEmpty()) view() else ClippedTo(clips, view)
         }
         // The pull tabs (§2.10), over the objects and in the screen's picture,
         // so they slide with it: boxes with round ends, as every renderer

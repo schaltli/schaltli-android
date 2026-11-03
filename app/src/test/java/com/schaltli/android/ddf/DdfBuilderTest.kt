@@ -156,7 +156,7 @@ class DdfBuilderTest {
         // Local topics (§2.9) are a feature, not a generation: the designer
         // sends a project with them only to a device that lists it.
         val features = manifest.getJSONArray("supportedFeatures")
-        assertEquals(6, features.length())
+        assertEquals(7, features.length())
         assertEquals("local-topics", features.getString(0))
         // And it draws box, line and fixed icon itself (2026-10-13): the
         // Android bundle carries no baked background since.
@@ -171,6 +171,9 @@ class DdfBuilderTest {
         assertEquals("button-values", features.getString(4))
         // And a dial's or gauge's seconds as h:mm:ss (§2.12).
         assertEquals("duration-display", features.getString(5))
+        // And a card's clip (§2.1 `clip`): what a free area holds cut to its
+        // round corners (the designer's docs/2026-11-03-card-clip.md).
+        assertEquals("clip", features.getString(6))
     }
 
     @Test
