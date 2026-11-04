@@ -47,8 +47,11 @@ class ThemeVariantTest {
                "backgroundImage":"assets/s.png","backgroundImageDark":"assets/s-dark.png",
                "objects":[
                  {"id":"b","type":"button","x":0,"y":0,"width":80,"height":40,
-                  "path":"assets/buttons/s_b.png","pathDark":"assets/buttons/s_b-dark.png",
-                  "pressedPath":"assets/buttons/s_b-pressed.png","pressedPathDark":"assets/buttons/s_b-pressed-dark.png",
+                  "look":{"normal":{"r":20,"fill":"#6750a4","ink":"#ffffff"},"pressed":{"r":8,"fill":"#7662ad","ink":"#ffffff"},
+                          "textX":24,"baseline":26,"clipX":10,"clipW":60,"icon":{"x":10,"y":16,"size":10}},
+                  "lookDark":{"normal":{"r":20,"fill":"#d0bcff","ink":"#381e72"},"pressed":{"r":8,"fill":"#c4b0f0","ink":"#381e72"},
+                          "textX":24,"baseline":26,"clipX":10,"clipW":60,"icon":{"x":10,"y":16,"size":10}},
+                  "iconPath":"assets/buttons/s_b-icon.png","iconPathDark":"assets/buttons/s_b-icon-dark.png",
                   "properties":{}},
                  {"id":"sw","type":"switch","x":0,"y":50,"width":120,"height":40,
                   "properties":{"switchColor":"#2f6f9f","switchColorDark":"#6aa8d8",
@@ -62,9 +65,15 @@ class ThemeVariantTest {
         val screen = dark.screens.single()
         assertEquals("#101418", screen.backgroundColor)
         assertEquals("assets/s-dark.png", screen.backgroundImage)
+        // A button's look is swapped whole (since 2026-11-04): the dark
+        // faces, and the layout with them.
         val button = screen.objects.first { it.id == "b" }
-        assertEquals("assets/buttons/s_b-dark.png", button.path)
-        assertEquals("assets/buttons/s_b-pressed-dark.png", button.pressedPath)
+        assertEquals("#d0bcff", button.look!!.normal.fill)
+        assertEquals("#381e72", button.look!!.pressed.ink)
+        assertEquals(24, button.look!!.textX)
+        assertEquals(10, button.look!!.icon!!.size)
+        assertEquals("assets/buttons/s_b-icon-dark.png", button.iconPath)
+        assertEquals("#6750a4", light.screens.single().objects.first { it.id == "b" }.look!!.normal.fill)
         val sw = screen.objects.first { it.id == "sw" }
         assertEquals("#6aa8d8", sw.properties["switchColor"]!!.jsonPrimitive.content)
         assertEquals(

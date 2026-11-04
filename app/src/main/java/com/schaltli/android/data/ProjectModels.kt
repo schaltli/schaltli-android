@@ -305,12 +305,41 @@ data class ScreenObject(
     // designer's ScreenmanObject.children.
     val children: List<ScreenObject> = emptyList(),
     // Only meaningful on "icon" objects and live-icon's valueIconPairs
-    // entries - path to the icon's SVG inside the bundle. On a "button" it is
-    // something else: the whole button, baked as a bitmap by the designer
-    // (lib/android-export.ts), because a Material button's pill, colours,
-    // trimmed icon and measured label are rules that repo owns and a second
-    // drawing of them here would be a second set of pixels to keep in step.
+    // entries - path to the icon's SVG inside the bundle.
     val path: String? = null,
-    /** A "button" held down - the other of its two baked states. */
-    val pressedPath: String? = null,
+    // A "button": what it is drawn from (the designer's device contract,
+    // «button»; docs/2026-11-04-native-buttons.md there). Every judgement -
+    // colours, radius, pressed morph, where icon and label go - is the
+    // designer's lib/button-shape.ts; this only draws it. Until 2026-11-04 a
+    // button was two baked pictures, `path` and `pressedPath`.
+    val look: ButtonLook? = null,
+    /** The icon's square as the designer drew it in the normal face. */
+    val iconPath: String? = null,
+    /** The same in the pressed face, where it differs. */
+    val iconPathPressed: String? = null,
+)
+
+/** One face of a button: radius, fill (null: none), ring (null: none), ink. */
+@Serializable
+data class ButtonFace(
+    val r: Int = 0,
+    val fill: String? = null,
+    val outline: String? = null,
+    val ink: String = "#000000",
+)
+
+/** Where a button's icon goes, relative to the button. */
+@Serializable
+data class ButtonIconBox(val x: Int = 0, val y: Int = 0, val size: Int = 0)
+
+/** A button's look as the designer worked it out, relative to the button. */
+@Serializable
+data class ButtonLook(
+    val normal: ButtonFace = ButtonFace(),
+    val pressed: ButtonFace = ButtonFace(),
+    val textX: Int = 0,
+    val baseline: Int = 0,
+    val clipX: Int = 0,
+    val clipW: Int = 0,
+    val icon: ButtonIconBox? = null,
 )

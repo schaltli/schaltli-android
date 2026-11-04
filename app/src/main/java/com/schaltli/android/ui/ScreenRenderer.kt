@@ -295,7 +295,7 @@ fun DynamicObjectView(
                 onAsked = onAsked,
             )
         }
-        "button" -> SoftwareButtonView(obj, project, assetFileOf, onAction)
+        "button" -> SoftwareButtonView(obj, project, assetFileOf, onAction, screenBackgroundColor)
         // Read from its topic, or without one from its write topic (TimeFieldView).
         "time-field" -> {
             val topic = obj.properties.stringOrNull("topic")?.takeIf { it.isNotEmpty() }
