@@ -43,7 +43,7 @@ object DdfBuilder {
     private val SUPPORTED_TYPES = listOf(
         "live-text", "live-icon", "text", "icon",
         "bar", "slider", "gauge", "dial",
-        "switch", "button-group", "button",
+        "switch", "button-group", "toggle-button", "button",
         // A text typed on the phone's own keyboard (the designer's tasks/ha-text-plan.md).
         "text-field",
         // A time of day set on the phone's own picker (the designer's tasks/ha-time-plan.md).

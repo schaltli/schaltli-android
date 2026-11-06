@@ -138,6 +138,7 @@ class DdfBuilderTest {
         // placing one.
         assertTrue("gauge missing", list.contains("gauge"))
         assertTrue("button-group missing", list.contains("button-group"))
+        assertTrue("toggle-button missing", list.contains("toggle-button"))
         assertTrue("slider missing", list.contains("slider"))
         assertTrue("dial missing", list.contains("dial"))
         // The energy diagram since 1.7 (the designer's device contract §2.8).

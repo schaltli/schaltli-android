@@ -45,6 +45,7 @@ import com.schaltli.android.ui.objects.MqttDataLineView
 import com.schaltli.android.ui.objects.MqttIconFieldView
 import com.schaltli.android.ui.objects.SoftwareButtonView
 import com.schaltli.android.ui.objects.SwitchView
+import com.schaltli.android.ui.objects.ToggleButtonView
 import com.schaltli.android.ui.objects.TabControlView
 import com.schaltli.android.ui.objects.TextBoxView
 import com.schaltli.android.ui.objects.parseHexColor
@@ -296,6 +297,18 @@ fun DynamicObjectView(
             )
         }
         "button" -> SoftwareButtonView(obj, project, assetFileOf, onAction, screenBackgroundColor)
+        // A switch that is one tile (the designer's contract «toggle-button»).
+        "toggle-button" -> {
+            val topic = obj.properties.stringOrNull("topic")
+            ToggleButtonView(
+                obj, project, resolveTopicValue(topic, project, topicValues),
+                askedValue = topic?.let { askedValues[it] } ?: "",
+                screenBackgroundColor = screenBackgroundColor,
+                assetFileOf = assetFileOf,
+                onAction = onAction,
+                onAsked = onAsked,
+            )
+        }
         // Read from its topic, or without one from its write topic (TimeFieldView).
         "time-field" -> {
             val topic = obj.properties.stringOrNull("topic")?.takeIf { it.isNotEmpty() }

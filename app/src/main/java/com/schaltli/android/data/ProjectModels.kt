@@ -317,6 +317,47 @@ data class ScreenObject(
     val iconPath: String? = null,
     /** The same in the pressed face, where it differs. */
     val iconPathPressed: String? = null,
+    // A "toggle-button" (the designer's contract «toggle-button»;
+    // docs/2026-11-06-toggle-button.md there): a look per state, one for
+    // «nothing reported», the ring's colour. Dark arrives as `looksDark` and
+    // friends, which darkVariantOf puts in their place.
+    val looks: List<ToggleLook>? = null,
+    val noneLook: ToggleLook? = null,
+    val ring: String? = null,
+)
+
+/** A named tile's second line: the state's label under the name. */
+@Serializable
+data class ToggleSecond(val textX: Int = 0, val baseline: Int = 0, val fontId: String? = null)
+
+/** The 1-px ring round a disc whose tint cannot be seen, per face; null: none. */
+@Serializable
+data class ToggleDiscEdge(val normal: String? = null, val pressed: String? = null)
+
+/** The disc behind a named tile's icon. */
+@Serializable
+data class ToggleDisc(
+    val cx: Int = 0,
+    val cy: Int = 0,
+    val r: Int = 0,
+    val normal: String = "#000000",
+    val pressed: String = "#000000",
+    val edge: ToggleDiscEdge? = null,
+)
+
+/** One state's look of a Toggle Button, relative to it (lib/toggle-button-shape.ts). */
+@Serializable
+data class ToggleLook(
+    val normal: ButtonFace = ButtonFace(),
+    val pressed: ButtonFace = ButtonFace(),
+    val label: String = "",
+    val textX: Int = 0,
+    val baseline: Int = 0,
+    val clipX: Int = 0,
+    val clipW: Int = 0,
+    val icon: ButtonIconBox? = null,
+    val second: ToggleSecond? = null,
+    val disc: ToggleDisc? = null,
 )
 
 /** One face of a button: radius, fill (null: none), ring (null: none), ink. */
