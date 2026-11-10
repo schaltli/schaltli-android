@@ -65,6 +65,8 @@ import com.schaltli.android.mqtt.DeployReceiver
 import com.schaltli.android.mqtt.MqttRepository
 import com.schaltli.android.ui.ImportScreen
 import com.schaltli.android.ui.LocalBundleInstallation
+import com.schaltli.android.ui.objects.CameraStats
+import com.schaltli.android.ui.objects.LocalPanelAsleep
 import com.schaltli.android.ui.ScreenRenderer
 import com.schaltli.android.ui.SettingsScreen
 import com.schaltli.android.ui.FollowingScreens
@@ -113,7 +115,11 @@ class MainActivity : ComponentActivity() {
                 // nothing in between has any business carrying it.
                 val installation by app.projectRepository.installation
                     .collectAsStateWithLifecycle()
-                CompositionLocalProvider(LocalBundleInstallation provides installation) {
+                CompositionLocalProvider(
+                    LocalBundleInstallation provides installation,
+                    // A dark panel asks no camera for pictures (CameraView).
+                    LocalPanelAsleep provides screenSleep.asleep.value,
+                ) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         SchaltliRoot(app)
                         if (screenSleep.asleep.value) {
@@ -410,6 +416,8 @@ fun SchaltliRoot(app: SchaltliApp) {
                         "screen" to currentScreenId,
                         "lastSwipe" to lastSwipe,
                         "markerFrames" to markerFrames,
+                        // A Camera's requests and pictures, never its URL or password.
+                        "camera" to CameraStats.report(),
                     )
                 },
                 saveDisplayOff = { seconds -> scope.launch { brokerConfigStore.saveDisplayOffSeconds(seconds) } },

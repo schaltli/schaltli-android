@@ -53,6 +53,8 @@ object DdfBuilder {
         "navigator",
         // Where the power goes (§2.8), since 1.7.
         "energy-diagram",
+        // A camera's picture (the designer's docs/2026-11-09-camera.md).
+        "camera",
     )
 
     /**

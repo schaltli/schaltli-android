@@ -39,6 +39,7 @@ import com.schaltli.android.ui.objects.IconPathView
 import com.schaltli.android.ui.objects.TextFieldView
 import com.schaltli.android.ui.objects.TimeFieldView
 import com.schaltli.android.ui.objects.BoxView
+import com.schaltli.android.ui.objects.CameraView
 import com.schaltli.android.ui.objects.LineView
 import com.schaltli.android.ui.objects.LevelIndicatorView
 import com.schaltli.android.ui.objects.MqttDataLineView
@@ -365,6 +366,8 @@ fun DynamicObjectView(
         // contract §2, «Static content»), not baked into a background.
         "box" -> BoxView(obj)
         "line" -> LineView(obj)
+        // A camera's picture (the designer's docs/2026-11-09-camera.md).
+        "camera" -> CameraView(obj)
         else -> Unit // a panel outside a switcher draws nothing of its own.
     }
 }
