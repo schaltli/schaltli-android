@@ -138,8 +138,12 @@ object CameraFetch {
                 connection.errorStream?.use { it.readBytes() }
                 fail("HTTP $status")
             } else {
-                val body = connection.inputStream.use { readBody(it, connection.contentLengthLong) }
-                body ?: fail(if (connection.contentLengthLong > MAX_BYTES) "over ${MAX_BYTES / 1024} KB" else "cut short or over ${MAX_BYTES / 1024} KB")
+                // contentLength, not contentLengthLong: that one needs API 24 and
+                // the app runs from 23 (lint, the v0.17.0 release); a picture is
+                // at most 256 KB, and -1 says there is no Content-Length.
+                val length = connection.contentLength.toLong()
+                val body = connection.inputStream.use { readBody(it, length) }
+                body ?: fail(if (length > MAX_BYTES) "over ${MAX_BYTES / 1024} KB" else "cut short or over ${MAX_BYTES / 1024} KB")
             }
         } catch (e: Exception) {
             connection?.disconnect()
