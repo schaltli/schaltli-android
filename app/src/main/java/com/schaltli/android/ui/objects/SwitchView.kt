@@ -12,8 +12,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -24,6 +26,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import com.schaltli.android.data.ButtonAction
 import com.schaltli.android.data.FontEntry
 import com.schaltli.android.data.Project
@@ -34,7 +37,13 @@ import com.schaltli.android.render.SWITCH_TRACK_OUTLINE
 import com.schaltli.android.render.SwitchForm
 import com.schaltli.android.render.SwitchKnobLook
 import com.schaltli.android.render.SwitchLook
+import com.schaltli.android.render.SwitchLedLook
 import com.schaltli.android.render.SwitchRect
+import com.schaltli.android.render.LevelFontMetrics
+import com.schaltli.android.render.blendColors
+import com.schaltli.android.render.switchIsLed
+import com.schaltli.android.render.switchLedLayout
+import com.schaltli.android.render.switchLedLook
 import com.schaltli.android.render.drawPills
 import com.schaltli.android.render.fillRoundRect
 import com.schaltli.android.render.fillRoundRectRing
@@ -201,6 +210,17 @@ fun SwitchView(
     val look = switchLook(obj, background)
     val knobLook = switchKnobLook(obj, background, on)
     val metrics = switchFontMetrics(obj, fonts)
+    // The LED form and its asked strip's beat (docs/2026-11-11-led-look.md).
+    val led = if (switchIsLed(obj)) switchLedLook(obj, background) else null
+    var ledDim by remember(obj.id) { mutableStateOf(false) }
+    val ledAsking = led != null && askedIndex >= 0 && askedIndex != activeIndex
+    LaunchedEffect(obj.id, ledAsking) {
+        ledDim = false
+        while (ledAsking) {
+            delay(500L - (System.currentTimeMillis() % 500L))
+            ledDim = (System.currentTimeMillis() / 500L) % 2 == 1L
+        }
+    }
 
     val fontMeta: FontEntry? = fonts.firstOrNull { it.id == props.stringOrNull("fontId") }
     val installation = LocalBundleInstallation.current
@@ -230,10 +250,11 @@ fun SwitchView(
     // everything the picture depends on - which state is reported, which was
     // asked for, which is held down, and what the control stands on.
     val pills = if (!soft || states.isEmpty()) null else remember(
-        obj.id, obj.width, obj.height, props, activeIndex, askedIndex, pressedIndex, background,
+        obj.id, obj.width, obj.height, props, activeIndex, askedIndex, pressedIndex, background, ledDim,
     ) {
         pillBitmap(
-            switchPills(obj, states.size, knobForm, on, look, knobLook, activeIndex, askedIndex, pressedIndex),
+            if (led != null) ledPills(obj, states.size, led, metrics, background, activeIndex, askedIndex, pressedIndex, ledDim)
+            else switchPills(obj, states.size, knobForm, on, look, knobLook, activeIndex, askedIndex, pressedIndex),
             background,
         )
     }
@@ -371,6 +392,45 @@ fun SwitchView(
                 }
 
                 val container = switchContainer(obj)
+                if (led != null) {
+                    // The LED form (the designer's drawLedGroup): the strips,
+                    // the lines, a finger's state layer; then the labels.
+                    val layout = switchLedLayout(obj, states.size, metrics)
+                    val asking = askedIndex >= 0 && askedIndex != activeIndex
+                    fun stripFill(i: Int): String = when {
+                        asking && i == askedIndex -> if (ledDim) led.askedDim else led.asked
+                        i == activeIndex -> if (asking) led.asked else led.lit
+                        else -> led.track
+                    }
+                    if (soft) {
+                        drawPills(native, pills, ox, oy, scale)
+                    } else {
+                        if (pressedIndex >= 0 && pressedIndex < layout.segments.size) fill(layout.segments[pressedIndex], blendColors(background, led.ink, 10))
+                        layout.dividers.forEach { dx -> fill(SwitchRect(dx, oy, 1, obj.height.toInt(), 0), led.divider) }
+                        layout.strips.forEachIndexed { i, s ->
+                            if (led.outline != null) {
+                                fill(s, led.outline)
+                                fill(SwitchRect(s.x + 1, s.y + 1, s.w - 2, s.h - 2, maxOf(0, s.r - 1)), stripFill(i))
+                            } else {
+                                fill(s, stripFill(i))
+                            }
+                        }
+                    }
+                    layout.segments.forEachIndexed { index, seg ->
+                        val state = states[index]
+                        val chosen = if (asking) index == askedIndex else index == activeIndex
+                        val pen = UnitTextPen(typeface, size, scale, argbOf(if (chosen) led.ink else led.muted) ?: Color.Black.toArgb())
+                        val path = if (chosen) state.activePath ?: state.path else state.path
+                        val band = SwitchRect(seg.x + 1, layout.bandY, maxOf(seg.w - 2, layout.bandH), layout.bandH, 0)
+                        val content = switchContent(band, metrics, icons.containsKey(path), pen.widthOf(state.label))
+                        native.save()
+                        native.clipRect((seg.x + 1 - ox) * scale, (seg.y - oy) * scale, (seg.x - ox + seg.w) * scale, (seg.y - oy + seg.h) * scale)
+                        icon(path, content.icon)
+                        label(pen, seg, state.label, content.textX, content.baseline)
+                        native.restore()
+                    }
+                    return@drawIntoCanvas
+                }
                 val outline = look.surfaceOutline
                 val segments = switchSegments(obj, states.size)
 
@@ -477,6 +537,35 @@ private fun switchPills(
     } else {
         painted += wholePill(container, look.surface)
     }
+    return painted
+}
+
+/** The LED form's runs in priority order - the designer's drawLedGroup. */
+private fun ledPills(
+    obj: ScreenObject,
+    stateCount: Int,
+    led: SwitchLedLook,
+    metrics: LevelFontMetrics,
+    background: String,
+    activeIndex: Int,
+    askedIndex: Int,
+    pressedIndex: Int,
+    dim: Boolean,
+): List<PaintedPill> {
+    val painted = mutableListOf<PaintedPill>()
+    val layout = switchLedLayout(obj, stateCount, metrics)
+    val asking = askedIndex >= 0 && askedIndex != activeIndex
+    layout.strips.forEachIndexed { i, s ->
+        val fill = when {
+            asking && i == askedIndex -> if (dim) led.askedDim else led.asked
+            i == activeIndex -> if (asking) led.asked else led.lit
+            else -> led.track
+        }
+        if (led.outline != null) painted += pillInside(s, 1, fill)
+        painted += wholePill(s, led.outline ?: fill)
+    }
+    layout.dividers.forEach { dx -> painted += wholePill(SwitchRect(dx, obj.y.toInt(), 1, obj.height.toInt(), 0), led.divider) }
+    if (pressedIndex >= 0 && pressedIndex < layout.segments.size) painted += wholePill(layout.segments[pressedIndex], blendColors(background, led.ink, 10))
     return painted
 }
 

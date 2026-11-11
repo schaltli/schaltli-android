@@ -253,7 +253,92 @@ fun switchSegments(obj: ScreenObject, count: Int): List<SwitchRect> {
 }
 
 /** Which segment a finger at [x] is on. */
+/**
+ * A Button Group's LED form (the designer's docs/2026-11-11-led-look.md,
+ * decision 7; lib/switch-shape.ts switchLedLook / switchLedLayout): no
+ * container, the segments edge to edge, a 1-px line where two meet, a strip
+ * under each label - lit under the chosen one.
+ */
+fun switchIsLed(obj: ScreenObject): Boolean =
+    obj.type == "button-group" && (obj.properties["switchStyle"] as? JsonPrimitive)?.contentOrNull == "led"
+
+data class SwitchLedLook(
+    val ink: String,
+    val muted: String,
+    val divider: String,
+    val track: String,
+    val lit: String,
+    val asked: String,
+    val askedDim: String,
+    val outline: String?,
+)
+
+private fun JsonObject.colour(key: String): String? =
+    (this[key] as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf { it.isNotEmpty() }
+
+fun switchLedLook(obj: ScreenObject, background: String?): SwitchLedLook {
+    val ground = if (background.isNullOrEmpty() || background == "transparent") "#ffffff" else background
+    val p = obj.properties
+    val ink = p.colour("textColor") ?: onColorFor(ground)
+    val track = p.colour("trackColor") ?: blendColors(ground, ink, 15)
+    val lit = switchColorOf(obj)
+    return SwitchLedLook(
+        ink = ink,
+        muted = blendColors(ground, ink, 60),
+        divider = p.colour("borderColor") ?: blendColors(ground, ink, 20),
+        track = track,
+        lit = lit,
+        asked = blendColors(track, lit, 50),
+        askedDim = blendColors(track, lit, 20),
+        outline = if (track.lowercase() == ground.lowercase()) ink else null,
+    )
+}
+
+const val LED_STRIP_INSET = 8
+const val LED_STRIP_GAP = 5
+
+fun ledStripThickness(m: LevelFontMetrics): Int = maxOf(3, (m.capHeight * 2) / 5)
+
+data class SwitchLedLayout(
+    val segments: List<SwitchRect>,
+    /** The x of each 1-px line, the object's full height. */
+    val dividers: List<Int>,
+    val strips: List<SwitchRect>,
+    val bandY: Int,
+    val bandH: Int,
+)
+
+fun switchLedLayout(obj: ScreenObject, count: Int, m: LevelFontMetrics): SwitchLedLayout {
+    val x = obj.x.toInt()
+    val y = obj.y.toInt()
+    val w = maxOf(0, obj.width.toInt())
+    val h = maxOf(0, obj.height.toInt())
+    val n = maxOf(1, count)
+    val line = m.ascent + m.descent
+    val strip = ledStripThickness(m)
+    val top = y + (h - (line + LED_STRIP_GAP + strip)) / 2
+    val segments = mutableListOf<SwitchRect>()
+    val strips = mutableListOf<SwitchRect>()
+    val dividers = mutableListOf<Int>()
+    for (i in 0 until n) {
+        val from = x + (w * i) / n
+        val to = x + (w * (i + 1)) / n
+        segments += SwitchRect(from, y, to - from, h, 0)
+        if (i > 0) dividers += from
+        val inset = minOf(LED_STRIP_INSET, (to - from) / 4)
+        strips += SwitchRect(from + inset, top + line + LED_STRIP_GAP, maxOf(0, to - from - 2 * inset), strip, strip / 2)
+    }
+    return SwitchLedLayout(segments, dividers, strips, top, line)
+}
+
+fun switchLedSegmentAt(obj: ScreenObject, count: Int, x: Double): Int {
+    val n = maxOf(1, count)
+    val w = maxOf(1.0, obj.width.toInt().toDouble())
+    return (((x - obj.x.toInt()) * n) / w).toInt().coerceIn(0, n - 1)
+}
+
 fun switchSegmentAt(obj: ScreenObject, count: Int, x: Double): Int {
+    if (switchIsLed(obj)) return switchLedSegmentAt(obj, count, x)
     val segments = switchSegments(obj, count)
     for (i in segments.indices) {
         val seg = segments[i]
