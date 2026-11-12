@@ -90,11 +90,47 @@ internal fun energyInputs(obj: ScreenObject, project: Project, topicValues: Map<
     return core to values
 }
 
+/**
+ * The diagram's own Flow/Sankey switch as the export laid it out
+ * (docs/2026-11-11-energy-mode-switch.md): the row the Sankey keeps free, each
+ * icon's tap area and its shapes - a stroke with round ends or a dot.
+ */
+class EnergySwitch(json: JsonObject) {
+    class Shape(val disc: Boolean, val a: Double, val b: Double, val c: Double, val d: Double, val w: Double)
+    val row: Int
+    val flowTap: E.Box
+    val sankeyTap: E.Box
+    val flowShapes: List<Shape>
+    val sankeyShapes: List<Shape>
+    init {
+        val corner = json.stringOrNull("corner") ?: "none"
+        row = if (corner.startsWith("top")) 1 else if (corner.startsWith("bottom")) -1 else 0
+        fun box(o: JsonObject?) = E.Box(o?.doubleOrNull("x") ?: 0.0, o?.doubleOrNull("y") ?: 0.0, o?.doubleOrNull("width") ?: 0.0, o?.doubleOrNull("height") ?: 0.0)
+        fun shapes(o: JsonObject?) = (o?.get("shapes") as? JsonArray)?.filterIsInstance<JsonObject>()?.map {
+            if (it.stringOrNull("kind") == "disc") Shape(true, it.doubleOrNull("cx") ?: 0.0, it.doubleOrNull("cy") ?: 0.0, it.doubleOrNull("r") ?: 0.0, 0.0, 0.0)
+            else Shape(false, it.doubleOrNull("x0") ?: 0.0, it.doubleOrNull("y0") ?: 0.0, it.doubleOrNull("x1") ?: 0.0, it.doubleOrNull("y1") ?: 0.0, it.doubleOrNull("width") ?: 0.0)
+        } ?: emptyList()
+        val flow = json["flow"] as? JsonObject
+        val sankey = json["sankey"] as? JsonObject
+        flowTap = box(flow?.get("tap") as? JsonObject)
+        sankeyTap = box(sankey?.get("tap") as? JsonObject)
+        flowShapes = shapes(flow)
+        sankeyShapes = shapes(sankey)
+    }
+
+    /** The mode a tap at (x, y) asks for: true Sankey, false Flow, null off the switch. */
+    fun at(x: Double, y: Double): Boolean? {
+        fun inside(b: E.Box) = b.width > 0 && x >= b.x && x < b.x + b.width && y >= b.y && y < b.y + b.height
+        return if (inside(flowTap)) false else if (inside(sankeyTap)) true else null
+    }
+}
+
+fun energySwitchOf(obj: ScreenObject): EnergySwitch? = (obj.properties["modeSwitch"] as? JsonObject)?.let(::EnergySwitch)
+
 /** The node a tap at (x, y) in the diagram's own units lands on, and its action. */
-fun energyActionAt(obj: ScreenObject, project: Project, topicValues: Map<String, String>, x: Double, y: Double): JsonObject? {
+fun energyActionAt(obj: ScreenObject, project: Project, topicValues: Map<String, String>, x: Double, y: Double, sankey: Boolean = obj.properties.stringOrNull("mode") == "sankey"): JsonObject? {
     val (nodes, values) = energyInputs(obj, project, topicValues)
-    val sankey = obj.properties.stringOrNull("mode") == "sankey"
-    val id = E.nodeAtTap(sankey, nodes, E.resolve(nodes, values), E.Size(obj.width, obj.height), fullScaleOf(obj), x, y) ?: return null
+    val id = E.nodeAtTap(sankey, nodes, E.resolve(nodes, values), E.Size(obj.width, obj.height), fullScaleOf(obj), x, y, energySwitchOf(obj)?.row ?: 0) ?: return null
     return (obj.properties["nodes"] as? JsonArray)?.filterIsInstance<JsonObject>()?.firstOrNull { it.stringOrNull("id") == id }?.get("action") as? JsonObject
 }
 
@@ -126,7 +162,11 @@ fun EnergyDiagramView(
     val byId = nodeProps.associateBy { it.id }
     val (nodes, values) = energyInputs(obj, project, topicValues)
     val resolved = E.resolve(nodes, values)
-    val sankey = p.stringOrNull("mode") == "sankey"
+    // The mode shown: the object's, until a tap on its own switch picks the
+    // other - on this display, back to the object's when the project loads.
+    val modeSwitch = remember(obj.id, p) { energySwitchOf(obj) }
+    val shownSankey = remember(obj.id, p) { mutableStateOf(p.stringOrNull("mode") == "sankey") }
+    val sankey = shownSankey.value
     val size = E.Size(obj.width, obj.height)
     val fontId = p.stringOrNull("fontId")
     val valueFontId = p.stringOrNull("valueFontId") ?: fontId
@@ -145,7 +185,7 @@ fun EnergyDiagramView(
         else -> byId[r.id]?.color?.let(::parseHexColor) ?: text
     }
 
-    val sankeyLayout = if (sankey) E.sankeyLayout(resolved, size, fullScaleOf(obj)) else null
+    val sankeyLayout = if (sankey) E.sankeyLayoutBeside(resolved, size, fullScaleOf(obj), modeSwitch?.row ?: 0) else null
     val flowLayout = if (!sankey) E.flowLayout(nodes, resolved) else null
     // Motion (spec decision 10): the phases move on about 30 times a second
     // while the diagram is shown and Motion is on. Only the drawing reads
@@ -196,7 +236,11 @@ fun EnergyDiagramView(
                         if (!change.pressed) {
                             if (!moved) {
                                 val at = down.position
-                                val action = energyActionAt(obj, project, latestValues.value, (at.x / density).toDouble(), (at.y / density).toDouble())
+                                val x = (at.x / density).toDouble()
+                                val y = (at.y / density).toDouble()
+                                val asked = modeSwitch?.at(x, y)
+                                val action = if (asked != null) null else energyActionAt(obj, project, latestValues.value, x, y, shownSankey.value)
+                                if (asked != null) shownSankey.value = asked
                                 if (action != null) {
                                     ScreenObject("${obj.id}-tap", "button", 0.0, 0.0, 0.0, 0.0, properties = JsonObject(mapOf("action" to action))).actionOf()?.let(onAction)
                                 }
@@ -289,6 +333,18 @@ fun EnergyDiagramView(
                         val ink = if (d.onBar) lerp(c, Color.White, E.BAR_DOT_LIGHT.toFloat()) else c
                         drawCircle(ink, E.DOT_R.toFloat(), pt(d.x, d.y), alpha = d.alpha.toFloat())
                     }
+                }
+                // Its own switch: the icon of the mode shown in the text's
+                // colour, the other muted.
+                modeSwitch?.let { sw ->
+                    fun drawShapes(list: List<EnergySwitch.Shape>, ink: Color) {
+                        for (sh in list) {
+                            if (sh.disc) drawCircle(ink, sh.c.toFloat(), pt(sh.a, sh.b))
+                            else drawLine(ink, pt(sh.a, sh.b), pt(sh.c, sh.d), strokeWidth = sh.w.toFloat(), cap = StrokeCap.Round)
+                        }
+                    }
+                    drawShapes(sw.flowShapes, if (sankey) muted else text)
+                    drawShapes(sw.sankeyShapes, if (sankey) text else muted)
                 }
             }
         }

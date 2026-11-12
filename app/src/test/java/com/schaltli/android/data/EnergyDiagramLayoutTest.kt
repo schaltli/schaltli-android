@@ -62,6 +62,23 @@ class EnergyDiagramLayoutTest {
 
     private fun sizeOf(o: JsonObject) = E.Size(o.num("width")!!, o.num("height")!!)
 
+    // docs/2026-11-11-energy-mode-switch.md: the Sankey keeps its switch's row free.
+    @Test
+    fun theSankeyKeepsTheSwitchRowFree() {
+        val nodes = listOf(
+            E.Resolved("solar", E.Role.SOURCE, 100.0, 50.0, 600.0, true),
+            E.Resolved("rest", E.Role.REST, 400.0, 50.0, 600.0, false),
+        )
+        val size = E.Size(540.0, 400.0)
+        val plain = E.sankeyLayout(nodes, E.Size(540.0, 400.0 - E.SWITCH_TAP), 1000.0)
+        val top = E.sankeyLayoutBeside(nodes, size, 1000.0, 1)
+        for (s in top.slots) assertTrue("a slot under the switch's row", s.y >= E.SWITCH_TAP)
+        assertEquals(plain.bus.y + E.SWITCH_TAP, top.bus.y, 1e-9)
+        val bottom = E.sankeyLayoutBeside(nodes, size, 1000.0, -1)
+        for (s in bottom.slots) assertTrue("a slot over the switch's row", s.y + s.height <= size.height - E.SWITCH_TAP)
+        assertEquals(E.sankeyLayout(nodes, size, 1000.0), E.sankeyLayoutBeside(nodes, size, 1000.0, 0))
+    }
+
     @Test
     fun theCopyIsTheDesigners() {
         val designer = designerVectors()
