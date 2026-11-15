@@ -43,7 +43,13 @@ data class BrokerConfig(
  * every successful (re)connection, not just the first one
  * (`MqttClient.cpp:59-64`).
  */
-class MqttRepository {
+class MqttRepository(
+    // Runs a block after a delay, on the main thread: what ends a request
+    // nothing answered. A parameter so a JVM test can run it at once.
+    private val later: (delayMs: Long, block: () -> Unit) -> Unit = { delayMs, block ->
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(block, delayMs)
+    },
+) {
     // The Rx client rather than the async one: every call of the async one
     // answers with a CompletableFuture, which Android has only from 7.0 on,
     // and desugaring does not bring it to Android 6 (schaltli-android#2).
@@ -131,12 +137,20 @@ class MqttRepository {
      * answer to the value it asked for, or [LEVEL_AWAIT_MS] without one - as
      * on the 4.3B and the knob, where answers to the values a drag passed
      * through arrived after the finger had lifted and moved the handle back.
+     * A Switch's request also goes after [SWITCH_AWAIT_MS] without any answer,
+     * as on the 4.3B and the 4" (PENDING_TIMEOUT_MS): a bridge publishes only
+     * changes, so a command the installation did not take is never answered,
+     * and the asked segment pulsed for good (2026-11-15).
      */
     private val _askedValues = MutableStateFlow<Map<String, String>>(emptyMap())
     val askedValues: StateFlow<Map<String, String>> = _askedValues.asStateFlow()
     // Until when a level's request waits for the answer to its own value.
     private val awaitUntil = java.util.concurrent.ConcurrentHashMap<String, Long>()
-    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    // Which tap a Switch's pending timer belongs to; a newer tap on the same
+    // topic replaces it, so an older timer ends nothing. A count, not a time:
+    // two taps can fall in one millisecond.
+    private val giveUpAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    private val taps = java.util.concurrent.atomic.AtomicLong()
 
     // Levels a finger is still on: no answer ends what it asks.
     private val holding = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
@@ -161,14 +175,27 @@ class MqttRepository {
             awaitUntil[topic] = until
             // No answer to it in time: the installation's last word is shown
             // after all (decision 6c) - just later.
-            mainHandler.postDelayed({
+            giveUpAt.remove(topic)
+            later(LEVEL_AWAIT_MS) {
                 if (awaitUntil[topic] == until) {
                     awaitUntil.remove(topic)
                     _askedValues.update { it - topic }
                 }
-            }, LEVEL_AWAIT_MS)
+            }
         } else {
             awaitUntil.remove(topic)
+            if (stillHolding) {
+                giveUpAt.remove(topic)
+            } else {
+                val tap = taps.incrementAndGet()
+                giveUpAt[topic] = tap
+                later(SWITCH_AWAIT_MS) {
+                    if (giveUpAt[topic] == tap) {
+                        giveUpAt.remove(topic)
+                        _askedValues.update { it - topic }
+                    }
+                }
+            }
         }
         _askedValues.update { it + (topic to value) }
     }
@@ -583,6 +610,7 @@ class MqttRepository {
                 // finger asked of it is answered, and its marker goes.
                 if (answered) {
                     awaitUntil.remove(topic)
+                    giveUpAt.remove(topic)
                     _askedValues.update { if (it.containsKey(topic)) it - topic else it }
                 }
             }, { Log.w("MqttRepository", "subscription to $topic ended", it) })
@@ -596,6 +624,9 @@ class MqttRepository {
 
 /** How long a level's request waits for the answer to its own value (the designer's lib/asked-value.ts). */
 const val LEVEL_AWAIT_MS = 2500L
+
+/** How long a Switch's request waits for any answer (the designer's SWITCH_AWAIT_MS, the firmware's PENDING_TIMEOUT_MS). */
+const val SWITCH_AWAIT_MS = 4000L
 
 /** Two level payloads that mean the same number ("40" and "40.0"). */
 fun sameLevel(a: String?, b: String?): Boolean {

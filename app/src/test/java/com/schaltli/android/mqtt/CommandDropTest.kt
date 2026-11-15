@@ -84,6 +84,38 @@ class CommandDropTest {
         assertEquals(emptyMap<String, String>(), repository.askedValues.value)
     }
 
+    // A Switch tapped that nothing answers - a bridge publishes only changes,
+    // so a command the installation did not take brings no message - is
+    // dropped after SWITCH_AWAIT_MS, as on the 4.3B and the 4". It pulsed for
+    // good before (the starter's «Lüften» while the heater heated, 2026-11-15).
+    @Test(timeout = 30_000)
+    fun `a Switch's request nothing answers is dropped after the wait`() {
+        val port = freePort()
+        val timers = CopyOnWriteArrayList<Pair<Long, () -> Unit>>()
+        val repository = MqttRepository(later = { delayMs, block -> timers += delayMs to block })
+        StandInBroker(port).use {
+            try {
+                repository.connect(BrokerConfig(host = "127.0.0.1", port = port), emptySet())
+                eventually("connected") { repository.connectionState.value == ConnectionState.CONNECTED }
+
+                repository.noteAsked("van/heater/view", "target")
+                // Tapped again before the first wait ran out: only the newer one counts.
+                repository.noteAsked("van/heater/view", "fan")
+                assertEquals(mapOf("van/heater/view" to "fan"), repository.askedValues.value)
+                assertEquals(listOf(SWITCH_AWAIT_MS, SWITCH_AWAIT_MS), timers.map { it.first })
+
+                // The first tap's timer ends nothing ...
+                timers[0].second()
+                assertEquals(mapOf("van/heater/view" to "fan"), repository.askedValues.value)
+                // ... the second one's ends the request.
+                timers[1].second()
+                assertEquals(emptyMap<String, String>(), repository.askedValues.value)
+            } finally {
+                repository.disconnect()
+            }
+        }
+    }
+
     private fun freePort(): Int = ServerSocket(0).use { it.localPort }
 
     private fun eventually(what: String, timeoutMs: Long = 10_000, condition: () -> Boolean) {
