@@ -2,8 +2,7 @@ package com.schaltli.android.ui.objects
 
 import com.schaltli.android.data.ButtonFace
 import com.schaltli.android.data.ScreenObject
-import com.schaltli.android.data.ToggleDisc
-import com.schaltli.android.data.ToggleDiscEdge
+import com.schaltli.android.data.ToggleLight
 import com.schaltli.android.data.ToggleLook
 import com.schaltli.android.data.darkVariantOf
 import com.schaltli.android.render.PaintedPill
@@ -42,34 +41,29 @@ class ToggleButtonTest {
     }
 
     @Test
-    fun theDiscFirstThenTheFaceItsOutlineTheRingWhileARequestWaits() {
-        val face = ButtonFace(10, "#ffffff", "#e2e8f0", "#0f172a")
-        val look = ToggleLook(normal = face, disc = ToggleDisc(25, 42, 17, "#eeeeee", "#dddddd"))
+    fun theLightFirstThenTheTileItsEdgeAndItsFill() {
+        // docs/2026-11-11-led-look.md: the tile calm, the light says the state.
+        val face = ButtonFace(12, "#181c24", "#272d3b", "#f1f5f9")
+        val look = ToggleLook(normal = face, light = ToggleLight(10, 40, 196, 22, 0, "#0ea5e9", "#0d5875", "#0b2f40"))
         assertEquals(
             listOf(
-                PaintedPill(PillBand(8, 25, 34, 34, 17, 17), "#eeeeee"),
-                PaintedPill(PillBand(1, 1, 214, 82, 9, 9), "#ffffff"),
-                PaintedPill(PillBand(0, 0, 216, 84, 10, 10), "#e2e8f0"),
+                PaintedPill(PillBand(10, 40, 196, 22, 0, 0), "#0ea5e9"),
+                PaintedPill(PillBand(1, 1, 214, 82, 11, 11), "#181c24"),
+                PaintedPill(PillBand(0, 0, 216, 84, 12, 12), "#272d3b"),
             ),
-            togglePills(216, 84, look, face, false, null),
+            togglePills(216, 84, look, face, null),
         )
-        assertEquals(
-            listOf(
-                PaintedPill(PillBand(8, 25, 34, 34, 17, 17), "#eeeeee"),
-                PaintedPill(PillBand(2, 2, 212, 80, 8, 8), "#ffffff"),
-                PaintedPill(PillBand(0, 0, 216, 84, 10, 10), "#0284c7"),
-            ),
-            togglePills(216, 84, look, face, false, "#0284c7"),
-        )
+        // While asked, the light in the asked fill the caller picked.
+        assertEquals(PaintedPill(PillBand(10, 40, 196, 22, 0, 0), "#0d5875"), togglePills(216, 84, look, face, "#0d5875")[0])
     }
 
     @Test
-    fun aDiscWhoseTintIsLostGetsARingInTheInk() {
-        val face = ButtonFace(10, "#000000", null, "#ffffff")
-        val look = ToggleLook(normal = face, disc = ToggleDisc(25, 42, 17, "#000000", "#000000", ToggleDiscEdge("#ffffff", "#ffffff")))
-        val runs = togglePills(216, 84, look, face, false, null)
-        assertEquals(PaintedPill(PillBand(9, 26, 32, 32, 16, 16), "#000000"), runs[0])
-        assertEquals(PaintedPill(PillBand(8, 25, 34, 34, 17, 17), "#ffffff"), runs[1])
+    fun aLightTheTileHidesGetsARingInTheInk() {
+        val face = ButtonFace(12, "#ffffff", "#000000", "#000000")
+        val look = ToggleLook(normal = face, light = ToggleLight(10, 40, 196, 22, 0, "#ffffff", "#ffffff", "#ffffff", "#000000"))
+        val runs = togglePills(216, 84, look, face, null)
+        assertEquals(PaintedPill(PillBand(11, 41, 194, 20, 0, 0), "#ffffff"), runs[0])
+        assertEquals(PaintedPill(PillBand(10, 40, 196, 22, 0, 0), "#000000"), runs[1])
     }
 
     @Test

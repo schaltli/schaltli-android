@@ -111,6 +111,24 @@ object EnergyDiagramLayout {
 
     private val order = compareBy<Resolved>({ it.y }, { it.x })
 
+    // The diagram's own switch row (the designer's lib/energy-diagram.ts
+    // SWITCH_TAP), and the Sankey laid out beside it: 1 the row on top, -1 at
+    // the bottom, 0 none (docs/2026-11-11-energy-mode-switch.md).
+    const val SWITCH_TAP = 44.0
+
+    fun sankeyLayoutBeside(nodes: List<Resolved>, size: Size, fullScale: Double, switchRow: Int): SankeyLayout {
+        if (switchRow == 0) return sankeyLayout(nodes, size, fullScale)
+        val l = sankeyLayout(nodes, Size(size.width, max(0.0, size.height - SWITCH_TAP)), fullScale)
+        if (switchRow < 0) return l
+        val dy = SWITCH_TAP
+        return SankeyLayout(
+            l.bars.map { it.copy(box = it.box.copy(y = it.box.y + dy)) },
+            l.slots.map { it.copy(y = it.y + dy) },
+            l.bands.map { b -> b.copy(polygon = b.polygon.map { Point(it.x, it.y + dy) }) },
+            l.bus.copy(y = l.bus.y + dy),
+        )
+    }
+
     fun sankeyLayout(nodes: List<Resolved>, size: Size, fullScale: Double): SankeyLayout {
         val flowing = nodes.filter { it.watts > 0 }
         val total = max(flowing.filter { it.gives }.sumOf { it.watts }, flowing.filter { !it.gives }.sumOf { it.watts })
@@ -313,9 +331,9 @@ object EnergyDiagramLayout {
     )
 
     /** The node a tap at (x, y), relative to the diagram, lands on; never the bus. */
-    fun nodeAtTap(sankey: Boolean, nodes: List<Node>, resolved: List<Resolved>, size: Size, fullScale: Double, x: Double, y: Double): String? {
+    fun nodeAtTap(sankey: Boolean, nodes: List<Node>, resolved: List<Resolved>, size: Size, fullScale: Double, x: Double, y: Double, switchRow: Int = 0): String? {
         if (sankey) {
-            val layout = sankeyLayout(resolved, size, fullScale)
+            val layout = sankeyLayoutBeside(resolved, size, fullScale, switchRow)
             return layout.slots.firstOrNull { s ->
                 y >= s.y && y < s.y + s.height &&
                     (if (s.side == Side.LEFT) x < SANKEY_LABEL_W + SANKEY_BAR_W else x >= size.width - SANKEY_LABEL_W - SANKEY_BAR_W)

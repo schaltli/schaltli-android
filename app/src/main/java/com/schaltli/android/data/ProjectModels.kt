@@ -318,31 +318,72 @@ data class ScreenObject(
     /** The same in the pressed face, where it differs. */
     val iconPathPressed: String? = null,
     // A "toggle-button" (the designer's contract «toggle-button»;
-    // docs/2026-11-06-toggle-button.md there): a look per state, one for
-    // «nothing reported», the ring's colour. Dark arrives as `looksDark` and
+    // docs/2026-11-06-toggle-button.md and docs/2026-11-11-led-look.md there):
+    // a look per state, one for «nothing reported», the LED colour. Dark arrives as `looksDark` and
     // friends, which darkVariantOf puts in their place.
     val looks: List<ToggleLook>? = null,
     val noneLook: ToggleLook? = null,
     val ring: String? = null,
+    // A guarded control's geometry beside `properties.guard` (the designer's
+    // contract §2.14, lib/guard.ts exportedGuard), in the object's own space.
+    val guard: GuardGeom? = null,
 )
 
-/** A named tile's second line: the state's label under the name. */
+/** Where a guarded control's cover lies and how far it must travel (§2.14). */
 @Serializable
-data class ToggleSecond(val textX: Int = 0, val baseline: Int = 0, val fontId: String? = null)
+data class GuardGeom(
+    val cover: GuardRect = GuardRect(),
+    val travel: Double = 20.0,
+    /** A button's or toggle button's corner lock. */
+    val lock: GuardLockBox? = null,
+    /** A button group's badge. */
+    val badge: GuardBadge? = null,
+)
 
-/** The 1-px ring round a disc whose tint cannot be seen, per face; null: none. */
 @Serializable
-data class ToggleDiscEdge(val normal: String? = null, val pressed: String? = null)
+data class GuardRect(val x: Double = 0.0, val y: Double = 0.0, val width: Double = 0.0, val height: Double = 0.0, val radius: Double = 0.0)
 
-/** The disc behind a named tile's icon. */
 @Serializable
-data class ToggleDisc(
-    val cx: Int = 0,
-    val cy: Int = 0,
+data class GuardLockBox(val x: Double = 0.0, val y: Double = 0.0, val size: Double = 0.0)
+
+@Serializable
+data class GuardBadge(val cx: Double = 0.0, val cy: Double = 0.0, val r: Double = 0.0, val lock: GuardLockBox = GuardLockBox())
+
+/**
+ * The state's label as a line of text (LED Horizontal: at the end of the
+ * name's line; LED Vertical: under the name), in its own ink.
+ */
+@Serializable
+data class ToggleSecond(val textX: Int = 0, val baseline: Int = 0, val fontId: String? = null, val ink: String? = null)
+
+/** Korry's window word, centred, with its ink per fill. */
+@Serializable
+data class ToggleWord(
+    val text: String = "",
+    val textX: Int = 0,
+    val baseline: Int = 0,
+    val fontId: String? = null,
+    val ink: String = "#000000",
+    val askedInk: String = "#000000",
+)
+
+/**
+ * The light (the designer's docs/2026-11-11-led-look.md): Korry's window or
+ * an LED strip. `fill` for the state; `asked` and `askedDim` in turn while a
+ * request waits; a 1-px `outline` where the track cannot be seen.
+ */
+@Serializable
+data class ToggleLight(
+    val x: Int = 0,
+    val y: Int = 0,
+    val w: Int = 0,
+    val h: Int = 0,
     val r: Int = 0,
-    val normal: String = "#000000",
-    val pressed: String = "#000000",
-    val edge: ToggleDiscEdge? = null,
+    val fill: String = "#000000",
+    val asked: String = "#000000",
+    val askedDim: String = "#000000",
+    val outline: String? = null,
+    val label: ToggleWord? = null,
 )
 
 /** One state's look of a Toggle Button, relative to it (lib/toggle-button-shape.ts). */
@@ -357,7 +398,7 @@ data class ToggleLook(
     val clipW: Int = 0,
     val icon: ButtonIconBox? = null,
     val second: ToggleSecond? = null,
-    val disc: ToggleDisc? = null,
+    val light: ToggleLight? = null,
 )
 
 /** One face of a button: radius, fill (null: none), ring (null: none), ink. */
