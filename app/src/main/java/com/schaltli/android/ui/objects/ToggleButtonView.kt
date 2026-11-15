@@ -121,11 +121,16 @@ fun ToggleButtonView(
 
     val density = LocalDensity.current
     val writeTopic = props.stringOrNull("writeTopic")
+    // Guarded (docs/2026-11-15-guard.md in the designer): its cover takes a
+    // touch until pushed up; then a tap switches and tops the wait up.
+    val guard = rememberGuard(obj)
+    val guards = LocalGuards.current
 
     Box(
         modifier = Modifier
             .offset(x = obj.x.toInt().dp, y = obj.y.toInt().dp)
             .size(width = obj.width.dp, height = obj.height.dp)
+            .guarded(obj, guard, guards, density.density)
             .pointerInput(obj.id, states, activeIndex, writeTopic) {
                 detectTapGestures(
                     onPress = {
@@ -135,6 +140,8 @@ fun ToggleButtonView(
                     },
                     onTap = {
                         if (writeTopic.isNullOrEmpty()) return@detectTapGestures
+                        if (guard != null && !guard.unlocked) return@detectTapGestures
+                        guard?.changed()
                         val index = toggleNextIndex(states, activeIndex)
                         val state = states.getOrNull(index) ?: return@detectTapGestures
                         if (state.writeValue.isEmpty()) return@detectTapGestures
@@ -232,6 +239,8 @@ fun ToggleButtonView(
                     native.drawText(word.text, word.textX * scale, word.baseline * scale, pen.draw)
                     native.restore()
                 }
+                // Guarded: the lock in the top-right corner, in the ink (decision 4).
+                if (guard != null) drawGuardCornerLock(native, obj, argbOf(f.ink) ?: Color.Black.toArgb(), scale)
             }
         }
     }

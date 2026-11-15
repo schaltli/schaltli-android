@@ -324,7 +324,30 @@ data class ScreenObject(
     val looks: List<ToggleLook>? = null,
     val noneLook: ToggleLook? = null,
     val ring: String? = null,
+    // A guarded control's geometry beside `properties.guard` (the designer's
+    // contract §2.14, lib/guard.ts exportedGuard), in the object's own space.
+    val guard: GuardGeom? = null,
 )
+
+/** Where a guarded control's cover lies and how far it must travel (§2.14). */
+@Serializable
+data class GuardGeom(
+    val cover: GuardRect = GuardRect(),
+    val travel: Double = 20.0,
+    /** A button's or toggle button's corner lock. */
+    val lock: GuardLockBox? = null,
+    /** A button group's badge. */
+    val badge: GuardBadge? = null,
+)
+
+@Serializable
+data class GuardRect(val x: Double = 0.0, val y: Double = 0.0, val width: Double = 0.0, val height: Double = 0.0, val radius: Double = 0.0)
+
+@Serializable
+data class GuardLockBox(val x: Double = 0.0, val y: Double = 0.0, val size: Double = 0.0)
+
+@Serializable
+data class GuardBadge(val cx: Double = 0.0, val cy: Double = 0.0, val r: Double = 0.0, val lock: GuardLockBox = GuardLockBox())
 
 /**
  * The state's label as a line of text (LED Horizontal: at the end of the

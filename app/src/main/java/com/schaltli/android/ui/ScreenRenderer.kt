@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -91,12 +93,17 @@ fun ScreenRenderer(
     modifier: Modifier = Modifier,
 ) {
     val backgroundColor = screen.backgroundColor?.let(::parseHexColor) ?: Color.White
+    // The screen's guarded controls (docs/2026-11-15-guard.md): a new layer
+    // for another screen or another bundle, so they start locked (E2).
+    val guards = remember(screen.id, com.schaltli.android.ui.LocalBundleInstallation.current) { com.schaltli.android.ui.objects.GuardLayer() }
 
     Box(
         modifier = modifier
             .size(width = project.screenWidth.dp, height = project.screenHeight.dp)
-            .then(if (backgroundClip == null) Modifier.background(backgroundColor) else Modifier),
+            .then(if (backgroundClip == null) Modifier.background(backgroundColor) else Modifier)
+            .onGloballyPositioned { guards.root = it.positionInRoot() },
     ) {
+      androidx.compose.runtime.CompositionLocalProvider(com.schaltli.android.ui.objects.LocalGuards provides guards) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -156,6 +163,9 @@ fun ScreenRenderer(
                 }
             }
         }
+      }
+        // Every cover over everything it guards, and the hint (§2.14).
+        com.schaltli.android.ui.objects.GuardLayerView(guards, com.schaltli.android.ui.objects.LocalPanelAsleep.current)
     }
 }
 

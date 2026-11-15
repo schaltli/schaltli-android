@@ -66,6 +66,7 @@ import com.schaltli.android.render.switchSlotAt
 import com.schaltli.android.render.switchStateIsOn
 import com.schaltli.android.render.switchTrack
 import com.schaltli.android.ui.LocalBundleInstallation
+import com.schaltli.android.render.Guard
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 
@@ -243,6 +244,10 @@ fun SwitchView(
     val writeTopic = props.stringOrNull("writeTopic")
     val ox = obj.x.toInt()
     val oy = obj.y.toInt()
+    // Guarded (docs/2026-11-15-guard.md in the designer): its cover takes a
+    // touch until pushed up; then a tap switches and tops the wait up.
+    val guard = rememberGuard(obj)
+    val guards = LocalGuards.current
 
     // Rasterized once and kept, the way ArcLevelView keeps its ring: the soft
     // path walks sixteen sub-samples of every pixel of the control against
@@ -263,6 +268,7 @@ fun SwitchView(
         modifier = Modifier
             .offset(x = ox.dp, y = oy.dp)
             .size(width = obj.width.dp, height = obj.height.dp)
+            .guarded(obj, guard, guards, density.density)
             .pointerInput(obj.id, states, activeIndex, writeTopic) {
                 detectTapGestures(
                     onPress = { offset ->
@@ -273,6 +279,8 @@ fun SwitchView(
                     },
                     onTap = { offset ->
                         if (writeTopic.isNullOrEmpty()) return@detectTapGestures
+                        if (guard != null && !guard.unlocked) return@detectTapGestures
+                        guard?.changed()
                         val xUnits = ox + (offset.x / density.density).toDouble()
                         val index = stateIndexForTap(obj, xUnits, states.size, activeIndex)
                         val value = states.getOrNull(index)?.writeValue
@@ -379,7 +387,12 @@ fun SwitchView(
                     // Only a knob that is ON carries an icon. The quiet knob is
                     // half the track's height, and an icon squeezed into it read
                     // as a smudge rather than a symbol.
-                    if (on) {
+                    if (guard != null) {
+                        // Guarded: the lock takes the icon's place and moves
+                        // with the knob, whichever state (decision 4).
+                        val lock = Guard.knobLock(knob.cx, knob.cy, knob.r)
+                        drawGuardLock(native, lock.x - ox, lock.y - oy, lock.size, argbOf(knobLook.onKnob) ?: Color.Black.toArgb(), scale)
+                    } else if (on) {
                         // switchKnobIcon, not three fifths worked out here: the
                         // designer bakes the bitmap to that rule and the two
                         // have to be the same number.
@@ -429,6 +442,7 @@ fun SwitchView(
                         label(pen, seg, state.label, content.textX, content.baseline)
                         native.restore()
                     }
+                    if (guard != null) drawGuardBadge(native, obj, argbOf(look.chosen) ?: Color.Black.toArgb(), argbOf(look.onChosen) ?: Color.White.toArgb(), scale)
                     return@drawIntoCanvas
                 }
                 val outline = look.surfaceOutline
@@ -463,6 +477,8 @@ fun SwitchView(
                     label(pen, seg, state.label, content.textX, content.baseline)
                     native.restore()
                 }
+                // A guarded group's badge on its top-right corner (decision 4).
+                if (guard != null) drawGuardBadge(native, obj, argbOf(look.chosen) ?: Color.Black.toArgb(), argbOf(look.onChosen) ?: Color.White.toArgb(), scale)
             }
         }
     }
