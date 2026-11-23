@@ -199,6 +199,13 @@ fun LevelIndicatorView(
     // which the caller feeds from the asked value.
     onSetLevel: (markerTopic: String, writeTopic: String, value: String, payload: String?, final: Boolean) -> Unit = { _, _, _, _, _ -> },
 ) {
+    // A styled bar is a picture of an instrument (the designer's §2.15); its
+    // flat look only when the face cannot be read.
+    val face = rememberInstrumentFace(obj, assetFileOf)
+    if (face != null) {
+        InstrumentView(obj, face, rawValue, screenBackgroundColor)
+        return
+    }
     val props = obj.properties
     val fonts = project.fonts
     val fillColor = props.string("fillColor", "#4CAF50")

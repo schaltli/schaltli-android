@@ -332,6 +332,13 @@ fun ArcLevelView(
     // which the caller feeds from what was asked.
     onSetLevel: (markerTopic: String, writeTopic: String, value: String, payload: String?, final: Boolean) -> Unit = { _, _, _, _, _ -> },
 ) {
+    // A styled gauge is a picture of an instrument (the designer's §2.15);
+    // its flat ring only when the face cannot be read.
+    val face = rememberInstrumentFace(obj, assetFileOf)
+    if (face != null) {
+        InstrumentView(obj, face, rawValue, screenBackgroundColor)
+        return
+    }
     val props = obj.properties
     // No value yet: the track alone - no fill (not even what the calibration
     // makes of 0), no marker, no number. Same on the firmware and in the

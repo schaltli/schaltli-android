@@ -158,7 +158,7 @@ class DdfBuilderTest {
         // Local topics (§2.9) are a feature, not a generation: the designer
         // sends a project with them only to a device that lists it.
         val features = manifest.getJSONArray("supportedFeatures")
-        assertEquals(8, features.length())
+        assertEquals(9, features.length())
         assertEquals("local-topics", features.getString(0))
         // And it draws box, line and fixed icon itself (2026-10-13): the
         // Android bundle carries no baked background since.
@@ -179,6 +179,9 @@ class DdfBuilderTest {
         // And a guarded control (§2.14): a cover pushed up before it changes
         // (the designer's docs/2026-11-15-guard.md).
         assertEquals("guard", features.getString(7))
+        // And styled gauges and bars (§2.15): a baked face, the needle drawn
+        // and swung here (the designer's docs/2026-11-23-instrument-styles.md).
+        assertEquals("instrument-styles", features.getString(8))
     }
 
     @Test

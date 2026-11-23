@@ -327,6 +327,28 @@ data class ScreenObject(
     // A guarded control's geometry beside `properties.guard` (the designer's
     // contract §2.14, lib/guard.ts exportedGuard), in the object's own space.
     val guard: GuardGeom? = null,
+    // A styled gauge or bar (the designer's contract §2.15, lib/instrument-
+    // export.ts): its baked face, the needle, the sweep or travel, the spring.
+    val instrument: InstrumentGeom? = null,
+)
+
+@Serializable
+data class InstrumentSweep(val from: Double = 0.0, val to: Double = 0.0)
+
+@Serializable
+data class InstrumentTravel(val x: Int = 0, val y: Int = 0)
+
+@Serializable
+data class InstrumentSpring(val frequency: Double = 1.0, val damping: Double = 1.0)
+
+@Serializable
+data class InstrumentGeom(
+    val style: String = "",
+    val face: String = "",
+    val needle: com.schaltli.android.render.NeedleRaster.Description = com.schaltli.android.render.NeedleRaster.Description(),
+    val sweep: InstrumentSweep? = null,
+    val travel: InstrumentTravel? = null,
+    val spring: InstrumentSpring? = null,
 )
 
 /** Where a guarded control's cover lies and how far it must travel (§2.14). */
