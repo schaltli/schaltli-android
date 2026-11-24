@@ -24,11 +24,23 @@ import kotlinx.serialization.json.jsonPrimitive
  * - A soft layer (glow, shadow) is a field: soft[0] inside, soft[k] up to k
  *   whole pixels outside, compared as squared distances; nothing beyond.
  * - Each pixel is mixed into what is already there with [blend565].
+ * - A *fill* layer grows with the value instead of moving: a `rect` from its
+ *   start edge (`grow`) by the pose's shift, held inside the rectangle; an
+ *   `arc` (a band of half width hw about radius r round the pivot, round
+ *   ends) from its `from` angle to the pose's angle, held inside from..to.
+ *   In any other layer an arc runs from..to. The sector test is integer
+ *   (cross products of the end directions); an arc's soft field is rooted
+ *   with [isqrt].
+ * - A layer with a `gradient` takes its colour per pixel from [gradient565].
  */
 object NeedleRaster {
 
     @Serializable
+    data class Gradient(val to: Int = 0, val axis: String = "x", val start: Int = 0, val length: Int = 1)
+
+    @Serializable
     data class Layer(
+        /** "rotate", "translate", "static" or "fill". */
         val motion: String = "static",
         val shapes: List<JsonElement> = emptyList(),
         val color: Int = 0,
@@ -36,6 +48,9 @@ object NeedleRaster {
         val soft: List<Int>? = null,
         val dx: Int = 0,
         val dy: Int = 0,
+        /** Fill layer: the way its rectangles grow - "right", "left", "down" or "up". */
+        val grow: String = "right",
+        val gradient: Gradient? = null,
     )
 
     @Serializable
@@ -72,6 +87,105 @@ object NeedleRaster {
     private sealed class Placed {
         class Poly(val pts: List<PolygonRaster.Point8>) : Placed()
         class Circle(val cx: Int, val cy: Int, val r: Int, val rIn: Int) : Placed()
+
+        /** A band about (cx, cy); span in 1/64 degree, u0/u1 the ends' directions (x16384), e0/e1 their points, relative to the centre. */
+        class Arc(
+            val cx: Int, val cy: Int, val r: Int, val hw: Int, val span: Int,
+            val u0x: Long, val u0y: Long, val u1x: Long, val u1y: Long,
+            val e0x: Long, val e0y: Long, val e1x: Long, val e1y: Long,
+        ) : Placed()
+    }
+
+    /** The colour of [layer] at pixel (x, y). */
+    private fun colourAt(layer: Layer, x: Int, y: Int): Int {
+        val g = layer.gradient ?: return layer.color
+        val step = (if (g.axis == "y") y else x) - g.start
+        return gradient565(Rgb565(layer.color), Rgb565(g.to), step, maxOf(1, g.length)).packed
+    }
+
+    private fun clamp(v: Int, lo: Int, hi: Int) = maxOf(lo, minOf(hi, v))
+
+    private fun placeArc(a: JsonArray, layer: Layer, desc: Description, pose: Pose): Placed? {
+        val r = a[0].jsonPrimitive.int
+        val hw = a[1].jsonPrimitive.int
+        val from = a[2].jsonPrimitive.int
+        val to = a[3].jsonPrimitive.int
+        val end = if (layer.motion == "fill") clamp(pose.angle64, from, to) else to
+        val span = end - from
+        if (span <= 0) return null
+        val d0 = arcDirection(from)
+        val d1 = arcDirection(end)
+        val u0x = d0.toInt().toLong()
+        val u0y = (d0 shr 32).toInt().toLong()
+        val u1x = d1.toInt().toLong()
+        val u1y = (d1 shr 32).toInt().toLong()
+        fun along(u: Long) = (r * u + 8192) shr 14
+        return Placed.Arc(
+            desc.pivot.x + layer.dx, desc.pivot.y + layer.dy, r, hw, span,
+            u0x, u0y, u1x, u1y, along(u0x), along(u0y), along(u1x), along(u1y),
+        )
+    }
+
+    private fun placeRect(a: JsonArray, layer: Layer, pose: Pose): Placed? {
+        var x0 = a[0].jsonPrimitive.int
+        var y0 = a[1].jsonPrimitive.int
+        var x1 = a[2].jsonPrimitive.int
+        var y1 = a[3].jsonPrimitive.int
+        if (layer.motion == "fill") {
+            when (layer.grow) {
+                "left" -> x0 = clamp(x1 + pose.shiftX, x0, x1)
+                "down" -> y1 = clamp(y0 + pose.shiftY, y0, y1)
+                "up" -> y0 = clamp(y1 + pose.shiftY, y0, y1)
+                "right" -> x1 = clamp(x0 + pose.shiftX, x0, x1)
+                // Any other word: the designer's switch matches no case and leaves the rectangle whole.
+            }
+        } else if (layer.motion == "translate") {
+            x0 += pose.shiftX
+            x1 += pose.shiftX
+            y0 += pose.shiftY
+            y1 += pose.shiftY
+        }
+        if (x1 <= x0 || y1 <= y0) return null
+        val dx = layer.dx
+        val dy = layer.dy
+        return Placed.Poly(listOf(
+            PolygonRaster.Point8(x0 + dx, y0 + dy),
+            PolygonRaster.Point8(x1 + dx, y0 + dy),
+            PolygonRaster.Point8(x1 + dx, y1 + dy),
+            PolygonRaster.Point8(x0 + dx, y1 + dy),
+        ))
+    }
+
+    private fun cross(ax: Long, ay: Long, bx: Long, by: Long) = ax * by - ay * bx
+
+    /** Whether (x, y), relative to the arc's centre, lies in its sector. */
+    private fun inSector(a: Placed.Arc, x: Long, y: Long): Boolean {
+        if (a.span >= 360 * 64) return true
+        if (a.span <= 180 * 64) return cross(a.u0x, a.u0y, x, y) >= 0 && cross(x, y, a.u1x, a.u1y) >= 0
+        return !(cross(a.u1x, a.u1y, x, y) > 0 && cross(x, y, a.u0x, a.u0y) > 0)
+    }
+
+    private fun endDistance2(a: Placed.Arc, x: Long, y: Long): Long {
+        val d0 = (x - a.e0x) * (x - a.e0x) + (y - a.e0y) * (y - a.e0y)
+        val d1 = (x - a.e1x) * (x - a.e1x) + (y - a.e1y) * (y - a.e1y)
+        return if (d0 < d1) d0 else d1
+    }
+
+    /** Whether the point (relative to the centre) lies in the band. */
+    private fun inArc(a: Placed.Arc, x: Long, y: Long): Boolean {
+        if (inSector(a, x, y)) {
+            val d2 = x * x + y * y
+            val lo = (a.r - a.hw).toLong()
+            val hi = (a.r + a.hw).toLong()
+            return d2 >= lo * lo && d2 <= hi * hi
+        }
+        return endDistance2(a, x, y) <= a.hw.toLong() * a.hw
+    }
+
+    /** The distance from the band (eighths, 0 or less inside), for the soft field. */
+    private fun arcDistance(a: Placed.Arc, x: Long, y: Long): Long {
+        val centre = if (inSector(a, x, y)) Math.abs(isqrt(x * x + y * y) - a.r) else isqrt(endDistance2(a, x, y))
+        return centre - a.hw
     }
 
     private fun blendAt(t: Target, x: Int, y: Int, color: Int, alpha: Int) {
@@ -83,7 +197,10 @@ object NeedleRaster {
         t.set(x, y, blend565(Rgb565(t.get(x, y)), Rgb565(color), alpha).packed)
     }
 
-    private fun place(shape: JsonElement, layer: Layer, desc: Description, pose: Pose): Placed {
+    private fun place(shape: JsonElement, layer: Layer, desc: Description, pose: Pose): Placed? {
+        val obj = shape as kotlinx.serialization.json.JsonObject
+        obj["arc"]?.let { return placeArc(it.jsonArray, layer, desc, pose) }
+        obj["rect"]?.let { return placeRect(it.jsonArray, layer, pose) }
         val dx = layer.dx + if (layer.motion == "translate") pose.shiftX else 0
         val dy = layer.dy + if (layer.motion == "translate") pose.shiftY else 0
         var s = 0
@@ -104,7 +221,6 @@ object NeedleRaster {
             }
             return Pair(tx + dx, ty + dy)
         }
-        val obj = shape as kotlinx.serialization.json.JsonObject
         obj["poly"]?.let { poly ->
             return Placed.Poly(poly.jsonArray.map { pt ->
                 val a = pt.jsonArray
@@ -174,6 +290,7 @@ object NeedleRaster {
         val (minX, minY, maxX, maxY) = when (p) {
             is Placed.Poly -> listOf(p.pts.minOf { it.x }, p.pts.minOf { it.y }, p.pts.maxOf { it.x }, p.pts.maxOf { it.y })
             is Placed.Circle -> listOf(p.cx - p.r, p.cy - p.r, p.cx + p.r, p.cy + p.r)
+            is Placed.Arc -> (p.r + p.hw).let { big -> listOf(p.cx - big, p.cy - big, p.cx + big, p.cy + big) }
         }
         return intArrayOf(
             Math.floorDiv(minX - reach8, 8), Math.floorDiv(minY - reach8, 8),
@@ -190,6 +307,10 @@ object NeedleRaster {
                 val cx = x * 8 + 4
                 val cy = y * 8 + 4
                 val d2: Long = when (p) {
+                    is Placed.Arc -> {
+                        val e = arcDistance(p, (cx - p.cx).toLong(), (cy - p.cy).toLong())
+                        if (e > 0) e * e else 0L
+                    }
                     is Placed.Poly -> polyDistance2(cx, cy, p.pts)
                     is Placed.Circle -> {
                         val ddx = (cx - p.cx).toLong()
@@ -214,7 +335,7 @@ object NeedleRaster {
                         }
                     }
                 }
-                if (k <= levels) blendAt(t, x, y, layer.color, soft[k])
+                if (k <= levels) blendAt(t, x, y, colourAt(layer, x, y), soft[k])
             }
         }
     }
@@ -224,16 +345,29 @@ object NeedleRaster {
         when (p) {
             is Placed.Poly -> PolygonRaster.fill(p.pts, 0, t.height - 1, object : PolygonRaster.Sink {
                 override fun fullRun(y: Int, x0: Int, x1: Int) {
-                    for (x in x0..x1) blendAt(t, x, y, layer.color, a)
+                    for (x in x0..x1) blendAt(t, x, y, colourAt(layer, x, y), a)
                 }
-                override fun partial(y: Int, x: Int, coverage: Int) = blendAt(t, x, y, layer.color, (a * coverage + 8) shr 4)
+                override fun partial(y: Int, x: Int, coverage: Int) = blendAt(t, x, y, colourAt(layer, x, y), (a * coverage + 8) shr 4)
             })
+            is Placed.Arc -> {
+                val b = bounds(p, 0)
+                for (y in maxOf(0, b[1])..minOf(t.height - 1, b[3])) {
+                    for (x in maxOf(0, b[0])..minOf(t.width - 1, b[2])) {
+                        var cov = 0
+                        for (sy in 0 until 4) {
+                            val ry = (y * 8 + 1 + sy * 2 - p.cy).toLong()
+                            for (sx in 0 until 4) if (inArc(p, (x * 8 + 1 + sx * 2 - p.cx).toLong(), ry)) cov++
+                        }
+                        if (cov > 0) blendAt(t, x, y, colourAt(layer, x, y), if (cov == 16) a else (a * cov + 8) shr 4)
+                    }
+                }
+            }
             is Placed.Circle -> {
                 val b = bounds(p, 0)
                 for (y in maxOf(0, b[1])..minOf(t.height - 1, b[3])) {
                     for (x in maxOf(0, b[0])..minOf(t.width - 1, b[2])) {
                         val cov = circleCoverage(x, y, p.cx, p.cy, p.r, p.rIn)
-                        if (cov > 0) blendAt(t, x, y, layer.color, if (cov == 16) a else (a * cov + 8) shr 4)
+                        if (cov > 0) blendAt(t, x, y, colourAt(layer, x, y), if (cov == 16) a else (a * cov + 8) shr 4)
                     }
                 }
             }
@@ -244,7 +378,7 @@ object NeedleRaster {
     fun draw(t: Target, desc: Description, pose: Pose) {
         for (layer in desc.layers) {
             for (shape in layer.shapes) {
-                val p = place(shape, layer, desc, pose)
+                val p = place(shape, layer, desc, pose) ?: continue
                 if (p is Placed.Poly && p.pts.size < 3) continue
                 if (!layer.soft.isNullOrEmpty()) drawSoft(t, p, layer) else drawBody(t, p, layer)
             }

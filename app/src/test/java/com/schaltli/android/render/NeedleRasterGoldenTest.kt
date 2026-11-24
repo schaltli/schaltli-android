@@ -42,7 +42,7 @@ class NeedleRasterGoldenTest {
     @Test
     fun `every vector draws the designer's picture`() {
         val cases = JSONObject(text()).getJSONArray("cases")
-        assertTrue("fewer vectors than the designer has", cases.length() >= 9)
+        assertTrue("fewer vectors than the designer has", cases.length() >= 22)
         val failures = mutableListOf<String>()
         for (i in 0 until cases.length()) {
             val c = cases.getJSONObject(i)
