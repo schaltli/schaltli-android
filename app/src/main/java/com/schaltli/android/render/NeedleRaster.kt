@@ -54,6 +54,8 @@ object NeedleRaster {
         /** Fill layer: the way its rectangles grow - "right", "left", "down" or "up". */
         val grow: String = "right",
         val gradient: Gradient? = null,
+        /** Whole pixels x0, y0, x1, y1 (x1/y1 excluded): the only pixels the layer may touch. */
+        val clip: List<Int>? = null,
     )
 
     @Serializable
@@ -382,12 +384,23 @@ object NeedleRaster {
     }
 
     /** Draws every layer of [desc] in [pose] into [t], back to front. */
-    fun draw(t: Target, desc: Description, pose: Pose) {
+    fun draw(target: Target, desc: Description, pose: Pose) {
         for (layer in desc.layers) {
+            val c = layer.clip
+            val t: Target = if (c != null && c.size == 4) {
+                object : Target {
+                    override val width = target.width
+                    override val height = target.height
+                    override fun get(x: Int, y: Int) = target.get(x, y)
+                    override fun set(x: Int, y: Int, c2: Int) {
+                        if (x >= c[0] && y >= c[1] && x < c[2] && y < c[3]) target.set(x, y, c2)
+                    }
+                }
+            } else target
             for (shape in layer.shapes) {
                 if (layer.motion == "segments") {
-                    val t = (shape as kotlinx.serialization.json.JsonObject)["t"]?.jsonPrimitive?.int
-                    if (t != null && pose.level < t) continue
+                    val th = (shape as kotlinx.serialization.json.JsonObject)["t"]?.jsonPrimitive?.int
+                    if (th != null && pose.level < th) continue
                 }
                 val p = place(shape, layer, desc, pose) ?: continue
                 if (p is Placed.Poly && p.pts.size < 3) continue
