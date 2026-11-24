@@ -80,6 +80,41 @@
    "raw": "+5",
    "decimals": 1,
    "expected": "5.0"
+  },
+  {
+   "raw": "0x10",
+   "decimals": 0,
+   "expected": ""
+  },
+  {
+   "raw": "-0x10",
+   "decimals": 0,
+   "expected": ""
+  },
+  {
+   "raw": "0b101",
+   "decimals": 0,
+   "expected": ""
+  },
+  {
+   "raw": "1f",
+   "decimals": 0,
+   "expected": ""
+  },
+  {
+   "raw": "Infinity",
+   "decimals": 0,
+   "expected": ""
+  },
+  {
+   "raw": ".5",
+   "decimals": 1,
+   "expected": "0.5"
+  },
+  {
+   "raw": "5.",
+   "decimals": 1,
+   "expected": "5.0"
   }
  ],
  "strip": {
