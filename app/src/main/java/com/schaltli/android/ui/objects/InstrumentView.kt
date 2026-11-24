@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.dp
 import com.schaltli.android.data.ScreenObject
 import com.schaltli.android.render.NeedleRaster
+import com.schaltli.android.render.Readout
 import com.schaltli.android.render.levelIsSettableType
 import com.schaltli.android.render.toRgb565
 import kotlin.math.abs
@@ -34,20 +35,35 @@ import kotlin.math.roundToInt
  * designer's, pixel for pixel; the swing is the app's own.
  */
 
-/** The face as pixels: ARGB, with what the face leaves transparent at alpha 0. */
-class InstrumentFace(val width: Int, val height: Int, val argb: IntArray)
+/**
+ * The face as pixels: ARGB, with what the face leaves transparent at alpha 0;
+ * [readout] the readout's strip of characters, where the style has one and
+ * it could be read.
+ */
+class InstrumentFace(val width: Int, val height: Int, val argb: IntArray, val readout: Readout.Strip? = null)
 
 /** The face of a styled object, or null when it has none or it cannot be read - then it is drawn flat. */
 @Composable
 fun rememberInstrumentFace(obj: ScreenObject, assetFileOf: (String) -> java.io.File): InstrumentFace? {
     val inst = obj.instrument ?: return null
     if (levelIsSettableType(obj.type)) return null
-    return remember(inst.face) {
+    val glyphs = inst.readout?.glyphs
+    return remember(inst.face, glyphs) {
         val bitmap = runCatching { BitmapFactory.decodeFile(assetFileOf(inst.face).path) }.getOrNull() ?: return@remember null
         val pixels = IntArray(bitmap.width * bitmap.height)
         bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
-        InstrumentFace(bitmap.width, bitmap.height, pixels)
+        val strip = glyphs?.let { path -> runCatching { readStrip(assetFileOf(path)) }.getOrNull() }
+        InstrumentFace(bitmap.width, bitmap.height, pixels, strip)
     }
+}
+
+/** The readout's strip from its PNG: white, the strip's alpha as its alpha channel - read unpremultiplied, so every alpha byte survives. */
+private fun readStrip(file: java.io.File): Readout.Strip? {
+    val opts = BitmapFactory.Options().apply { inPremultiplied = false }
+    val bitmap = BitmapFactory.decodeFile(file.path, opts) ?: return null
+    val pixels = IntArray(bitmap.width * bitmap.height)
+    bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+    return Readout.Strip(bitmap.width, bitmap.height, IntArray(pixels.size) { pixels[it] ushr 24 })
 }
 
 /** Where a value lands along the scale, 0..1 - the designer's calibratedAt. */
@@ -96,17 +112,21 @@ fun InstrumentView(obj: ScreenObject, face: InstrumentFace, rawValue: String, sc
         }
     }
 
+    val level = NeedleRaster.levelOf(shown)
     val pose = if (inst.sweep != null) {
-        NeedleRaster.Pose(angle64 = NeedleRaster.angle64Of(inst.sweep.from + (inst.sweep.to - inst.sweep.from) * shown))
+        NeedleRaster.Pose(angle64 = NeedleRaster.angle64Of(inst.sweep.from + (inst.sweep.to - inst.sweep.from) * shown), level = level)
     } else {
         // The designer's Math.round: floor(x + 0.5).
         NeedleRaster.Pose(
             shiftX = floor(shown * (inst.travel?.x ?: 0) + 0.5).toInt(),
             shiftY = floor(shown * (inst.travel?.y ?: 0) + 0.5).toInt(),
+            level = level,
         )
     }
+    // The readout shows the value itself at once, not the needle on its way.
+    val readoutText = inst.readout?.let { Readout.format(rawValue, it.decimals) } ?: ""
     val ground = toRgb565(screenBackgroundColor ?: "#ffffff").packed
-    val bitmap = remember(face, pose, ground) {
+    val bitmap = remember(face, pose, ground, readoutText) {
         val px = face.argb.copyOf()
         val target565 = object : NeedleRaster.Target {
             override val width = face.width
@@ -124,6 +144,8 @@ fun InstrumentView(obj: ScreenObject, face: InstrumentFace, rawValue: String, sc
             }
         }
         NeedleRaster.draw(target565, inst.needle, pose)
+        val readout = inst.readout
+        if (readout != null && face.readout != null && readoutText.isNotEmpty()) Readout.draw(target565, readout, face.readout, readoutText)
         Bitmap.createBitmap(px, face.width, face.height, Bitmap.Config.ARGB_8888)
     }
 

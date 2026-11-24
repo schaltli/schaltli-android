@@ -349,6 +349,8 @@ data class InstrumentGeom(
     val sweep: InstrumentSweep? = null,
     val travel: InstrumentTravel? = null,
     val spring: InstrumentSpring? = null,
+    /** The value in digits (vfd, night): the strip of characters and where they go. */
+    val readout: com.schaltli.android.render.Readout.Description? = null,
 )
 
 /** Where a guarded control's cover lies and how far it must travel (§2.14). */

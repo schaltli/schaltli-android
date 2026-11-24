@@ -42,7 +42,7 @@ class NeedleRasterGoldenTest {
     @Test
     fun `every vector draws the designer's picture`() {
         val cases = JSONObject(text()).getJSONArray("cases")
-        assertTrue("fewer vectors than the designer has", cases.length() >= 22)
+        assertTrue("fewer vectors than the designer has", cases.length() >= 26)
         val failures = mutableListOf<String>()
         for (i in 0 until cases.length()) {
             val c = cases.getJSONObject(i)
@@ -59,7 +59,7 @@ class NeedleRasterGoldenTest {
                     pixels[y * w + x] = c
                 }
             }
-            NeedleRaster.draw(target, desc, NeedleRaster.Pose(p.getInt("angle64"), p.getInt("shiftX"), p.getInt("shiftY")))
+            NeedleRaster.draw(target, desc, NeedleRaster.Pose(p.getInt("angle64"), p.getInt("shiftX"), p.getInt("shiftY"), p.optInt("level", 0)))
             val got = pixels.joinToString("") { String.format("%04x", it) }
             if (got != c.getString("expected")) {
                 val first = (0 until w * h).first { got.substring(it * 4, it * 4 + 4) != c.getString("expected").substring(it * 4, it * 4 + 4) }
@@ -73,5 +73,13 @@ class NeedleRasterGoldenTest {
     fun `angles round as the designer's do`() {
         assertEquals(2880, NeedleRaster.angle64Of(45.0))
         assertEquals(-8147, NeedleRaster.angle64Of(-127.3))
+    }
+
+    @Test
+    fun `levels round and clamp as the designer's do`() {
+        assertEquals(0, NeedleRaster.levelOf(-0.2))
+        assertEquals(2048, NeedleRaster.levelOf(0.5))
+        assertEquals(4096, NeedleRaster.levelOf(1.3))
+        assertEquals(1, NeedleRaster.levelOf(0.5 / 4096))
     }
 }

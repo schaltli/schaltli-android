@@ -32,6 +32,9 @@ import kotlinx.serialization.json.jsonPrimitive
  *   (cross products of the end directions); an arc's soft field is rooted
  *   with [isqrt].
  * - A layer with a `gradient` takes its colour per pixel from [gradient565].
+ * - A *segments* layer holds still; a shape of it carrying a threshold `t`
+ *   (out of 4096) is drawn only while the pose's [Pose.level] has reached it
+ *   (a VFD's bars). A shape without `t` is always drawn.
  */
 object NeedleRaster {
 
@@ -40,7 +43,7 @@ object NeedleRaster {
 
     @Serializable
     data class Layer(
-        /** "rotate", "translate", "static" or "fill". */
+        /** "rotate", "translate", "static", "fill" or "segments". */
         val motion: String = "static",
         val shapes: List<JsonElement> = emptyList(),
         val color: Int = 0,
@@ -59,7 +62,8 @@ object NeedleRaster {
     @Serializable
     data class Description(val pivot: Pivot = Pivot(), val layers: List<Layer> = emptyList())
 
-    data class Pose(val angle64: Int = 0, val shiftX: Int = 0, val shiftY: Int = 0)
+    /** [level]: the position out of 4096 (segments layers), [levelOf]. */
+    data class Pose(val angle64: Int = 0, val shiftX: Int = 0, val shiftY: Int = 0, val level: Int = 0)
 
     /** An RGB565 picture to draw into. */
     interface Target {
@@ -71,6 +75,9 @@ object NeedleRaster {
 
     /** The angle a needle stands at for [degrees]: floor(degrees x 64 + 0.5). */
     fun angle64Of(degrees: Double): Int = Math.floor(degrees * 64 + 0.5).toInt()
+
+    /** A position 0..1 as a pose's level: floor(clamp(at, 0, 1) x 4096 + 0.5). */
+    fun levelOf(at: Double): Int = Math.floor(at.coerceIn(0.0, 1.0) * 4096 + 0.5).toInt()
 
     /** floor(sqrt(n)) for a non-negative integer, without floating point. */
     fun isqrt(n: Long): Long {
@@ -378,6 +385,10 @@ object NeedleRaster {
     fun draw(t: Target, desc: Description, pose: Pose) {
         for (layer in desc.layers) {
             for (shape in layer.shapes) {
+                if (layer.motion == "segments") {
+                    val t = (shape as kotlinx.serialization.json.JsonObject)["t"]?.jsonPrimitive?.int
+                    if (t != null && pose.level < t) continue
+                }
                 val p = place(shape, layer, desc, pose) ?: continue
                 if (p is Placed.Poly && p.pts.size < 3) continue
                 if (!layer.soft.isNullOrEmpty()) drawSoft(t, p, layer) else drawBody(t, p, layer)
